@@ -1319,6 +1319,16 @@ function reviewNextAction(blocking: number, completion: number, findingCount: nu
   return findingCount > 0 ? 'parked' : 'advance'
 }
 
+// #2865 — name every acceptance criterion the reviewer did not PASS, in envelope order.
+function nonPassSuffix(fit: Record<string, unknown>): string {
+  const criteria: unknown[] = Array.isArray(fit['criteria']) ? fit['criteria'] : []
+  const open = criteria
+    .map((c) => (c ?? {}) as { id?: unknown; verdict?: unknown })
+    .filter((c) => c.verdict !== 'PASS')
+    .map((c) => `${String(c.id)} ${String(c.verdict)}`)
+  return open.length === 0 ? '' : ` · non-PASS: ${open.join(', ')}`
+}
+
 function executeCodexReviewRound(input: ExecuteCodexReviewRoundOptions): string {
   const { root, plan, profile } = input
   const { taskId, planRef, cfg } = codexReviewContext(root, profile, plan)
@@ -1332,7 +1342,7 @@ function executeCodexReviewRound(input: ExecuteCodexReviewRoundOptions): string 
   if (completion === 2) throw noReviewData(plan, 'review completion check errored')
   const blocking = blockingFindingCount(findings)
   const next = reviewNextAction(blocking, completion, findings.length)
-  return `review round ${plan.rounds}: ${envelope.verdict} — ${findings.length} findings (${blocking} blocking) · next: ${next}`
+  return `review round ${plan.rounds}: ${envelope.verdict} — ${findings.length} findings (${blocking} blocking) · next: ${next}${nonPassSuffix(envelope.acceptanceFit)}`
 }
 
 function configuredCodexSeat(profile: ShipProfile, treatment: ShipTreatment): boolean {

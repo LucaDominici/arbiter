@@ -688,8 +688,14 @@ describe('review rounds own the Codex seat (#2747)', () => {
     return sha
   }
 
-  function runRound(output: string | null, options: { delayMs?: number; timeoutMs?: number } = {}) {
-    const sha = seedRuntimeFixture()
+  function runRound(
+    output: string | null,
+    options: { delayMs?: number; timeoutMs?: number; plan?: string } = {},
+  ) {
+    const sha = seedRuntimeFixture(
+      [],
+      options.plan === undefined ? {} : { 'plan.md': options.plan },
+    )
     const bin = installCodex(output, options.delayMs)
     // The fixture bin comes first; a missing fixture must not fall through to a real codex on the host.
     vi.stubEnv(
@@ -712,6 +718,35 @@ describe('review rounds own the Codex seat (#2747)', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
+  })
+
+  describe('non-PASS criteria (#2865)', () => {
+    const markedPlan =
+      '# Plan\n\n## Acceptance Criteria\n- AC-1: [exact-main] ships on main\n- AC-2: ships\n'
+    const fitWith = (ac1: string, ac2: string): string =>
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[{"id":"AC-1","verdict":"${ac1}","evidence":[{"file":"plan.md","line":4}]},{"id":"AC-2","verdict":"${ac2}","evidence":[{"file":"plan.md","line":5}]}]}}`
+    const acFit = (): string => join(dir, '.arbiter', 'evidence', 'ac-fit', '2747.json')
+
+    it('records a PASS envelope with an unmarked NOT-TESTED as a review return, not an ac-fit', () => {
+      const result = runRound(fitWith('PASS', 'NOT-TESTED'), { plan: markedPlan })
+
+      expect(buildShipStepLines(result)).toContain(
+        'review round 1: PASS — 0 findings (0 blocking) · next: advance · non-PASS: AC-2 NOT-TESTED',
+      )
+      expect(readdirSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toHaveLength(
+        1,
+      )
+      expect(existsSync(acFit())).toBe(false)
+    })
+
+    it('records the ac-fit when only an [exact-main] criterion is NOT-TESTED', () => {
+      const result = runRound(fitWith('NOT-TESTED', 'PASS'), { plan: markedPlan })
+
+      expect(buildShipStepLines(result)).toContain(
+        'review round 1: PASS — 0 findings (0 blocking) · next: advance · non-PASS: AC-1 NOT-TESTED',
+      )
+      expect(existsSync(acFit())).toBe(true)
+    })
   })
 
   it('runs the Codex seat in the foreground, records provenance, and passes completion', () => {
@@ -769,7 +804,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     )
 
     expect(buildShipStepLines(result)).toContain(
-      'review round 1: FAIL — 1 findings (1 blocking) · next: rework',
+      'review round 1: FAIL — 1 findings (1 blocking) · next: rework · non-PASS: AC-1 FAIL',
     )
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(true)
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'ac-fit', '2747.json'))).toBe(false)
@@ -1067,7 +1102,10 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it.each([
     ['PASS', 'review round 1: PASS — 0 findings (0 blocking) · next: rework'],
-    ['blocking', 'review round 1: FAIL — 1 findings (1 blocking) · next: rework'],
+    [
+      'blocking',
+      'review round 1: FAIL — 1 findings (1 blocking) · next: rework · non-PASS: AC-1 FAIL',
+    ],
   ])(
     '#2858 R3: a mixed-panel retry reuses the admitted %s Codex seat instead of crashing',
     (verdict, round) => {
