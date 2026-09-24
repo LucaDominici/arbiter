@@ -96,6 +96,15 @@ function resolveLanguage(dir: string): Language {
   return detectLanguage(dir)
 }
 
+function extensionRunner(testPath: string): readonly string[] | undefined {
+  // #2656: a JS/TS test file is a vitest test whatever the repo language (a Go
+  // consumer testing its gate scripts with vitest must not get `go test ./scripts`).
+  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(testPath)) return ['npx', 'vitest', 'run', testPath]
+  // #2862: a shell test is executed, whatever the repo language.
+  if (testPath.endsWith('.sh')) return ['bash', testPath]
+  return undefined
+}
+
 /**
  * Select the test runner for a single failing test from the test path's
  * extension (JS/TS → vitest) and otherwise the project language.
@@ -103,11 +112,8 @@ function resolveLanguage(dir: string): Language {
  * user can override the exact command with `--test-command` for precise runs.
  */
 function selectRunner(language: Language, testPath: string): readonly string[] {
-  // #2656: a JS/TS test file is a vitest test whatever the repo language (a Go
-  // consumer testing its gate scripts with vitest must not get `go test ./scripts`).
-  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(testPath)) return ['npx', 'vitest', 'run', testPath]
-  // #2862: a shell test is executed, whatever the repo language.
-  if (testPath.endsWith('.sh')) return ['bash', testPath]
+  const byExtension = extensionRunner(testPath)
+  if (byExtension) return byExtension
   switch (language) {
     case 'go':
       // `go test` takes a package path, not a file. Scope to the file's
