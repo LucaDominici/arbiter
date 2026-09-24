@@ -208,7 +208,7 @@ function inspectTranscript(raw, { startedAt, plan }) {
         if ((EDIT_TOOLS.has(tool) || tool === 'skill') && timestamp === null) {
           return { error: `transcript record ${index + 1} has an invalid tool timestamp` };
         }
-        uses.set(blockValue.id, { tool, input: blockValue.input, timestamp });
+        uses.set(blockValue.id, { tool, input: blockValue.input, timestamp, sequence: index });
       } else if (blockValue.type === 'tool_result') {
         if (record.message?.role !== 'user') {
           return {
@@ -226,21 +226,26 @@ function inspectTranscript(raw, { startedAt, plan }) {
         if (blockValue.is_error !== undefined && typeof blockValue.is_error !== 'boolean') {
           return { error: `transcript result for ${blockValue.tool_use_id} has invalid is_error` };
         }
-        results.set(blockValue.tool_use_id, { ok: blockValue.is_error !== true });
+        results.set(blockValue.tool_use_id, { ok: blockValue.is_error !== true, sequence: index });
       }
     }
   }
 
-  // #2861 AC-4: a successful Skill(tdd) forgives only the edits after it; earlier edits still
-  // count unless a committed receipt covers the phase. Walk results in arrival order (#2383): an
-  // edit whose result lands before the skill's successful result is not after it.
-  let lastEditId = null;
-  let skillObserved = false;
+  // #2861 AC-4: a successful Skill(tdd) forgives only the edits CALLED after its result (#2383
+  // ordering: edit call vs skill result). An edit called before, or while the skill is in flight,
+  // still counts unless a committed receipt covers the phase.
+  let skillResultAt = Infinity;
   for (const [id, result] of results) {
     const use = uses.get(id);
-    if (!result.ok || use.timestamp < startedAt) continue;
-    if (EDIT_TOOLS.has(use.tool) && !skillObserved && !exemptEdit(use.input, plan)) lastEditId = id;
-    if (use.tool === 'skill' && use.input?.skill?.toLowerCase?.() === 'tdd') skillObserved = true;
+    if (!result.ok || use.timestamp < startedAt || use.tool !== 'skill') continue;
+    if (use.input?.skill?.toLowerCase?.() === 'tdd')
+      skillResultAt = Math.min(skillResultAt, result.sequence);
+  }
+  let lastEditId = null;
+  for (const [id, result] of results) {
+    const use = uses.get(id);
+    if (!result.ok || use.timestamp < startedAt || !EDIT_TOOLS.has(use.tool)) continue;
+    if (use.sequence <= skillResultAt && !exemptEdit(use.input, plan)) lastEditId = id;
   }
   return { lastEditId };
 }
