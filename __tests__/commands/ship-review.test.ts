@@ -601,7 +601,10 @@ describe('review rounds own the Codex seat (#2747)', () => {
     return bin
   }
 
-  function seedRuntimeFixture(): string {
+  function seedRuntimeFixture(
+    extraScripts: readonly string[] = [],
+    extraFiles: Record<string, string> = {},
+  ): string {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-review-runtime-'))
     execFileSync('git', ['init', '-q', '-b', 'task/#2747-review-runtime'], { cwd: dir })
     execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: dir })
@@ -621,10 +624,14 @@ describe('review rounds own the Codex seat (#2747)', () => {
       'scripts/lib/gate-args.mjs',
       'scripts/lib/run-helpers.mjs',
       'scripts/lib/suppressions-shared.mjs',
+      ...extraScripts,
     ]) {
       const target = join(dir, relativePath)
       mkdirSync(join(target, '..'), { recursive: true })
       copyFileSync(join(process.cwd(), relativePath), target)
+    }
+    for (const [relativePath, content] of Object.entries(extraFiles)) {
+      writeFileSync(join(dir, relativePath), content)
     }
 
     execFileSync('git', ['add', '-A'], { cwd: dir })
@@ -962,6 +969,66 @@ describe('review rounds own the Codex seat (#2747)', () => {
     ).toThrow(/arbiter update --only scripts\/check-review-completion\.mjs/)
     expect(readUnifiedState(dir)?.review).toEqual(reviewed)
   })
+
+  it.each([
+    ['PASS', 'review round 1: PASS — 0 findings (0 blocking) · next: rework'],
+    ['blocking', 'review round 1: FAIL — 1 findings (1 blocking) · next: rework'],
+  ])(
+    '#2858 R3: a mixed-panel retry reuses the admitted %s Codex seat instead of crashing',
+    (verdict, round) => {
+      const originalPath = process.env.PATH ?? ''
+      const sha = seedRuntimeFixture(
+        ['scripts/check-cross-model-review.mjs', 'schemas/cross-model-dispatch.schema.json'],
+        {
+          'arbiter.json': JSON.stringify({ crossModelReview: codexConfig }),
+        },
+      )
+      const seeded = readUnifiedState(dir)?.treatment
+      writeUnifiedState(dir, {
+        treatment: {
+          ...seeded!,
+          tier: 'Standard',
+          sensitive: true,
+          finalReviewers: 2,
+          reviewerVerticals: ['security', 'data-integrity'],
+        },
+      })
+      const first = reviewWith(
+        verdict === 'PASS'
+          ? `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`
+          : blockingFail,
+        sha,
+        originalPath,
+      )
+      expect(buildShipStepLines(first)).toContain(round)
+      const sidecar = JSON.parse(
+        readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
+      )
+      expect(sidecar).toMatchObject({
+        count: 2,
+        agents: ['anthropic-reviewer', 'codex-reviewer'],
+        treatmentHash: readUnifiedState(dir)?.treatment?.signalsHash,
+      })
+
+      const marker = join(dir, 'bin', 'codex-invoked')
+      const bin = join(dir, 'bin', 'retry')
+      mkdirSync(bin, { recursive: true })
+      writeFileSync(join(bin, 'codex'), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, 'utf8')
+      chmodSync(join(bin, 'codex'), 0o755)
+      vi.stubEnv('PATH', `${bin}:${originalPath}`)
+      const retry = runTaskShip({
+        dir,
+        reviewRound: true,
+        headSha: sha,
+        profileOverride: codexProfile,
+        externalModelAccess: codexAccess,
+      })
+
+      expect(buildShipStepLines(retry)).toContain(round)
+      expect(existsSync(marker)).toBe(false)
+      expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: sha })
+    },
+  )
 
   it('keeps plan-only behavior when the planned treatment has no Codex seat', () => {
     const sha = seedRuntimeFixture()
