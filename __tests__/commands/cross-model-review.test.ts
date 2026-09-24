@@ -1333,6 +1333,55 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
     }
   })
 
+  it('#2858 R2: keeps the provenance binding of the native agents a mixed panel retains', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-native-binding-'))
+    try {
+      mockedRunCli.mockReturnValue({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      const native = { vendor: 'anthropic', dispatch: 'subagent' }
+      writeFileSync(
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({
+          count: 3,
+          agents: ['domain', 'security', 'codex-reviewer'],
+          expectedProvenance: { domain: native, security: native, dropped: native },
+          taskId: '#2357',
+          branch: 'diff',
+          sha: 'diff',
+        }),
+      )
+
+      writeExternalReviewSidecar({
+        repoRoot: dir,
+        taskId: '#2357',
+        result: {
+          provider: 'codex',
+          status: 'fulfilled',
+          diffBytes: 1,
+          diffTruncated: false,
+          degradationReasons: [],
+          recorded: true,
+          envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+        },
+        treatment: {
+          finalReviewers: 2,
+          reviewerVerticals: ['domain', 'bugs'],
+          signalsHash: 'treatment-hash',
+        },
+      })
+
+      expect(
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'))
+          .expectedProvenance,
+      ).toEqual({
+        domain: native,
+        'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('does not grow a trunk-solo Standard sidecar', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-trunk-solo-'))
     try {
