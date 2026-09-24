@@ -740,7 +740,13 @@ function finalizeResult(
 ): ExternalReviewResult {
   writeDispatchEvidence(request, plan, result, envelopePath, error)
   if (request.cfg.onUnavailable === 'fail' && result.status === 'degraded') {
-    throw new Error(`cross-model review unavailable: ${result.degradationReasons.join(', ')}`)
+    const reasons = result.degradationReasons.join(', ')
+    // #2858 — the fail policy carries the recorder diagnostic the degrade policy returns.
+    throw new Error(
+      `cross-model review unavailable: ${
+        result.rejectionDetail === undefined ? reasons : `${reasons}: ${result.rejectionDetail}`
+      }`,
+    )
   }
   return result
 }

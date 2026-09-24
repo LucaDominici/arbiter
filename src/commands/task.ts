@@ -2,7 +2,7 @@
 import { existsSync, lstatSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { readFileTranslated } from '../utils/fs.js'
+import { readFileTranslated, toFsError } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { normalizeChainId } from './task-state.js'
 import { getBoolFlag, getNumberFlag } from '../config/env-registry.js'
@@ -21,7 +21,7 @@ import {
   invalidateTaskReceipts,
 } from './task-state.js'
 import { getLogger } from '../utils/logger.js'
-import { runCli, type RunCliResult } from '../utils/run-cli.js'
+import { CliError, runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
 import { UserFacingError } from '../utils/errors.js'
@@ -1407,9 +1407,10 @@ function reviewerFindings(raw: unknown): ReviewRoundEnvelope['findings'] | null 
 }
 
 /**
- * #2858 — a reviewer return counts for the round only when check-review-completion correlates it
- * with the dispatch record: one rule for this lookup and the completion gate. No dispatch record
- * means no verdict; a missing script or unreadable answer throws instead of reopening the round.
+ * #2858 — a reviewer return counts for the round only when check-review-completion admits the
+ * dispatched panel: one rule for this lookup and the completion gate. Only an absent dispatch
+ * record means no verdict; a dangling link, a missing script, or an answer outside the query
+ * contract throws instead of reopening or closing the round.
  */
 function latestReviewerEnvelopeFor(
   dir: string,
@@ -1417,17 +1418,14 @@ function latestReviewerEnvelopeFor(
   frozenSha: string | null,
 ): ReviewRoundEnvelope | undefined {
   if (taskId === undefined || frozenSha === null) return undefined
-  if (!existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))) return undefined
-  const stdout = runRequiredTaskChecker(dir, 'check-review-completion.mjs', [
-    '--task',
-    taskId,
-    `--correlated-sha=${frozenSha}`,
-  ])
-  const parsed: unknown = JSON.parse(stdout)
-  const envelopes = isRecord(parsed) ? parsed['envelopes'] : undefined
-  if (!Array.isArray(envelopes) || !envelopes.every(isRecord)) {
-    throw new Error(`check-review-completion.mjs returned no correlated envelope list: ${stdout}`)
+  const sidecar = join(dir, '.arbiter', 'agents-dispatched.json')
+  try {
+    lstatSync(sidecar)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw toFsError(error, sidecar)
   }
+  const envelopes = correlatedReviewEnvelopes(dir, taskId, frozenSha)
   const findings: { severity: string }[] = []
   for (const envelope of envelopes) {
     const correlated = reviewerFindings(envelope['findings'])
@@ -1437,6 +1435,49 @@ function latestReviewerEnvelopeFor(
     findings.push(...correlated)
   }
   return envelopes.length > 0 ? { sha: frozenSha, findings } : undefined
+}
+
+/**
+ * #2858 — a consumer checker generated before the query exits 1 with its gate report or 0 with
+ * text; neither is a verdict, so the lookup fails closed and names the regeneration.
+ */
+function staleReviewChecker(answer: string, cause: unknown): Error {
+  return new Error(
+    `check-review-completion.mjs does not answer the --correlated-sha review query; run \`arbiter update --only scripts/check-review-completion.mjs\` (it answered: ${answer.trim()})`,
+    { cause },
+  )
+}
+
+function correlatedReviewEnvelopes(
+  dir: string,
+  taskId: string,
+  frozenSha: string,
+): Record<string, unknown>[] {
+  let stdout: string
+  try {
+    stdout = runRequiredTaskChecker(dir, 'check-review-completion.mjs', [
+      '--task',
+      taskId,
+      `--correlated-sha=${frozenSha}`,
+    ])
+  } catch (error) {
+    const cause = error instanceof Error ? error.cause : undefined
+    if (cause instanceof CliError && cause.exitCode === 1) {
+      throw staleReviewChecker(`${cause.stdout}${cause.stderr}`, error)
+    }
+    throw error
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stdout)
+  } catch (error) {
+    throw staleReviewChecker(stdout, error)
+  }
+  const envelopes = isRecord(parsed) ? parsed['envelopes'] : undefined
+  if (!Array.isArray(envelopes) || !envelopes.every(isRecord)) {
+    throw staleReviewChecker(stdout, undefined)
+  }
+  return envelopes
 }
 
 function assertReviewSubjectFrozen(dir: string): void {

@@ -299,11 +299,17 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     const reviewed = git('rev-parse', 'HEAD')
     ship({ advance: true, headSha: reviewed })
     ship({ reviewRound: true, headSha: reviewed })
+    // #2858 R2: the round verdict is the complete panel of the active treatment.
+    const treatment = readUnifiedState(dir)?.treatment
+    if (treatment === undefined) throw new Error('fixture has no persisted ship treatment')
+    const panel = treatment.reviewerVerticals
     writeFileSync(
       join(dir, '.arbiter', 'agents-dispatched.json'),
       JSON.stringify({
-        count: 1,
-        agents: ['domain'],
+        count: treatment.finalReviewers,
+        agents: panel,
+        auditors: panel,
+        treatmentHash: treatment.signalsHash,
         taskId: '#100',
         branch: 'task/#100-review',
         sha: reviewed,
@@ -311,22 +317,24 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     )
     const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
     mkdirSync(evidenceDir, { recursive: true })
-    writeFileSync(
-      join(evidenceDir, 'domain-0.json'),
-      JSON.stringify({
-        schema: 'arbiter-agent-return-v1',
-        agent: 'domain',
-        role: 'reviewer',
-        taskId: '#100',
-        branch: 'task/#100-review',
-        sha: reviewed,
-        ts: '2026-09-20T00:00:00.000Z',
-        verdict: 'PASS',
-        confidence: 1,
-        findings: [],
-        provenance: { vendor: 'anthropic', dispatch: 'subagent' },
-      }),
-    )
+    for (const agent of panel) {
+      writeFileSync(
+        join(evidenceDir, `${agent}-0.json`),
+        JSON.stringify({
+          schema: 'arbiter-agent-return-v1',
+          agent,
+          role: 'reviewer',
+          taskId: '#100',
+          branch: 'task/#100-review',
+          sha: reviewed,
+          ts: '2026-09-20T00:00:00.000Z',
+          verdict: 'PASS',
+          confidence: 1,
+          findings: [],
+          provenance: { vendor: 'anthropic', dispatch: 'subagent' },
+        }),
+      )
+    }
     mkdirSync(join(dir, '.agents'), { recursive: true })
     writeFileSync(join(dir, '.agents', 'handoff.md'), '# evidence only\n')
     git('add', '.agents/handoff.md')

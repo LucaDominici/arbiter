@@ -284,7 +284,10 @@ function writeExternalReviewSidecar({
         ...(treatment !== undefined
           ? { auditors: treatment.reviewerVerticals, treatmentHash: treatment.signalsHash }
           : {}),
-        expectedProvenance: { 'codex-reviewer': CODEX_REVIEWER_PROVENANCE },
+        expectedProvenance: {
+          ...retainedProvenance(existing, panel.agents),
+          'codex-reviewer': CODEX_REVIEWER_PROVENANCE,
+        },
         taskId,
         branch,
         sha,
@@ -293,6 +296,16 @@ function writeExternalReviewSidecar({
       2,
     )}\n`,
   )
+}
+
+/** #2858 — a retained native agent keeps the provenance its panel was dispatched with. */
+function retainedProvenance(
+  existing: ReviewSidecar | null,
+  agents: readonly string[],
+): Record<string, unknown> {
+  const recorded = existing?.expectedProvenance
+  if (!isRecord(recorded)) return {}
+  return Object.fromEntries(Object.entries(recorded).filter(([agent]) => agents.includes(agent)))
 }
 
 function treatmentSidecarAgents(

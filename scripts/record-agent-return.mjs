@@ -587,6 +587,9 @@ function writeReviewerPanel(validated, agents, requirement, acceptanceFit, ancho
       `${TASK_ID.replace(/[^0-9A-Za-z-]/g, '')}.json`,
       `${JSON.stringify(fit, null, 2)}\n`,
     )
+    // #2858 — bind the panel to the provenance its envelopes were stamped with.
+    const { vendor, dispatch, cli } = stampAgentProvenance()
+    const bound = { vendor, dispatch, ...(cli !== undefined ? { cli } : {}) }
     writeAtomicContained(
       REPO_ROOT,
       ['.arbiter'],
@@ -596,6 +599,7 @@ function writeReviewerPanel(validated, agents, requirement, acceptanceFit, ancho
         agents,
         auditors: requirement.auditors,
         treatmentHash: requirement.treatmentHash,
+        expectedProvenance: Object.fromEntries(agents.map((agent) => [agent, bound])),
         branch: stamped.branch,
         sha: stamped.sha,
         taskId: TASK_ID,
