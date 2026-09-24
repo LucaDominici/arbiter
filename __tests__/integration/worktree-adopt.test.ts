@@ -298,6 +298,10 @@ describe('runWorktreeAdopt', () => {
 
     const cwd = vi.spyOn(process, 'cwd').mockReturnValue(checkout)
     expect(() => runTaskReviewRound({ dir: checkout })).toThrow(/binding is stale/i)
+    // #2862 AC-4: the stale error names the exact recovery command.
+    expect(() => runTaskReviewRound({ dir: checkout })).toThrow(
+      `arbiter lifecycle preflight --id '#2564' --worktree "${realpathSync(checkout)}"`,
+    )
     cwd.mockRestore()
     expect(() =>
       runTaskInit({ id: '#2564', dir: checkout, host: { cwd: checkout, env: {} } }),
