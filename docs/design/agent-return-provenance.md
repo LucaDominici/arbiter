@@ -113,8 +113,11 @@ in `expectedProvenance`, and a Codex rewrite keeps the bindings of the native ag
 retains. `check-review-completion.mjs --correlated-sha=<sha>` applies the same panel
 admission as the completion gate (active treatment, every dispatched agent present, all
 valid shards per agent) and prints the envelopes as `{"envelopes":[...]}` only for a
-complete round; an incomplete round prints an empty list. The round lookup in `task.ts`
-uses that output instead of scanning the directory itself. An undispatched file never
+complete round; an incomplete round prints an empty list. The same output lists each
+admitted seat's shards under `seats`, even while another seat is missing: the `/ship`
+Codex cache reuses the Codex seat's envelope only when that seat is admitted there, so
+retrying an incomplete mixed panel dispatches only the missing seats. The round lookup
+in `task.ts` uses that output instead of scanning the directory itself. An undispatched file never
 closes a round. When the recorder rejects an envelope, its exit code and output tail are
 carried into `E_REVIEW_NO_DATA` under both `onUnavailable` policies. A generated checker
 that predates the query fails the lookup closed and names
