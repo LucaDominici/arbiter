@@ -37,8 +37,12 @@ function parseShell(input) {
   let quote = null
   let escaped = false
   let unsupported = false
+  let redirectTarget = false
   const pushToken = () => {
-    if (token) {
+    // A redirection target is a file name, not an argument; one that expands stays in argv.
+    if (token && redirectTarget && !tokenHasExecutableExpansion) redirectTarget = false
+    else if (token) {
+      redirectTarget = false
       commands.at(-1).push(token)
       executableExpansions.at(-1).push(tokenHasExecutableExpansion)
     }
@@ -47,6 +51,7 @@ function parseShell(input) {
   }
   const pushCommand = () => {
     pushToken()
+    if (redirectTarget) unsupported = true
     if (commands.at(-1).length > 0) {
       commands.push([])
       executableExpansions.push([])
@@ -73,6 +78,12 @@ function parseShell(input) {
     } else if (char === ';' || char === '|' || (char === '&' && input[index + 1] === '&')) {
       pushCommand()
       if ((char === '|' && input[index + 1] === '|') || char === '&') index += 1
+    } else if (outputRedirectionEnd(input, index) >= 0) {
+      if (/^\d+$/.test(token)) token = ''
+      else pushToken()
+      if (redirectTarget) unsupported = true
+      index = outputRedirectionEnd(input, index)
+      redirectTarget = true
     } else if (
       char === '`' ||
       (char === '$' && input[index + 1] === '(') ||
@@ -91,12 +102,21 @@ function parseShell(input) {
       token += char
     }
   }
-  pushToken()
+  pushCommand()
   if (commands.at(-1).length === 0) {
     commands.pop()
     executableExpansions.pop()
   }
   return { commands, executableExpansions, ambiguous: quote !== null || escaped || unsupported }
+}
+
+// #2862: `>`, `>>`, `>|`, `&>`, `&>>`, `N>` and `N>&M` only send the command's output somewhere;
+// they run nothing. Returns the operator's last index, or -1 when none starts at index. A `>(`
+// process substitution runs a command, so it is not one.
+function outputRedirectionEnd(input, index) {
+  const operator = /^(?:&>>?|>[>|&]?)/.exec(input.slice(index))?.[0]
+  if (!operator || input[index + operator.length] === '(') return -1
+  return index + operator.length - 1
 }
 
 // #2862: `$(cat <<'EOF' … EOF)` with a quoted delimiter expands to its literal body, so the
@@ -115,33 +135,64 @@ const blanked = blankQuotedCatHeredocs(command)
 const dataOnly = parseShell(blanked).commands.every(
   (tokens) => tokens[0] === 'gh' || tokens[0] === 'git',
 )
+const PR_COMMAND_TEXT = /\bgh\s+pr\s+(?:create|ready)\b/
+const SHELL_NAMES = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh'])
+
+// #2862: `eval` and a shell's `-c` run their arguments as shell text, so those arguments are
+// commands, not data. Returns the command strings a segment hands to an interpreter.
+function interpreterPayloads(tokens) {
+  const evalIndex = tokens.indexOf('eval')
+  if (evalIndex >= 0) return [tokens.slice(evalIndex + 1).join(' ')]
+  const shellIndex = tokens.findIndex((token) => SHELL_NAMES.has(token.split('/').at(-1)))
+  if (shellIndex < 0) return []
+  const flagIndex = tokens.findIndex(
+    (token, index) => index > shellIndex && /^-[A-Za-z]*c[A-Za-z]*$/.test(token),
+  )
+  return flagIndex < 0 ? [] : tokens.slice(flagIndex + 1)
+}
+
+function runsPrCommand(payload) {
+  const nested = parseShell(payload)
+  const { guarded, ambiguous } = classifySegments(nested)
+  return (
+    guarded.length > 0 ||
+    ambiguous.length > 0 ||
+    (nested.ambiguous && PR_COMMAND_TEXT.test(payload))
+  )
+}
+
+function classifySegments(parsed) {
+  const parsedSegments = parsed.commands.map((tokens, index) => ({
+    tokens,
+    executableExpansions: parsed.executableExpansions[index],
+    index,
+  }))
+  const guarded = parsedSegments.filter(
+    ({ tokens }) =>
+      tokens[0] === 'gh' && tokens[1] === 'pr' && (tokens[2] === 'create' || tokens[2] === 'ready'),
+  )
+  const ambiguous = parsedSegments.filter(({ tokens, executableExpansions }) => {
+    const normalized = tokens.map((token) => token.replace(/^[({$`]+|[)}`]+$/g, ''))
+    return (
+      normalized.some(
+        (token, index) =>
+          token === 'gh' &&
+          normalized[index + 1] === 'pr' &&
+          (normalized[index + 2] === 'create' || normalized[index + 2] === 'ready') &&
+          !(index === 0 && tokens[0] === 'gh'),
+      ) ||
+      tokens.some(
+        (token, index) => executableExpansions[index] === true && PR_COMMAND_TEXT.test(token),
+      ) ||
+      interpreterPayloads(tokens).some(runsPrCommand)
+    )
+  })
+  return { guarded, ambiguous }
+}
+
 const parsed = parseShell(dataOnly ? blanked : command)
 const segments = parsed.commands
-const parsedSegments = segments.map((tokens, index) => ({
-  tokens,
-  executableExpansions: parsed.executableExpansions[index],
-  index,
-}))
-const guardedSegments = parsedSegments.filter(
-  ({ tokens }) =>
-    tokens[0] === 'gh' && tokens[1] === 'pr' && (tokens[2] === 'create' || tokens[2] === 'ready'),
-)
-const ambiguousGuardSegments = parsedSegments.filter(({ tokens, executableExpansions }) => {
-  const normalized = tokens.map((token) => token.replace(/^[({$`]+|[)}`]+$/g, ''))
-  return (
-    normalized.some(
-      (token, index) =>
-        token === 'gh' &&
-        normalized[index + 1] === 'pr' &&
-        (normalized[index + 2] === 'create' || normalized[index + 2] === 'ready') &&
-        !(index === 0 && tokens[0] === 'gh'),
-    ) ||
-    tokens.some(
-      (token, index) =>
-        executableExpansions[index] === true && /\bgh\s+pr\s+(?:create|ready)\b/.test(token),
-    )
-  )
-})
+const { guarded: guardedSegments, ambiguous: ambiguousGuardSegments } = classifySegments(parsed)
 const hasGuardSegment = guardedSegments.length > 0 || ambiguousGuardSegments.length > 0
 if (!hasGuardSegment) process.exit(0)
 const hasAmbiguousGuard = parsed.ambiguous || ambiguousGuardSegments.length > 0

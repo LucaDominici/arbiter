@@ -350,7 +350,7 @@
     ".claude/hooks/check-no-skipped-tests.mjs": "b96b8d8770a981bd76f2710ea81825393774e4be22548b3617a2f9f2079605f6",
     ".claude/hooks/closer-mode-guard.mjs": "0c4a5d46ab05b350fc531e7af4a1a0d6563e2cf0e12f11751d49ebaedfc922b9",
     ".claude/hooks/debug-state-on-failure.mjs": "cc2360cb96de05ae2754f79f482eeb1c0d3d203a82e3e2104b3a357a9d87954f",
-    ".claude/hooks/enforce-gate-before-pr.mjs": "8c10ebebbd71a737073dad69f64e27d5476c3d34816e9a38e59a717593efaf0e",
+    ".claude/hooks/enforce-gate-before-pr.mjs": "1fef18ae4ff11a33f2877a1f136f0624fdb5ef00ac5442111c0779a53a31e002",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/exitplanmode-banner.mjs": "2542fcd141fcfd27ffb872b7a624c9bdfc1a42bcc9ab8cf2bd16da0a32952e55",
     ".claude/hooks/guard-task-completion.mjs": "549c358887fbb4e0690d0dd7d2b276b1832a16179822aae3c0c4adc364c5426c",
