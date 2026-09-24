@@ -449,7 +449,7 @@ describe('runTaskShip deterministic widening (#2180)', () => {
     })
 
     expect(result.tier).toBe('Standard')
-    expect(result.step).toEqual(shipStepFor('preflight', 'Standard', result.profile))
+    expect(result.step).toEqual(shipStepFor('preflight', 'Standard', result.profile, '#2180'))
   })
 
   it('still gathers signals for Standard so sensitive obligations cannot be skipped', () => {
@@ -464,7 +464,7 @@ describe('runTaskShip deterministic widening (#2180)', () => {
 
     expect(gatherSignals).toHaveBeenCalledTimes(1)
     expect(result.tier).toBe('Standard')
-    expect(result.step).toEqual(shipStepFor('preflight', 'Standard', result.profile))
+    expect(result.step).toEqual(shipStepFor('preflight', 'Standard', result.profile, '#2180'))
   })
 
   it('gathers signals exactly once when an XS tier could be widened', () => {
