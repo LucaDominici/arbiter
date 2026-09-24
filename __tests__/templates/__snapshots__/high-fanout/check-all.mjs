@@ -261,6 +261,7 @@ if (dryRun) {
   if (existsSync('scripts/debt-baseline.json')) {
     try {
       const _debtMetrics = JSON.parse(readFileSync('scripts/debt-baseline.json', 'utf8')).metrics;
+      const { DEBT_METRIC_TOLERANCES } = await import('./debt-lib.mjs');
       if (!_debtMetrics || typeof _debtMetrics !== 'object') {
         throw new Error('metrics object is missing');
       }
@@ -269,6 +270,7 @@ if (dryRun) {
         value: _metric.value,
         source: `scripts/debt-baseline.json#metrics.${_name}.value`,
         direction: _metric.direction,
+        tolerance: DEBT_METRIC_TOLERANCES[_name] ?? 0,
         ...(DEBT_METRIC_COMMANDS[_name] ? {
           measurement: DEBT_METRIC_COMMANDS[_name]
             .map((_part) => /^[A-Za-z0-9_./:@=-]+$/.test(_part) ? _part : JSON.stringify(_part))

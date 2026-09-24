@@ -45,6 +45,7 @@ import {
   isMainModule,
 } from './lib/run-helpers.mjs'
 import { checkDistFresh } from './lib/dist-staleness.mjs'
+import { DEBT_METRIC_TOLERANCES } from './debt-lib.mjs'
 import { DEBT_METRIC_COMMANDS } from './lib/debt-metric-contract.mjs'
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs'
 import { effectiveGateLevel, parseCheckArgs } from './lib/parse-check-args.mjs'
@@ -185,6 +186,7 @@ if (isMain) {
         value: metric.value,
         source: `${path}#metrics.${name}.value`,
         direction: metric.direction,
+        tolerance: DEBT_METRIC_TOLERANCES[name] ?? 0,
         ...(DEBT_METRIC_COMMANDS[name]
           ? {
               measurement: commandText(

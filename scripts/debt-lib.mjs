@@ -366,6 +366,17 @@ export function countTodos(cwd) {
   return count
 }
 
+// Measurement-noise tolerance for v8-coverage metrics (#2253): CI's v8
+// collector measures ~0.2pp lower than a locally-captured baseline on the
+// same code (platform/timing variance in which lines v8 marks covered), so a
+// strict any-decrease-is-a-regression comparison is structurally prone to a
+// first-CI false regression the moment the baseline is captured on a
+// different machine than CI (observed: line coverage -0.16pp, branch coverage
+// -0.22pp — both well under a real change). check-coverage-ratchet.mjs
+// (#1483) carries this exact TOLERANCE=0.4 pp noise floor for the
+// same v8-jitter reason; mirroring its value here is parity, not invention.
+export const DEBT_METRIC_TOLERANCES = Object.freeze({ coverageLine: 0.4, coverageBranch: 0.4 })
+
 /** Count top-level TypeScript export declarations without platform grep heuristics. */
 export function countPublicApi(cwd) {
   let count = 0

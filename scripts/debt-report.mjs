@@ -6,7 +6,7 @@
 // --require-improvement: exit non-zero if no metric improved (L3 mode)
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { collectMetrics, countTodos } from './debt-lib.mjs'
+import { DEBT_METRIC_TOLERANCES, collectMetrics, countTodos } from './debt-lib.mjs'
 
 function optionValue(name) {
   const index = process.argv.indexOf(name)
@@ -103,18 +103,6 @@ if (onlyMetric !== undefined && current[onlyMetric] === undefined) {
   process.exit(2)
 }
 
-// Measurement-noise tolerance for v8-coverage metrics (#2253): CI's v8
-// collector measures ~0.2pp lower than a locally-captured baseline on the
-// same code (platform/timing variance in which lines v8 marks covered), so a
-// strict any-decrease-is-a-regression comparison is structurally prone to a
-// first-CI false regression the moment the baseline is captured on a
-// different machine than CI (observed: coverageLine -0.16pp, coverageBranch
-// -0.22pp — both well under a real change). check-coverage-ratchet.mjs
-// (#1483) carries this exact TOLERANCE=0.4 pp noise floor for the
-// same v8-jitter reason; mirroring its value here is parity, not invention.
-const COVERAGE_NOISE_TOLERANCE_PP = 0.4
-const NOISE_TOLERANT_METRICS = new Set(['coverageLine', 'coverageBranch'])
-
 // ─── Compare ──────────────────────────────────────────────────────────────────
 const rows = []
 let regressions = 0
@@ -143,7 +131,7 @@ for (const [key, base] of Object.entries(baselineMetrics)) {
     continue
   }
   const delta = curr.value - base.value
-  const tolerance = NOISE_TOLERANT_METRICS.has(key) ? COVERAGE_NOISE_TOLERANCE_PP : 0
+  const tolerance = DEBT_METRIC_TOLERANCES[key] ?? 0
   let status
   if (base.direction === 'higher-is-better') {
     if (curr.value > base.value) {
