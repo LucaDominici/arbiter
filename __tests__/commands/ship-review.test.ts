@@ -18,6 +18,7 @@ import {
   mkdtempSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
   readFileSync,
 } from 'node:fs'
@@ -281,26 +282,59 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
   it('#2850 D6: an evidence-only commit keeps a PASS round; a source commit re-reviews', () => {
     const git = (...args: string[]) =>
       execFileSync('git', args, { cwd: dir, encoding: 'utf-8' }).trim()
+    // #2858: the PASS counts only through the dispatch record check-review-completion reads.
+    for (const path of [
+      'scripts/check-review-completion.mjs',
+      'scripts/lib/agent-return-validate.mjs',
+      'scripts/lib/gate-args.mjs',
+      'scripts/lib/evidence-binding.mjs',
+      'scripts/lib/run-helpers.mjs',
+      'schemas/agent-return.schema.json',
+    ]) {
+      mkdirSync(join(dir, path, '..'), { recursive: true })
+      copyFileSync(resolve(import.meta.dirname, '../..', path), join(dir, path))
+    }
+    git('add', 'scripts', 'schemas')
+    git('commit', '-q', '-m', 'test: install review completion')
     const reviewed = git('rev-parse', 'HEAD')
     ship({ advance: true, headSha: reviewed })
     ship({ reviewRound: true, headSha: reviewed })
-    const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
-    mkdirSync(evidenceDir, { recursive: true })
+    // #2858 R2: the round verdict is the complete panel of the active treatment.
+    const treatment = readUnifiedState(dir)?.treatment
+    if (treatment === undefined) throw new Error('fixture has no persisted ship treatment')
+    const panel = treatment.reviewerVerticals
     writeFileSync(
-      join(evidenceDir, 'domain-0.json'),
+      join(dir, '.arbiter', 'agents-dispatched.json'),
       JSON.stringify({
-        schema: 'arbiter-agent-return-v1',
-        agent: 'domain',
-        role: 'reviewer',
+        count: treatment.finalReviewers,
+        agents: panel,
+        auditors: panel,
+        treatmentHash: treatment.signalsHash,
         taskId: '#100',
         branch: 'task/#100-review',
         sha: reviewed,
-        ts: '2026-09-20T00:00:00.000Z',
-        verdict: 'PASS',
-        confidence: 1,
-        findings: [],
       }),
     )
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
+    mkdirSync(evidenceDir, { recursive: true })
+    for (const agent of panel) {
+      writeFileSync(
+        join(evidenceDir, `${agent}-0.json`),
+        JSON.stringify({
+          schema: 'arbiter-agent-return-v1',
+          agent,
+          role: 'reviewer',
+          taskId: '#100',
+          branch: 'task/#100-review',
+          sha: reviewed,
+          ts: '2026-09-20T00:00:00.000Z',
+          verdict: 'PASS',
+          confidence: 1,
+          findings: [],
+          provenance: { vendor: 'anthropic', dispatch: 'subagent' },
+        }),
+      )
+    }
     mkdirSync(join(dir, '.agents'), { recursive: true })
     writeFileSync(join(dir, '.agents', 'handoff.md'), '# evidence only\n')
     git('add', '.agents/handoff.md')
@@ -567,7 +601,10 @@ describe('review rounds own the Codex seat (#2747)', () => {
     return bin
   }
 
-  function seedRuntimeFixture(): string {
+  function seedRuntimeFixture(
+    extraScripts: readonly string[] = [],
+    extraFiles: Record<string, string> = {},
+  ): string {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-review-runtime-'))
     execFileSync('git', ['init', '-q', '-b', 'task/#2747-review-runtime'], { cwd: dir })
     execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: dir })
@@ -587,10 +624,14 @@ describe('review rounds own the Codex seat (#2747)', () => {
       'scripts/lib/gate-args.mjs',
       'scripts/lib/run-helpers.mjs',
       'scripts/lib/suppressions-shared.mjs',
+      ...extraScripts,
     ]) {
       const target = join(dir, relativePath)
       mkdirSync(join(target, '..'), { recursive: true })
       copyFileSync(join(process.cwd(), relativePath), target)
+    }
+    for (const [relativePath, content] of Object.entries(extraFiles)) {
+      writeFileSync(join(dir, relativePath), content)
     }
 
     execFileSync('git', ['add', '-A'], { cwd: dir })
@@ -760,6 +801,299 @@ describe('review rounds own the Codex seat (#2747)', () => {
       'review round 1: PASS — 0 findings (0 blocking) · next: advance',
     )
     expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: secondSha })
+  })
+
+  function commitFix(): string {
+    writeFileSync(join(dir, 'candidate.ts'), 'export const candidate = true\n')
+    execFileSync('git', ['add', 'candidate.ts'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'fix: address review'], { cwd: dir })
+    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+  }
+
+  function reviewWith(
+    output: string,
+    headSha: string,
+    originalPath: string,
+    profile = codexProfile,
+  ) {
+    vi.stubEnv('PATH', `${installCodex(output)}:${originalPath}`)
+    return runTaskShip({
+      dir,
+      reviewRound: true,
+      headSha,
+      profileOverride: profile,
+      externalModelAccess: codexAccess,
+    })
+  }
+
+  const blockingFail =
+    '{"verdict":"FAIL","confidence":1,"findings":[{"id":"high-1","severity":"high","kind":"behavioral","claim":"The acceptance behavior is broken.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[{"id":"AC-1","verdict":"FAIL","evidence":[{"file":"plan.md","line":4}]}]}}'
+
+  const rejectedByRecorder = `{"verdict":"PASS","confidence":1,"findings":[{"id":"s-1","severity":"low","kind":"structural","claim":"Cites a file the subject lacks.","citations":[{"file":"missing-2858.ts","line":1}]}],"refutations":[],${passingFit}}`
+
+  function rejectedRound(fixed: string, originalPath: string): unknown {
+    try {
+      reviewWith(rejectedByRecorder, fixed, originalPath)
+    } catch (error) {
+      return error
+    }
+    return undefined
+  }
+
+  it('#2858: E_REVIEW_NO_DATA carries the recorder exit code and output tail', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const thrown = rejectedRound(commitFix(), originalPath)
+
+    expect(thrown).toMatchObject({ code: 'E_REVIEW_NO_DATA' })
+    expect(String((thrown as Error).message)).toMatch(/recorder exit 1: .*missing-2858\.ts/s)
+  })
+
+  it('#2858: an undispatched envelope never closes the open round; the native retry does', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const fixed = commitFix()
+
+    expect(rejectedRound(fixed, originalPath)).toMatchObject({ code: 'E_REVIEW_NO_DATA' })
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+
+    const returns = join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747')
+    const foreign = join(returns, `codex-reviewer-${readdirSync(returns).length}.json`)
+    writeFileSync(
+      foreign,
+      JSON.stringify({
+        schema: 'arbiter-agent-return-v1',
+        agent: 'codex-reviewer',
+        role: 'reviewer',
+        taskId: '#2747',
+        branch: 'task/#2747-review-runtime',
+        sha: fixed,
+        ts: '2026-09-24T00:00:00.000Z',
+        verdict: 'PASS',
+        confidence: 1,
+        findings: [],
+        provenance: { vendor: 'anthropic', dispatch: 'subagent' },
+      }),
+    )
+
+    const result = reviewWith(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      fixed,
+      originalPath,
+    )
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 2: PASS — 0 findings (0 blocking) · next: advance',
+    )
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+    expect(existsSync(foreign)).toBe(true)
+  })
+
+  it('#2858: a native blocking verdict still counts, so the fix opens the next round', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const fixed = commitFix()
+
+    const result = reviewWith(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      fixed,
+      originalPath,
+    )
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 2: PASS — 0 findings (0 blocking) · next: advance',
+    )
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+    const again = reviewWith(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      fixed,
+      originalPath,
+    )
+    expect(again.reviewDispatched).toBe(false)
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+  })
+
+  it('#2858 R2: onUnavailable fail still carries the recorder exit code and output tail', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const fixed = commitFix()
+
+    let thrown: unknown
+    try {
+      reviewWith(rejectedByRecorder, fixed, originalPath, {
+        ...TEST_PROFILE,
+        crossModelReview: { ...codexConfig, onUnavailable: 'fail' as const },
+      })
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(thrown).toMatchObject({ code: 'E_REVIEW_NO_DATA' })
+    expect(String((thrown as Error).message)).toMatch(/recorder exit 1: .*missing-2858\.ts/s)
+  })
+
+  it('#2858 R2: a dangling dispatch-record symlink is an error, not an absent round', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const sidecar = join(dir, '.arbiter', 'agents-dispatched.json')
+    rmSync(sidecar)
+    symlinkSync(join(dir, 'does-not-exist.json'), sidecar)
+    const reviewed = readUnifiedState(dir)?.review
+
+    expect(() =>
+      reviewWith(
+        `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+        commitFix(),
+        originalPath,
+      ),
+    ).toThrow(/agents-dispatched\.json is a symlink/)
+    expect(readUnifiedState(dir)?.review).toEqual(reviewed)
+  })
+
+  it.each([
+    ['exits 1 with its gate report', "console.error('FAIL review completion'); process.exit(1)\n"],
+    ['exits 0 with its gate report', "console.log('PASS review completion')\n"],
+  ])('#2858 R2: a pre-#2858 consumer checker that %s names the update command', (_label, body) => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    writeFileSync(join(dir, 'scripts', 'check-review-completion.mjs'), body)
+    execFileSync('git', ['add', 'scripts/check-review-completion.mjs'], { cwd: dir })
+    const reviewed = readUnifiedState(dir)?.review
+
+    expect(() =>
+      reviewWith(
+        `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+        commitFix(),
+        originalPath,
+      ),
+    ).toThrow(/arbiter update --only scripts\/check-review-completion\.mjs/)
+    expect(readUnifiedState(dir)?.review).toEqual(reviewed)
+  })
+
+  function firstMixedPanelRound(output: string, originalPath: string): string {
+    const sha = seedRuntimeFixture(
+      ['scripts/check-cross-model-review.mjs', 'schemas/cross-model-dispatch.schema.json'],
+      {
+        'arbiter.json': JSON.stringify({ crossModelReview: codexConfig }),
+      },
+    )
+    const seeded = readUnifiedState(dir)?.treatment
+    writeUnifiedState(dir, {
+      treatment: {
+        ...seeded!,
+        tier: 'Standard',
+        sensitive: true,
+        finalReviewers: 2,
+        reviewerVerticals: ['security', 'data-integrity'],
+      },
+    })
+    reviewWith(output, sha, originalPath)
+    const sidecar = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
+    )
+    expect(sidecar).toMatchObject({
+      count: 2,
+      agents: ['anthropic-reviewer', 'codex-reviewer'],
+      treatmentHash: readUnifiedState(dir)?.treatment?.signalsHash,
+    })
+    return sha
+  }
+
+  /** The retry's Codex fails loudly, so a reused seat is the only way the round can still answer. */
+  function retryWithFailingCodex(sha: string, originalPath: string) {
+    const marker = join(dir, 'bin', 'codex-invoked')
+    const bin = join(dir, 'bin', 'retry')
+    mkdirSync(bin, { recursive: true })
+    writeFileSync(join(bin, 'codex'), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, 'utf8')
+    chmodSync(join(bin, 'codex'), 0o755)
+    vi.stubEnv('PATH', `${bin}:${originalPath}`)
+    const retry = () =>
+      runTaskShip({
+        dir,
+        reviewRound: true,
+        headSha: sha,
+        profileOverride: codexProfile,
+        externalModelAccess: codexAccess,
+      })
+    return { retry, marker }
+  }
+
+  function codexReturnFiles(): string[] {
+    const root = join(dir, '.arbiter')
+    return readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((path) => /(^|\/)codex-reviewer[^/]*\.json$/.test(path))
+      .map((path) => join(root, path))
+  }
+
+  it.each([
+    ['PASS', 'review round 1: PASS — 0 findings (0 blocking) · next: rework'],
+    ['blocking', 'review round 1: FAIL — 1 findings (1 blocking) · next: rework'],
+  ])(
+    '#2858 R3: a mixed-panel retry reuses the admitted %s Codex seat instead of crashing',
+    (verdict, round) => {
+      const originalPath = process.env.PATH ?? ''
+      const sha = firstMixedPanelRound(
+        verdict === 'PASS'
+          ? `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`
+          : blockingFail,
+        originalPath,
+      )
+      const { retry, marker } = retryWithFailingCodex(sha, originalPath)
+
+      expect(buildShipStepLines(retry())).toContain(round)
+      expect(existsSync(marker)).toBe(false)
+      expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: sha })
+    },
+  )
+
+  it('#2858 R3: every admitted Codex shard counts on reuse — the worst verdict and all findings', () => {
+    const originalPath = process.env.PATH ?? ''
+    const sha = firstMixedPanelRound(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      originalPath,
+    )
+    const [first] = codexReturnFiles()
+    const shard = JSON.parse(readFileSync(first!, 'utf8')) as Record<string, unknown>
+    delete shard['refutations']
+    delete shard['acceptanceFit']
+    writeFileSync(
+      join(first!, '..', 'codex-reviewer-2858.json'),
+      JSON.stringify({
+        ...shard,
+        verdict: 'WARN',
+        confidence: 0.5,
+        findings: [
+          {
+            id: 'low-1',
+            severity: 'low',
+            kind: 'structural',
+            claim: 'A second shard carries its own finding.',
+            citations: [{ file: 'plan.md', line: 1 }],
+          },
+        ],
+      }),
+    )
+    const { retry, marker } = retryWithFailingCodex(sha, originalPath)
+
+    expect(buildShipStepLines(retry())).toContain(
+      'review round 1: WARN — 1 findings (0 blocking) · next: rework',
+    )
+    expect(existsSync(marker)).toBe(false)
+  })
+
+  it('#2858 R3: a missing Codex return is a cache miss, so the retry dispatches Codex again', () => {
+    const originalPath = process.env.PATH ?? ''
+    const sha = firstMixedPanelRound(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      originalPath,
+    )
+    const returns = codexReturnFiles()
+    expect(returns).not.toHaveLength(0)
+    for (const file of returns) rmSync(file)
+    const { retry, marker } = retryWithFailingCodex(sha, originalPath)
+
+    expect(retry).toThrow(/Codex reviewer returned no data \(invocation-failed\)/)
+    expect(existsSync(marker)).toBe(true)
   })
 
   it('keeps plan-only behavior when the planned treatment has no Codex seat', () => {

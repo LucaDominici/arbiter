@@ -141,33 +141,84 @@ function isCurrentSidecar(
   )
 }
 
-function hasCurrentFulfilledReview(repoRoot: string, taskId: string): boolean {
-  if (!existsSync(join(repoRoot, '.git'))) return false
+type ExternalReviewPayload = NonNullable<ReturnType<typeof invokeExternalReview>['envelope']>
+
+const VERDICT_RANK = { PASS: 0, WARN: 1, FAIL: 2 } as const
+
+/** A correlated return the checker already admitted, so it is schema-valid by construction. */
+type SeatShard = Pick<ExternalReviewPayload, 'verdict' | 'confidence' | 'findings'> &
+  Partial<Pick<ExternalReviewPayload, 'refutations' | 'acceptanceFit'>>
+
+/**
+ * #2858 — the Codex seat is already answered only when its dispatch evidence is fulfilled and
+ * check-review-completion admits the seat by the panel's per-agent rule. The retry of an
+ * incomplete mixed panel then reuses that envelope and dispatches only the missing seats.
+ */
+function currentFulfilledEnvelope(repoRoot: string, taskId: string): ExternalReviewPayload | null {
+  if (!existsSync(join(repoRoot, '.git'))) return null
   const branch = currentBranch(repoRoot)
   const sha = headSha(repoRoot)
-  if (branch === 'unknown' || sha === 'unknown') return false
+  if (branch === 'unknown' || sha === 'unknown') return null
   const sidecar = readSidecar(repoRoot)
   if (!(
     isCurrentSidecar(sidecar, branch, sha, taskId) &&
     Array.isArray(sidecar.agents) &&
     sidecar.agents.includes('codex-reviewer')
   ))
-    return false
+    return null
   try {
-    return (
-      runCli(
-        'node',
-        [join(repoRoot, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
-        {
-          cwd: repoRoot,
-          timeoutMs: 5_000,
-          retries: 0,
-        },
-      ).exitCode === 0
+    runCli(
+      'node',
+      [join(repoRoot, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
+      {
+        cwd: repoRoot,
+        timeoutMs: 5_000,
+        retries: 0,
+      },
     )
+    return seatPayload(correlatedSeatShards(repoRoot, taskId, sha, 'codex-reviewer'))
     // FAIL-OPEN-INTENT: stale or unavailable fulfilment evidence is a cache miss; rerun review.
   } catch {
-    return false
+    return null
+  }
+}
+
+/** The seat's correlated returns as check-review-completion admits them at the frozen SHA. */
+function correlatedSeatShards(
+  repoRoot: string,
+  taskId: string,
+  sha: string,
+  agent: string,
+): SeatShard[] {
+  const { stdout } = runCli(
+    'node',
+    [
+      join(repoRoot, 'scripts', 'check-review-completion.mjs'),
+      '--task',
+      taskId,
+      `--correlated-sha=${sha}`,
+    ],
+    { cwd: repoRoot, timeoutMs: 30_000, retries: 0 },
+  )
+  const shards: unknown = (JSON.parse(stdout) as { seats?: Record<string, unknown> } | null)
+    ?.seats?.[agent]
+  return Array.isArray(shards) ? (shards as SeatShard[]) : []
+}
+
+/** Every correlated shard counts: the worst verdict and all findings, so none hides behind another. */
+function seatPayload(shards: SeatShard[]): ExternalReviewPayload | null {
+  if (shards.length === 0) return null
+  return {
+    verdict: shards.reduce<ExternalReviewPayload['verdict']>(
+      (worst, { verdict }) => (VERDICT_RANK[verdict] > VERDICT_RANK[worst] ? verdict : worst),
+      'PASS',
+    ),
+    confidence: Math.min(...shards.map(({ confidence }) => confidence)),
+    findings: shards.flatMap(({ findings }) => findings),
+    refutations: shards.flatMap(({ refutations = [] }) => refutations),
+    acceptanceFit: Object.fromEntries(
+      shards.flatMap(({ acceptanceFit = {} }) => Object.entries(acceptanceFit)),
+    ),
   }
 }
 
@@ -284,7 +335,10 @@ function writeExternalReviewSidecar({
         ...(treatment !== undefined
           ? { auditors: treatment.reviewerVerticals, treatmentHash: treatment.signalsHash }
           : {}),
-        expectedProvenance: { 'codex-reviewer': CODEX_REVIEWER_PROVENANCE },
+        expectedProvenance: {
+          ...retainedProvenance(existing, panel.agents),
+          'codex-reviewer': CODEX_REVIEWER_PROVENANCE,
+        },
         taskId,
         branch,
         sha,
@@ -293,6 +347,16 @@ function writeExternalReviewSidecar({
       2,
     )}\n`,
   )
+}
+
+/** #2858 — a retained native agent keeps the provenance its panel was dispatched with. */
+function retainedProvenance(
+  existing: ReviewSidecar | null,
+  agents: readonly string[],
+): Record<string, unknown> {
+  const recorded = existing?.expectedProvenance
+  if (!isRecord(recorded)) return {}
+  return Object.fromEntries(Object.entries(recorded).filter(([agent]) => agents.includes(agent)))
 }
 
 function treatmentSidecarAgents(
@@ -561,7 +625,10 @@ function runShipCrossModelReview(
   if (options.cfg.diffEgressConsent) {
     try {
       assertReviewTreeClean(repoRoot)
-      if (options.cfg.enabled && hasCurrentFulfilledReview(repoRoot, options.taskId)) {
+      const envelope = options.cfg.enabled
+        ? currentFulfilledEnvelope(repoRoot, options.taskId)
+        : null
+      if (envelope !== null) {
         assertFrozenReviewHead(repoRoot, reviewHead)
         return {
           provider: 'codex',
@@ -570,6 +637,7 @@ function runShipCrossModelReview(
           diffTruncated: false,
           degradationReasons: [],
           recorded: true,
+          envelope,
         }
       }
       diff = runCli('git', ['diff', '--binary', `${reviewBase}..${reviewHead}`], {

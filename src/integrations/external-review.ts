@@ -102,6 +102,8 @@ interface ExternalReviewResult {
   degradationReason?: ExternalReviewDegradationReason
   envelope?: ExternalReviewPayload
   recorded: boolean
+  /** #2858 — why the recorder refused the envelope: its exit code and output tail. */
+  rejectionDetail?: string
 }
 
 interface CrossModelDispatchArtifact {
@@ -314,7 +316,7 @@ function resultFor(
   request: ExternalReviewRequest,
   prepared: ReturnType<typeof truncateDiff>,
   reasons: ExternalReviewDegradationReason[],
-  extra: Partial<Pick<ExternalReviewResult, 'envelope' | 'recorded'>> = {},
+  extra: Partial<Pick<ExternalReviewResult, 'envelope' | 'recorded' | 'rejectionDetail'>> = {},
 ): ExternalReviewResult {
   return {
     provider: 'codex',
@@ -325,6 +327,7 @@ function resultFor(
     ...(reasons[0] !== undefined ? { degradationReason: reasons[0] } : {}),
     recorded: extra.recorded ?? false,
     ...(extra.envelope !== undefined ? { envelope: extra.envelope } : {}),
+    ...(extra.rejectionDetail !== undefined ? { rejectionDetail: extra.rejectionDetail } : {}),
   }
 }
 
@@ -722,6 +725,12 @@ function assertSafeArbiterEvidenceRoot(repoRoot: string): void {
   }
 }
 
+function recorderRejectionDetail(error: unknown): string {
+  if (!(error instanceof CliError)) return errorMessage(error) ?? 'recorder failed'
+  const output = `${error.stderr}\n${error.stdout}`.trim()
+  return `recorder exit ${error.exitCode}: ${output.slice(-500)}`
+}
+
 function finalizeResult(
   request: ExternalReviewRequest,
   plan: CrossModelPlan,
@@ -731,7 +740,13 @@ function finalizeResult(
 ): ExternalReviewResult {
   writeDispatchEvidence(request, plan, result, envelopePath, error)
   if (request.cfg.onUnavailable === 'fail' && result.status === 'degraded') {
-    throw new Error(`cross-model review unavailable: ${result.degradationReasons.join(', ')}`)
+    const reasons = result.degradationReasons.join(', ')
+    // #2858 — the fail policy carries the recorder diagnostic the degrade policy returns.
+    throw new Error(
+      `cross-model review unavailable: ${
+        result.rejectionDetail === undefined ? reasons : `${reasons}: ${result.rejectionDetail}`
+      }`,
+    )
   }
   return result
 }
@@ -797,7 +812,10 @@ function persistExternalPayload(
     return finalizeResult(
       request,
       plan,
-      resultFor(request, prepared, [...reasons, 'envelope-rejected'], { envelope: payload }),
+      resultFor(request, prepared, [...reasons, 'envelope-rejected'], {
+        envelope: payload,
+        rejectionDetail: recorderRejectionDetail(error),
+      }),
       null,
       error,
     )

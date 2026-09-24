@@ -2,7 +2,7 @@
 title: 'Agent-Return Provenance — vendor and model stamped by the recorder'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-26'
+last_review: '2026-09-24'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -105,3 +105,20 @@ Issue #2354 implements the recorder-stamped provenance contract described above.
 field remains optional for backwards compatibility; newly recorded envelopes receive
 the default `anthropic`/`subagent` provenance unless the caller supplies explicit
 dispatch flags.
+
+Issue #2858 makes provenance part of round correlation. An envelope counts toward a
+review round only when its agent, task, branch, reviewer role, SHA and provenance
+match `.arbiter/agents-dispatched.json`. Native panel sidecars record that provenance
+in `expectedProvenance`, and a Codex rewrite keeps the bindings of the native agents it
+retains. `check-review-completion.mjs --correlated-sha=<sha>` applies the same panel
+admission as the completion gate (active treatment, every dispatched agent present, all
+valid shards per agent) and prints the envelopes as `{"envelopes":[...]}` only for a
+complete round; an incomplete round prints an empty list. The same output lists each
+admitted seat's shards under `seats`, even while another seat is missing: the `/ship`
+Codex cache reuses the Codex seat's envelope only when that seat is admitted there, so
+retrying an incomplete mixed panel dispatches only the missing seats. The round lookup
+in `task.ts` uses that output instead of scanning the directory itself. An undispatched file never
+closes a round. When the recorder rejects an envelope, its exit code and output tail are
+carried into `E_REVIEW_NO_DATA` under both `onUnavailable` policies. A generated checker
+that predates the query fails the lookup closed and names
+`arbiter update --only scripts/check-review-completion.mjs`.

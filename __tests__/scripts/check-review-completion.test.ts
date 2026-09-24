@@ -31,7 +31,7 @@ type Sidecar = {
   auditors?: string[]
   treatmentHash?: string
   taskId?: string
-  expectedProvenance?: Record<string, { vendor: string; dispatch: string; cli: string }>
+  expectedProvenance?: Record<string, { vendor: string; dispatch: string; cli?: string }>
 }
 
 function output(result: CheckResult): string {
@@ -111,6 +111,29 @@ describe('check-review-completion.mjs', () => {
     writeFileSync(join(taskDir, `${name}.json`), JSON.stringify(body, null, 2))
   }
 
+  function query(sha: string) {
+    return spawnSync(
+      'node',
+      [
+        CHECK_SCRIPT,
+        '--task',
+        TASK,
+        `--sidecar=${sidecar}`,
+        `--evidence-dir=${evidenceDir}`,
+        `--schema=${SCHEMA}`,
+        `--repo-root=${tmpDir}`,
+        `--correlated-sha=${sha}`,
+      ],
+      { encoding: 'utf-8', timeout: 10000 },
+    )
+  }
+
+  function queried(sha: string): Record<string, unknown>[] {
+    const result = query(sha)
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    return (JSON.parse(result.stdout) as { envelopes: Record<string, unknown>[] }).envelopes
+  }
+
   function writeEnvelope(name: string, body: Record<string, unknown>): void {
     writeEnvelopeIn('_2177', name, body)
   }
@@ -160,6 +183,174 @@ describe('check-review-completion.mjs', () => {
     )
 
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('counts the native Codex return beside an undispatched same-SHA file (#2858)', () => {
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['codex-reviewer'],
+      expectedProvenance: {
+        'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      },
+    })
+    writeEnvelope('codex-reviewer-0', envelope('codex-reviewer'))
+    writeEnvelope(
+      'codex-reviewer-1',
+      envelope('codex-reviewer', {
+        provenance: { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      }),
+    )
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('reports only dispatch-correlated returns in query mode (#2858)', () => {
+    const codex = { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' }
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['codex-reviewer'],
+      expectedProvenance: { 'codex-reviewer': codex },
+    })
+    writeEnvelope('codex-reviewer-0', envelope('codex-reviewer'))
+    writeEnvelope(
+      'codex-reviewer-1',
+      envelope('codex-reviewer', {
+        provenance: codex,
+        findings: [
+          { id: 'f-1', severity: 'med', kind: 'behavioral', claim: 'Still broken.', citations: [] },
+        ],
+      }),
+    )
+
+    const current = query('0123456789abcdef')
+    expect(current.status).toBe(0)
+    const { envelopes } = JSON.parse(current.stdout) as {
+      envelopes: { provenance: unknown; findings: unknown[] }[]
+    }
+    expect(envelopes).toHaveLength(1)
+    expect(envelopes[0]?.provenance).toEqual(codex)
+    expect(envelopes[0]?.findings).toHaveLength(1)
+
+    const other = query('deadbeef')
+    expect(other.status).toBe(0)
+    expect(JSON.parse(other.stdout)).toEqual({ envelopes: [], seats: {} })
+  })
+
+  it('#2858 R2: an incomplete panel is no round verdict in query mode', () => {
+    writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha', 'beta'] })
+    writeEnvelope('alpha', envelope('alpha'))
+
+    const gate = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(gate.exitCode).toBe(1)
+    expect(output(gate)).toContain('beta: missing return envelope')
+    expect(queried('0123456789abcdef')).toEqual([])
+    const { seats } = JSON.parse(query('0123456789abcdef').stdout) as {
+      seats: Record<string, { agent: unknown }[]>
+    }
+    expect(Object.keys(seats)).toEqual(['alpha'])
+    expect(seats['alpha']?.map((shard) => shard.agent)).toEqual(['alpha'])
+  })
+
+  it('#2858 R2: a sidecar from an obsolete treatment is no round verdict in query mode', () => {
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['alpha'],
+      auditors: ['alpha'],
+      treatmentHash: 'b'.repeat(64),
+    })
+    writeEnvelope('alpha', envelope('alpha'))
+    mkdirSync(join(tmpDir, '.claude', '.task'), { recursive: true })
+    writeFileSync(
+      join(tmpDir, '.claude', '.task', 'status.json'),
+      JSON.stringify({
+        taskId: TASK,
+        treatment: {
+          version: 1,
+          finalReviewers: 1,
+          reviewerVerticals: ['alpha'],
+          signalsHash: 'a'.repeat(64),
+        },
+      }),
+    )
+
+    const gate = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(gate.exitCode).toBe(1)
+    expect(output(gate)).toContain('review sidecar does not match the active ship treatment')
+    expect(queried('0123456789abcdef')).toEqual([])
+  })
+
+  it('#2858 R2: every correlated shard of an agent counts, so a later HIGH still blocks', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope('alpha-0', envelope('alpha'))
+    writeEnvelope(
+      'alpha-1',
+      envelope('alpha', {
+        verdict: 'FAIL',
+        findings: [
+          {
+            id: 'h-1',
+            severity: 'high',
+            kind: 'behavioral',
+            claim: 'Still broken.',
+            citations: [],
+          },
+        ],
+      }),
+    )
+
+    const gate = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(gate.exitCode).toBe(1)
+    expect(output(gate)).toContain('alpha: 1 applicable MED/HIGH/CRITICAL reviewer finding(s)')
+    expect(queried('0123456789abcdef').map((e) => e['verdict'])).toEqual(['PASS', 'FAIL'])
+  })
+
+  it('#2858 R2: a complete panel with a blocking finding is still the round verdict', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope(
+      'alpha',
+      envelope('alpha', {
+        verdict: 'FAIL',
+        findings: [
+          { id: 'h-1', severity: 'high', kind: 'behavioral', claim: 'Broken.', citations: [] },
+        ],
+      }),
+    )
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(1)
+    expect(queried('0123456789abcdef')).toHaveLength(1)
+  })
+
+  it('#2858 R2: a native sidecar binds its cli-less provenance tuple', () => {
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['domain'],
+      expectedProvenance: { domain: { vendor: 'anthropic', dispatch: 'subagent' } },
+    })
+    writeEnvelope(
+      'domain-0',
+      envelope('domain', {
+        provenance: { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      }),
+    )
+
+    const foreign = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(foreign.exitCode).toBe(1)
+    expect(output(foreign)).toContain(
+      'domain: provenance mismatch — expected anthropic/subagent/missing, observed openai/external-cli/codex',
+    )
+    expect(queried('0123456789abcdef')).toEqual([])
+
+    writeEnvelope('domain-0', envelope('domain'))
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+    expect(queried('0123456789abcdef')).toHaveLength(1)
   })
 
   it('preserves the legacy pass when the sidecar does not declare expected provenance', () => {
