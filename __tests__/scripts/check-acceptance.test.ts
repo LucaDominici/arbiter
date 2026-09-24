@@ -556,8 +556,17 @@ describe('check-acceptance ship parity (#2850)', () => {
     return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
   }
 
-  function seedBoundFit(role: 'reviewer' | 'verifier', phase = 'verification'): void {
-    writeState(phase)
+  const passingCriteria = [
+    { id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/subject.ts', line: 1 }] },
+  ]
+
+  function seedBoundFit(
+    role: 'reviewer' | 'verifier',
+    phase = 'verification',
+    planBody = GOOD_PLAN,
+    criteria: readonly Record<string, unknown>[] = passingCriteria,
+  ): void {
+    writeState(phase, 'plan.md', planBody)
     writeFileSync(
       join(root, '.claude', '.task', 'status.json'),
       JSON.stringify({ taskId: '#42', phase, plan: 'plan.md', branch }),
@@ -573,7 +582,7 @@ describe('check-acceptance ship parity (#2850)', () => {
     const acceptanceFit = {
       schema: 'arbiter-ac-fit-v1',
       taskId: '#42',
-      criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/subject.ts', line: 1 }] }],
+      criteria,
     }
     const envelope = JSON.stringify({
       schema: 'arbiter-agent-return-v1',
@@ -597,7 +606,7 @@ describe('check-acceptance ship parity (#2850)', () => {
         ...acceptanceFit,
         branch,
         sha,
-        planHash: computeAcHash(parsePlanAnchor(GOOD_PLAN)!.criteria),
+        planHash: computeAcHash(parsePlanAnchor(planBody)!.criteria),
         sourceEnvelope: {
           path: envelopePath,
           sha256: createHash('sha256').update(envelope).digest('hex'),
@@ -626,6 +635,48 @@ describe('check-acceptance ship parity (#2850)', () => {
     }
     writeFileSync(fitPath, JSON.stringify(fit))
     expect(run().status).toBe(1)
+  })
+
+  describe('exact-main criteria (#2865)', () => {
+    const markedPlan = [
+      '## Acceptance Criteria',
+      '- [ ] AC-1: [exact-main] a main push completes Publish within its budget',
+      '- [ ] AC-2: observable behavior two',
+      '## Non-Goals',
+      '- out of scope',
+    ].join('\n')
+    const verdicts = (one: string, two: string) => [
+      { id: 'AC-1', verdict: one, evidence: [] },
+      { id: 'AC-2', verdict: two, evidence: [{ file: 'src/subject.ts', line: 1 }] },
+    ]
+
+    it('AC-2/AC-4: the landing gate accepts NOT-TESTED on the exact-main criterion only', () => {
+      seedBoundFit('reviewer', 'verification', markedPlan, verdicts('NOT-TESTED', 'PASS'))
+      const result = run()
+      expect(result.stderr).toBe('')
+      expect(result.status).toBe(0)
+    })
+
+    it('AC-5/AC-4: the landing gate still refuses an unmarked NOT-TESTED', () => {
+      seedBoundFit('reviewer', 'verification', markedPlan, verdicts('PASS', 'NOT-TESTED'))
+      const result = run()
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('criterion AC-2: verdict NOT-TESTED is not PASS')
+    })
+
+    it('AC-5: refuses a plan whose every criterion is exact-main', () => {
+      writeFileSync(join(root, 'plan.md'), markedPlan.replace('AC-2: ', 'AC-2: [exact-main] '))
+      const result = run({}, ['--plan', 'plan.md'])
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('at least one criterion must be provable before merge')
+    })
+
+    it('AC-3: prints the exact-main ids of the frozen plan', () => {
+      writeFileSync(join(root, 'plan.md'), markedPlan)
+      const result = run({}, ['--plan', 'plan.md', '--exact-main-ids'])
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout)).toEqual(['AC-1'])
+    })
   })
 
   it('binds the active task fit in --plan --ac-fit mode exactly as landing does', () => {

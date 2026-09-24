@@ -310,3 +310,53 @@ describe('validateAcFit', () => {
     )
   })
 })
+
+describe('exact-main criteria (#2865)', () => {
+  const plan = [
+    '## Acceptance Criteria',
+    '- [ ] AC-1: [exact-main] a main push completes Publish within its budget',
+    '- [ ] AC-2: the plan names the budget',
+    '## Non-Goals',
+    '- x',
+  ].join('\n')
+  const fit = (one: string, two: string) => ({
+    schema: 'arbiter-ac-fit-v1',
+    taskId: '#42',
+    criteria: [
+      { id: 'AC-1', verdict: one, evidence: [] },
+      { id: 'AC-2', verdict: two, evidence: [{ file: 'plan.md', line: 3 }] },
+    ],
+  })
+
+  it('AC-2: marks only the criterion whose line carries the marker, inside the hashed text', () => {
+    const criteria = parsePlanAnchor(plan)!.criteria
+    expect(criteria.map((c) => [c.id, c.exactMain])).toEqual([
+      ['AC-1', true],
+      ['AC-2', false],
+    ])
+    const unmarked = parsePlanAnchor(plan.replace('[exact-main] ', ''))!.criteria
+    expect(computeAcHash(criteria)).not.toBe(computeAcHash(unmarked))
+  })
+
+  it('AC-2: accepts NOT-TESTED under requireAllPass only for exact-main ids', () => {
+    const opts = { requireAllPass: true, exactMainIds: ['AC-1'] }
+    expect(validateAcFit(fit('NOT-TESTED', 'PASS'), ['AC-1', 'AC-2'], opts)).toEqual([])
+    expect(validateAcFit(fit('FAIL', 'PASS'), ['AC-1', 'AC-2'], opts)).toContain(
+      'criterion AC-1: verdict FAIL is not PASS',
+    )
+  })
+
+  it('AC-5: an unmarked NOT-TESTED still blocks acceptance', () => {
+    const opts = { requireAllPass: true, exactMainIds: ['AC-1'] }
+    expect(validateAcFit(fit('PASS', 'NOT-TESTED'), ['AC-1', 'AC-2'], opts)).toContain(
+      'criterion AC-2: verdict NOT-TESTED is not PASS',
+    )
+  })
+
+  it('AC-2: a marked plan still freezes the unmarked issue criterion verbatim', () => {
+    const issue =
+      '## Acceptance criteria\n- [ ] AC-1: a main push completes Publish within its budget'
+    const criteria = parsePlanAnchor(plan.replaceAll('AC-1:', 'AC-7.1:'))!.criteria
+    expect(validateIssueAcceptanceCoverage('7', issue, criteria)).toEqual([])
+  })
+})
