@@ -1496,6 +1496,31 @@ function assertReviewSubjectFrozen(dir: string): void {
   if (dirty.length > 0) {
     throw new Error('review freeze requires a clean HEAD; commit the plan and every candidate fix')
   }
+  checkBakeAfterTemplates(dir)
+}
+
+const BAKE_REGENERATE_COMMAND = 'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake'
+const BAKE_SNAPSHOTS = '__tests__/integration/e2e/bake/__snapshots__'
+
+/** #2863 AC-4: a template fix after the last rebake leaves the bake snapshots stale. */
+function checkBakeAfterTemplates(dir: string): void {
+  const gates = readUnifiedState(dir)?.derivedGates ?? []
+  const owesBake = gates.some(
+    (gate) =>
+      isRecord(gate) &&
+      gate['kind'] === 'artifact-regenerate' &&
+      gate['command'] === BAKE_REGENERATE_COMMAND,
+  )
+  if (!owesBake) return
+  const git = (args: string[]) => runCli('git', args, { cwd: dir, timeoutMs: 5000 }).stdout.trim()
+  const rebake = git(['log', '-1', '--format=%H', '--', BAKE_SNAPSHOTS])
+  const newerTemplates =
+    rebake.length === 0 ? 'no rebake' : git(['rev-list', `${rebake}..HEAD`, '--', 'src/templates'])
+  if (newerTemplates.length > 0) {
+    throw new Error(
+      `review freeze: a src/templates commit is newer than the last bake snapshot commit; run \`${BAKE_REGENERATE_COMMAND}\` and commit the snapshots last`,
+    )
+  }
 }
 
 function appendReviewLog(dir: string, plan: PlannedReviewRound): void {
