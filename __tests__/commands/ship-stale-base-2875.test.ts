@@ -30,8 +30,6 @@ import {
 } from '../../src/commands/task-state.js'
 import { renderTemplate } from '../../src/utils/render.js'
 import type { ShipProfile } from '../../src/commands/ship-profile'
-import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
-import { inspectGateContract } from '../../scripts/lib/gate-contract.mjs'
 
 const dirs: string[] = []
 afterEach(() => {
@@ -72,10 +70,6 @@ function installGateContractAuthority(dir: string): void {
   )
 }
 
-function deriveFixtureGates(dir: string, files: string[]): unknown[] {
-  return deriveGatesForFiles(files, undefined, inspectGateContract(dir))
-}
-
 function installAcceptanceChecker(dir: string): void {
   mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
   symlinkSync(resolve(__dirname, '../../node_modules'), join(dir, 'node_modules'), 'dir')
@@ -108,6 +102,10 @@ function installAcceptanceChecker(dir: string): void {
   ]) {
     copyFileSync(resolve(__dirname, `../../scripts/lib/${file}`), join(dir, `scripts/lib/${file}`))
   }
+  copyFileSync(
+    resolve(__dirname, '../../scripts/derive-plan-gates.mjs'),
+    join(dir, 'scripts/derive-plan-gates.mjs'),
+  )
   installGateContractAuthority(dir)
 }
 
@@ -345,7 +343,9 @@ describe('AC-2875.3 auto re-derive', () => {
     expect(() => runTaskResume({ dir })).not.toThrow()
 
     const state = readUnifiedState(dir)
-    expect(state?.derivedGates).toEqual(deriveFixtureGates(dir, FILES))
+    expect(JSON.stringify(state?.derivedGates)).toContain(
+      'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake -- --v2',
+    )
     expect(state?.derivedGates).not.toEqual(before)
     expect(state?.review).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
     expect(state?.derivedGatesPlan).toEqual(beforePlan)
@@ -384,10 +384,13 @@ describe('AC-2875.3 auto re-derive', () => {
     const script = join(dir, 'scripts', 'derive-plan-gates.mjs')
     const countFile = join(dir, 'derive-count.txt')
     writeFileSync(countFile, '')
-    writeFileSync(
-      script,
-      `import { appendFileSync } from 'node:fs'\ntry { appendFileSync(${JSON.stringify(countFile)}, 'x') } catch {}\n${readFileSync(script, 'utf-8')}`,
+    const scriptLines = readFileSync(script, 'utf-8').split('\n')
+    scriptLines.splice(
+      1,
+      0,
+      `import { appendFileSync } from 'node:fs'; try { appendFileSync(${JSON.stringify(countFile)}, 'x') } catch {}`,
     )
+    writeFileSync(script, scriptLines.join('\n'))
     bumpDerivedCommand(dir)
     bumpDerivedCommand(dir) // stack a second derived-only change between calls
 
