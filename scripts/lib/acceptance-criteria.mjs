@@ -331,9 +331,14 @@ function validateFitVerdict(criterion, id, opts, errors) {
   const evidence = Array.isArray(criterion?.evidence) ? criterion.evidence : []
   if (verdict === 'PASS' && !evidence.some(isUsableEvidence))
     errors.push(`criterion ${id}: PASS without evidence (cite the diff/test line)`)
-  const exactMainPending = verdict === 'NOT-TESTED' && opts.exactMainIds?.includes(id) === true
-  if (opts.requireAllPass && verdict !== 'PASS' && !exactMainPending)
+  if (opts.requireAllPass && !meetsPassRequirement(verdict, id, opts))
     errors.push(`criterion ${id}: verdict ${verdict} is not PASS`)
+}
+
+// A plan-marked [exact-main] criterion may stay NOT-TESTED until the merge SHA's main CI (#2865).
+function meetsPassRequirement(verdict, id, opts) {
+  if (verdict === 'PASS') return true
+  return verdict === 'NOT-TESTED' && opts.exactMainIds?.includes(id) === true
 }
 
 function validateFitCriterion(c, seen, opts, errors) {
