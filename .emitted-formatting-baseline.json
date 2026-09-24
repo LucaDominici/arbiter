@@ -53,7 +53,6 @@
     "scripts/check-oracle-discrimination.mjs.ejs",
     "scripts/check-pipe-tee-hazard.mjs.ejs",
     "scripts/check-skip-critical-e2e.mjs.ejs",
-    "scripts/check-tdd-evidence.mjs.ejs",
     "scripts/check-test-scope-tier.mjs.ejs",
     "scripts/check-todo-max-age.mjs.ejs",
     "scripts/check-wiki-lint.mjs.ejs",

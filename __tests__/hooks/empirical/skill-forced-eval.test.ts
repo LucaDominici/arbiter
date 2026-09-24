@@ -296,7 +296,7 @@ describe('skill-forced-eval — empirical verification gate (#2383)', () => {
     }
   })
 
-  it('AC-2383.1 rejects an edit that precedes the Skill result', () => {
+  it('#2861 AC-4 a successful Skill(tdd) after the edit does not forgive it without a receipt', () => {
     const { dir, hookPath } = setup()
     try {
       setPhase(dir, 'refactor')
@@ -566,5 +566,404 @@ describe('skill-forced-eval — empirical verification gate (#2383)', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('skill-forced-eval — recoverable gate (#2861)', () => {
+  const EDIT_AT = '2026-08-27T19:00:02.000Z'
+
+  function editLines(id: string, input: unknown, tool = 'Edit') {
+    return [toolUse(tool, id, EDIT_AT, input), toolResult(id)]
+  }
+
+  function skillLines(id: string, result: ResultShape = { is_error: false }) {
+    return [
+      toolUse('Skill', id, '2026-08-27T19:00:04.000Z', { skill: 'tdd', args: '#2383' }),
+      toolResult(id, result),
+    ]
+  }
+
+  function patchStatus(dir: string, fields: Record<string, unknown>) {
+    const statusPath = join(dir, '.claude', '.task', 'status.json')
+    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as Record<string, unknown>
+    writeFileSync(statusPath, JSON.stringify({ ...status, ...fields }, null, 2) + '\n')
+  }
+
+  function setPlan(dir: string, plan: string) {
+    patchStatus(dir, { plan })
+  }
+
+  function git(dir: string, args: string[]) {
+    const result = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' })
+    if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`)
+    return result.stdout.trim()
+  }
+
+  /** Creates the edited file so the exemption can classify its real path. */
+  function touch(path: string) {
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, 'x\n')
+    return path
+  }
+
+  /** A branch carrying a RED test commit for #2383 and, optionally, its committed receipt. */
+  function recordRed(
+    dir: string,
+    receipt: { commit: boolean; log?: string; patch?: Record<string, unknown> },
+  ) {
+    const env = ['-c', 'user.name=t', '-c', 'user.email=t@example.com']
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(
+      join(dir, 'scripts', 'check-tdd-evidence.mjs'),
+      readFileSync(join(process.cwd(), 'src/templates/scripts/check-tdd-evidence.mjs.ejs')),
+    )
+    writeFileSync(join(dir, 'README.md'), 'base\n')
+    git(dir, ['add', 'README.md', 'scripts/check-tdd-evidence.mjs'])
+    git(dir, [...env, 'commit', '-m', 'chore: base'])
+    git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD'])
+    mkdirSync(join(dir, 'src'), { recursive: true })
+    writeFileSync(join(dir, 'src', 'a.test.ts'), 'test("red", () => { throw 1 })\n')
+    git(dir, ['add', 'src/a.test.ts'])
+    git(dir, [...env, 'commit', '-m', 'test(#2383): red'])
+    const evidence = join(dir, '.arbiter', 'evidence', 'tdd', '#2383.json')
+    mkdirSync(dirname(evidence), { recursive: true })
+    writeFileSync(
+      evidence,
+      JSON.stringify({
+        $schemaVersion: 1,
+        task_id: '#2383',
+        test_path: 'src/a.test.ts',
+        test_cwd: '.',
+        test_commit_sha: git(dir, ['rev-parse', 'HEAD']),
+        test_run_log: receipt.log ?? ' FAIL  src/a.test.ts > red\n',
+        observed_failure: 'FAIL  src/a.test.ts',
+        recorded_at: '2026-08-27T18:59:00.000Z',
+        test_command: ['npx', 'vitest', 'run', 'src/a.test.ts'],
+        ...receipt.patch,
+      }),
+    )
+    if (receipt.commit) {
+      git(dir, ['add', '-f', '.arbiter/evidence/tdd/#2383.json'])
+      git(dir, [...env, 'commit', '-m', 'test(#2383): record red'])
+    }
+  }
+
+  function withRepo(fn: (ctx: ReturnType<typeof setup>) => void) {
+    const ctx = setup()
+    try {
+      fn(ctx)
+    } finally {
+      rmSync(ctx.dir, { recursive: true, force: true })
+    }
+  }
+
+  it.each([
+    { label: 'absolute docs/** path', path: (dir: string) => join(dir, 'docs', 'x.ts') },
+    { label: 'absolute *.md path', path: (dir: string) => join(dir, 'PLAN.md') },
+    { label: 'relative *.md path', path: () => 'notes/review.md' },
+    {
+      label: 'active plan file',
+      path: (dir: string) => join(dir, '.arbiter', 'plans', '2383.plan'),
+    },
+  ])('AC-2 does not count an edit to the $label', ({ path }) =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      setPhase(dir, 'refactor')
+      setPlan(dir, '.arbiter/plans/2383.plan')
+      touch(resolve(dir, path(dir)))
+      const transcript = writeRawTranscript(dir, editLines('edit-1', { file_path: path(dir) }))
+      expect(run(hookPath, dir, transcript).status).toBe(0)
+      expect(run(selfHookPath, dir, transcript).status).toBe(0)
+    }),
+  )
+
+  it('AC-2 does not count a NotebookEdit under docs/**', () =>
+    withRepo(({ dir, hookPath }) => {
+      setPhase(dir, 'green')
+      const transcript = writeRawTranscript(
+        dir,
+        editLines('edit-1', { notebook_path: touch(join(dir, 'docs', 'n.ipynb')) }, 'NotebookEdit'),
+      )
+      expect(run(hookPath, dir, transcript).status).toBe(0)
+    }))
+
+  it.each([
+    {
+      label: 'src/docs/** is not docs/**',
+      input: (dir: string) => ({ file_path: join(dir, 'src', 'docs', 'x.ts') }),
+    },
+    {
+      label: 'a path outside the repo',
+      input: (dir: string) => ({ file_path: join(dir, '..', 'x.md') }),
+    },
+    { label: 'a missing file_path', input: () => ({}) },
+    { label: 'a non-string file_path', input: () => ({ file_path: 7 }) },
+    {
+      label: 'a docs edit next to a source edit',
+      input: (dir: string) => ({ file_path: join(dir, 'src', 'a.ts') }),
+      docsToo: true,
+    },
+  ])('AC-2 still counts $label', ({ input, docsToo }) =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      setPhase(dir, 'green')
+      const transcript = writeRawTranscript(dir, [
+        ...(docsToo ? editLines('edit-0', { file_path: join(dir, 'docs', 'a.md') }) : []),
+        ...editLines('edit-1', input(dir)),
+      ])
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }),
+  )
+
+  it('AC-4 keeps blocking when the recovery Skill(tdd) fails, and passes Skill → edit → edit', () =>
+    withRepo(({ dir, hookPath }) => {
+      setPhase(dir, 'red')
+      const src = { file_path: join(dir, 'src', 'a.ts') }
+      const failed = writeRawTranscript(dir, [
+        ...editLines('edit-1', src),
+        ...skillLines('skill-1', { is_error: true }),
+      ])
+      expect(run(hookPath, dir, failed).status).toBe(2)
+      const happy = writeRawTranscript(dir, [
+        ...skillLines('skill-1'),
+        ...editLines('edit-1', src),
+        ...editLines('edit-2', src),
+      ])
+      expect(run(hookPath, dir, happy).status).toBe(0)
+    }))
+
+  it.each(['green', 'refactor'])(
+    'AC-1 accepts a committed valid RED receipt in %s whatever the transcript order',
+    (phase) =>
+      withRepo(({ dir, hookPath, selfHookPath }) => {
+        recordRed(dir, { commit: true })
+        setPhase(dir, phase)
+        const transcript = writeRawTranscript(
+          dir,
+          editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') }),
+        )
+        const rendered = run(hookPath, dir, transcript)
+        expect([rendered.status, rendered.stderr]).toEqual([0, ''])
+        expect(run(selfHookPath, dir, transcript).status).toBe(0)
+      }),
+  )
+
+  it.each([
+    { label: 'present on disk but untracked', commit: false },
+    { label: 'committed without a failure signature', commit: true, log: 'all green\n' },
+  ])('AC-1 rejects a receipt $label', ({ commit, log }) =>
+    withRepo(({ dir, hookPath }) => {
+      recordRed(dir, { commit, log })
+      setPhase(dir, 'green')
+      const transcript = writeRawTranscript(
+        dir,
+        editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') }),
+      )
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+    }),
+  )
+
+  it('AC-3 a committed receipt does not unlock an edit in red without Skill(tdd)', () =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      recordRed(dir, { commit: true })
+      setPhase(dir, 'red')
+      const transcript = writeRawTranscript(
+        dir,
+        editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') }),
+      )
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }))
+
+  it('AC-6 does not re-block an unchanged transcript once stop_hook_active is set', () =>
+    withRepo(({ dir, hookPath }) => {
+      setPhase(dir, 'green')
+      const src = { file_path: join(dir, 'src', 'a.ts') }
+      const transcript = writeRawTranscript(dir, editLines('edit-1', src))
+      const active = (path: string) =>
+        run(
+          hookPath,
+          dir,
+          path,
+          undefined,
+          hookInput(dir, path, undefined, { stop_hook_active: true }),
+        )
+
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(active(transcript).status).toBe(0)
+
+      const newEdit = writeRawTranscript(dir, [
+        ...editLines('edit-1', src),
+        ...editLines('edit-2', src),
+      ])
+      expect(active(newEdit).status).toBe(2)
+      expect(active(newEdit).status).toBe(0)
+    }))
+
+  it('AC-1 verifies the receipt in-process, within budget, without the repository validator', () =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      recordRed(dir, { commit: true })
+      setPhase(dir, 'green')
+      // Stands in for arbiter's own validator, which takes ~8s and would time out the Stop hook.
+      writeFileSync(
+        join(dir, 'scripts', 'check-tdd-evidence.mjs'),
+        'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 4000)\nprocess.exit(1)\n',
+      )
+      const transcript = writeRawTranscript(
+        dir,
+        editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') }),
+      )
+      for (const path of [hookPath, selfHookPath]) {
+        const started = performance.now()
+        const result = run(path, dir, transcript)
+        const elapsed = performance.now() - started
+        expect([result.status, result.stderr]).toEqual([0, ''])
+        expect(elapsed).toBeLessThan(500)
+      }
+    }))
+
+  it.each([
+    { label: 'for another task', patch: { task_id: '#9999' } },
+    {
+      label: 'whose RED commit is not an ancestor of HEAD',
+      patch: { test_commit_sha: 'f'.repeat(40) },
+    },
+    { label: 'whose test path is absent at the RED commit', patch: { test_path: 'src/b.test.ts' } },
+  ])('AC-1 rejects a committed receipt $label', ({ patch }) =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      recordRed(dir, { commit: true, patch })
+      setPhase(dir, 'green')
+      const transcript = writeRawTranscript(
+        dir,
+        editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') }),
+      )
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }),
+  )
+
+  it.each([
+    {
+      label: 'a docs/*.md symlink to a source file',
+      link: (dir: string) => {
+        touch(join(dir, 'src', 'a.ts'))
+        mkdirSync(join(dir, 'docs'), { recursive: true })
+        symlinkSync(join(dir, 'src', 'a.ts'), join(dir, 'docs', 'evil.md'))
+        return join(dir, 'docs', 'evil.md')
+      },
+    },
+    {
+      label: 'a file under a docs/ directory symlinked to src/',
+      link: (dir: string) => {
+        touch(join(dir, 'src', 'a.ts'))
+        symlinkSync(join(dir, 'src'), join(dir, 'docs'))
+        return join(dir, 'docs', 'a.ts')
+      },
+    },
+    { label: 'a docs/ path that does not exist', link: (dir: string) => join(dir, 'docs', 'x.md') },
+  ])('AC-2 classifies by real path and still counts $label', ({ link }) =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      setPhase(dir, 'green')
+      const transcript = writeRawTranscript(dir, editLines('edit-1', { file_path: link(dir) }))
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }),
+  )
+
+  it('AC-4 in red, a successful Skill(tdd) forgives only the edits after it', () =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      setPhase(dir, 'red')
+      const src = { file_path: join(dir, 'src', 'a.ts') }
+      const transcript = writeRawTranscript(dir, [
+        ...editLines('edit-1', src),
+        ...skillLines('skill-1'),
+        ...editLines('edit-2', src),
+      ])
+      const blocked = run(hookPath, dir, transcript)
+      expect(blocked.status).toBe(2)
+      expect(blocked.stderr).toMatch(/receipt/)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }))
+
+  it('AC-4 does not forgive an edit that completes while Skill(tdd) has no result yet', () =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      setPhase(dir, 'red')
+      const [skillCall, skillResult] = skillLines('skill-1')
+      const transcript = writeRawTranscript(dir, [
+        skillCall,
+        ...editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') }),
+        skillResult,
+      ])
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }))
+
+  it('AC-4 does not forgive an edit called while Skill(tdd) has no result yet', () =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      setPhase(dir, 'red')
+      const [skillCall, skillResult] = skillLines('skill-1')
+      const [editCall, editResult] = editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') })
+      const transcript = writeRawTranscript(dir, [skillCall, editCall, skillResult, editResult])
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }))
+
+  it('AC-4 in green, a committed receipt covers an edit made before Skill(tdd)', () =>
+    withRepo(({ dir, hookPath }) => {
+      recordRed(dir, { commit: true })
+      setPhase(dir, 'green')
+      const src = { file_path: join(dir, 'src', 'a.ts') }
+      const transcript = writeRawTranscript(dir, [
+        ...editLines('edit-1', src),
+        ...skillLines('skill-1'),
+      ])
+      expect(run(hookPath, dir, transcript).status).toBe(0)
+    }))
+
+  describe('AC-6 binds the stop_hook_active marker to task, phase, transcript and edit', () => {
+    const src = (dir: string) => ({ file_path: join(dir, 'src', 'a.ts') })
+    const activeInput = (dir: string, path: string, cwd = dir) =>
+      JSON.stringify({ ...JSON.parse(hookInput(dir, path)), cwd, stop_hook_active: true })
+
+    it.each([
+      {
+        label: 'the task changes',
+        change: (dir: string) => patchStatus(dir, { taskId: '#2384' }),
+      },
+      { label: 'the phase changes', change: (dir: string) => setPhase(dir, 'refactor') },
+    ])('re-blocks the same edit id when $label', ({ change }) =>
+      withRepo(({ dir, hookPath }) => {
+        setPhase(dir, 'green')
+        const transcript = writeRawTranscript(dir, editLines('edit-1', src(dir)))
+        expect(run(hookPath, dir, transcript).status).toBe(2)
+        change(dir)
+        const active = activeInput(dir, transcript)
+        expect(run(hookPath, dir, transcript, undefined, active).status).toBe(2)
+      }),
+    )
+
+    it('re-blocks the same edit id read from another transcript', () =>
+      withRepo(({ dir, hookPath }) => {
+        setPhase(dir, 'green')
+        expect(
+          run(hookPath, dir, writeRawTranscript(dir, editLines('edit-1', src(dir)))).status,
+        ).toBe(2)
+        const sub = join(dir, 'src')
+        mkdirSync(sub, { recursive: true })
+        const other = join(
+          testHome(dir),
+          '.claude',
+          'projects',
+          encodeProjectPath(resolve(sub)),
+          `${SESSION_ID}.jsonl`,
+        )
+        mkdirSync(dirname(other), { recursive: true })
+        writeFileSync(
+          other,
+          editLines('edit-1', src(dir))
+            .map((line) => JSON.stringify(line))
+            .join('\n') + '\n',
+        )
+        expect(run(hookPath, dir, other, undefined, activeInput(dir, other, sub)).status).toBe(2)
+      }))
   })
 })

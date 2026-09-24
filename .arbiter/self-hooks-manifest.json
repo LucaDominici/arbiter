@@ -325,7 +325,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "Stop hard block (exit 2) \u2014 after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit turns and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
+      "rationale": "Stop hard block (exit 2) \u2014 after an observed implementation edit, requires a successful phase-bound Skill(tdd) result before it or, in green/refactor, a valid RED receipt committed at HEAD and checked in process; plan, docs/** and *.md edits are exempt by real path, edits after a successful Skill(tdd) are forgiven, and the same edit of the same task, phase and transcript is not re-blocked on stop_hook_active; no-edit turns and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
     },
     {
       "file": "wiki-on-commit.mjs",

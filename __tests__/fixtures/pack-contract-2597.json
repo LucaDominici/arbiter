@@ -5,9 +5,9 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4565246,
-    "entryCount": 975,
-    "rosterSha256": "44eb5dba6c980a8be2e27415fe19b058db9289050fd1caf335c16037b31145fe"
+    "unpackedSize": 4633810,
+    "entryCount": 976,
+    "rosterSha256": "77bc97cf87c9db4c0313daf851cf9ee49d4b46c0e92c9e2f547fe128a32ff4ca"
   },
   "manifest": {
     "bin": {
@@ -74,24 +74,24 @@
     "pathsSha256": "e0947fc66eba1a5a4e53f9675db1fb31d3e56730f406c6c9ca8aa00db706499a"
   },
   "templates": {
-    "count": 627,
-    "pathsSha256": "8102cb1d3a911569ce19eb4cd53655ca42edbde0e69070fc8cf888b35daf19b8"
+    "count": 628,
+    "pathsSha256": "f2b8d00fa9337456b5ca7e6c1ea94be734e99ff681fd7042a8d26f470ba232b5"
   },
   "leading_spdx": {
     "count": 286,
     "pathsSha256": "7bca4090be09e8c5c9061a514f7529fd588402078feb116691446ffd0c8f79cc"
   },
   "repinned": {
-    "task_id": "#2773",
-    "reason": "The preventive contract adds four shipped templates: derive-plan-gates, gate-contract, gate-derivation, and the shared debt-metric command partial.",
+    "task_id": "#2861",
+    "reason": "The TDD receipt rules move into one shipped partial shared by the validator and the Stop hook: dist/templates/scripts/lib/_tdd-receipt.ejs",
     "before": {
-      "entryCount": 970,
-      "templates": 623,
-      "spdx": 283
-    },
-    "after": {
       "entryCount": 975,
       "templates": 627,
+      "spdx": 286
+    },
+    "after": {
+      "entryCount": 976,
+      "templates": 628,
       "spdx": 286
     }
   }
