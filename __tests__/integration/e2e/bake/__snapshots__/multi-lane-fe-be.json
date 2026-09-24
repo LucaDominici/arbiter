@@ -259,7 +259,7 @@
     ".claude/hooks/check-no-placeholders.mjs": "5546d83fd647b0864aa2d4b561bdf498f6c5e902dc8927f4b4042d060a78abe8",
     ".claude/hooks/check-no-skipped-tests.mjs": "b96b8d8770a981bd76f2710ea81825393774e4be22548b3617a2f9f2079605f6",
     ".claude/hooks/check-no-unused-exports.mjs": "4060733976e2c7b1ce1c8adbe6db431d9b3ec7bbbaab59a2371ca7a021e161bc",
-    ".claude/hooks/enforce-gate-before-pr.mjs": "1fef18ae4ff11a33f2877a1f136f0624fdb5ef00ac5442111c0779a53a31e002",
+    ".claude/hooks/enforce-gate-before-pr.mjs": "f7098dabefc7f02f80d4426bfba94375aea9a9c4fa95301b16b9a60b9238335c",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/hooks.mjs": "912164a3ef75732a60799683b203a3bc93920e55f0e3ebc30eb8e1154a09f90e",
     ".claude/hooks/lib.mjs": "37f0399b30e948b83700ca115363c4da2946ccfa5de2eae24c8c906ed2da236d",

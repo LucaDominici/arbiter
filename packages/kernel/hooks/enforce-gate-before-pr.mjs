@@ -139,14 +139,23 @@ const PR_COMMAND_TEXT = /\bgh\s+pr\s+(?:create|ready)\b/
 const SHELL_NAMES = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh'])
 
 // #2862: `eval` and a shell's `-c` run their arguments as shell text, so those arguments are
-// commands, not data. Returns the command strings a segment hands to an interpreter.
+// commands, not data. Returns the command strings a segment hands to an interpreter. Only the
+// command head counts (past a leading `env`, `command`, their options and `VAR=value`): an
+// `eval` or `bash -c` later in the segment is an argument of another command.
 function interpreterPayloads(tokens) {
-  const evalIndex = tokens.indexOf('eval')
-  if (evalIndex >= 0) return [tokens.slice(evalIndex + 1).join(' ')]
-  const shellIndex = tokens.findIndex((token) => SHELL_NAMES.has(token.split('/').at(-1)))
-  if (shellIndex < 0) return []
+  let head = 0
+  while (
+    tokens[head] === 'env' ||
+    tokens[head] === 'command' ||
+    /^[A-Za-z_]\w*=/.test(tokens[head] ?? '') ||
+    (head > 0 && tokens[head]?.startsWith('-'))
+  ) {
+    head++
+  }
+  if (tokens[head] === 'eval') return [tokens.slice(head + 1).join(' ')]
+  if (!SHELL_NAMES.has(tokens[head]?.split('/').at(-1))) return []
   const flagIndex = tokens.findIndex(
-    (token, index) => index > shellIndex && /^-[A-Za-z]*c[A-Za-z]*$/.test(token),
+    (token, index) => index > head && /^-[A-Za-z]*c[A-Za-z]*$/.test(token),
   )
   return flagIndex < 0 ? [] : tokens.slice(flagIndex + 1)
 }

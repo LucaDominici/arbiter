@@ -163,7 +163,8 @@ with an interpreter (`eval`, `bash -c`, a pipe into a shell) or an unquoted deli
 visible and fail-closed (#2862). Output redirections (`>`, `>>`, `2>&1`, `&>`) and their targets
 are not arguments, so a redirected or filtered draft creation stays a draft; input redirection,
 background `&` and command substitution remain ambiguous. The payload of `eval` and of a shell's
-`-c` is parsed as shell, so a PR command inside it is guarded, draft or not.
+`-c` at the command head (past `env`, `command` and `VAR=value`) is parsed as shell, so a PR command
+inside it is guarded, draft or not; the same words later in a segment are arguments.
 
 **Corollary for `.claude/hooks/lib.mjs`.** Its approved divergence from the template is exactly one
 thing — `findInlineSuppression` delegates to `scripts/lib/suppressions-shared.mjs` instead of the
