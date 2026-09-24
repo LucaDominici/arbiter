@@ -269,6 +269,16 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     ).toBe(1)
   })
 
+  it('#2861 A: PASS (exit 0) for a vitest test.projects-labelled failure (native parity)', () => {
+    expect(
+      runScenario({
+        taskCommit: true,
+        evidence: (sha) =>
+          validEvidence(sha, { test_run_log: ' FAIL  |unit| __tests__/foo.test.ts > foo\n' }),
+      }),
+    ).toBe(0)
+  })
+
   it('A: PASS (exit 0) for a shell self-test failure signature', () => {
     expect(
       runScenario({
