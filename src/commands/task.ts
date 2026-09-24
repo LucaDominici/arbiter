@@ -1453,6 +1453,38 @@ function correlatedReviewEnvelopes(
   taskId: string,
   frozenSha: string,
 ): Record<string, unknown>[] {
+  const { answer, stdout } = correlatedReviewAnswer(dir, taskId, frozenSha)
+  const envelopes = answer['envelopes']
+  if (!isRecordList(envelopes)) throw staleReviewChecker(stdout, undefined)
+  return envelopes
+}
+
+/**
+ * #2858 — the correlated returns of one dispatched seat, admitted by the panel's per-agent rule
+ * even while another seat of the same round is still missing.
+ */
+export function correlatedSeatEnvelopes(
+  dir: string,
+  taskId: string,
+  frozenSha: string,
+  agent: string,
+): Record<string, unknown>[] {
+  const { answer, stdout } = correlatedReviewAnswer(dir, taskId, frozenSha)
+  const seats = answer['seats']
+  const shards = isRecord(seats) ? (seats[agent] ?? []) : undefined
+  if (!isRecordList(shards)) throw staleReviewChecker(stdout, undefined)
+  return shards
+}
+
+export function isRecordList(value: unknown): value is Record<string, unknown>[] {
+  return Array.isArray(value) && value.every(isRecord)
+}
+
+function correlatedReviewAnswer(
+  dir: string,
+  taskId: string,
+  frozenSha: string,
+): { answer: Record<string, unknown>; stdout: string } {
   let stdout: string
   try {
     stdout = runRequiredTaskChecker(dir, 'check-review-completion.mjs', [
@@ -1473,11 +1505,8 @@ function correlatedReviewEnvelopes(
   } catch (error) {
     throw staleReviewChecker(stdout, error)
   }
-  const envelopes = isRecord(parsed) ? parsed['envelopes'] : undefined
-  if (!Array.isArray(envelopes) || !envelopes.every(isRecord)) {
-    throw staleReviewChecker(stdout, undefined)
-  }
-  return envelopes
+  if (!isRecord(parsed)) throw staleReviewChecker(stdout, undefined)
+  return { answer: parsed, stdout }
 }
 
 function assertReviewSubjectFrozen(dir: string): void {

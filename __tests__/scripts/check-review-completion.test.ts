@@ -237,7 +237,7 @@ describe('check-review-completion.mjs', () => {
 
     const other = query('deadbeef')
     expect(other.status).toBe(0)
-    expect(JSON.parse(other.stdout)).toEqual({ envelopes: [] })
+    expect(JSON.parse(other.stdout)).toEqual({ envelopes: [], seats: {} })
   })
 
   it('#2858 R2: an incomplete panel is no round verdict in query mode', () => {
@@ -248,6 +248,11 @@ describe('check-review-completion.mjs', () => {
     expect(gate.exitCode).toBe(1)
     expect(output(gate)).toContain('beta: missing return envelope')
     expect(queried('0123456789abcdef')).toEqual([])
+    const { seats } = JSON.parse(query('0123456789abcdef').stdout) as {
+      seats: Record<string, { agent: unknown }[]>
+    }
+    expect(Object.keys(seats)).toEqual(['alpha'])
+    expect(seats['alpha']?.map((shard) => shard.agent)).toEqual(['alpha'])
   })
 
   it('#2858 R2: a sidecar from an obsolete treatment is no round verdict in query mode', () => {

@@ -5,6 +5,7 @@ import { detectExternalModel, type ExternalModelAccess } from '../detectors/exte
 import {
   assertSafeArbiterEvidenceRoot,
   invokeExternalReview,
+  type ExternalReviewPayload,
 } from '../integrations/external-review.js'
 import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier, type ShipTreatment } from './ship-tier.js'
@@ -14,6 +15,7 @@ import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
+import { correlatedSeatEnvelopes, isRecordList } from './task.js'
 
 const CODEX_REVIEWER_PROVENANCE = {
   vendor: 'openai',
@@ -141,20 +143,27 @@ function isCurrentSidecar(
   )
 }
 
-function hasCurrentFulfilledReview(repoRoot: string, taskId: string): boolean {
-  if (!existsSync(join(repoRoot, '.git'))) return false
+const VERDICT_RANK = { PASS: 0, WARN: 1, FAIL: 2 } as const
+
+/**
+ * #2858 — the Codex seat is already answered only when its dispatch evidence is fulfilled and
+ * check-review-completion admits the seat by the panel's per-agent rule. The retry of an
+ * incomplete mixed panel then reuses that envelope and dispatches only the missing seats.
+ */
+function currentFulfilledEnvelope(repoRoot: string, taskId: string): ExternalReviewPayload | null {
+  if (!existsSync(join(repoRoot, '.git'))) return null
   const branch = currentBranch(repoRoot)
   const sha = headSha(repoRoot)
-  if (branch === 'unknown' || sha === 'unknown') return false
+  if (branch === 'unknown' || sha === 'unknown') return null
   const sidecar = readSidecar(repoRoot)
   if (!(
     isCurrentSidecar(sidecar, branch, sha, taskId) &&
     Array.isArray(sidecar.agents) &&
     sidecar.agents.includes('codex-reviewer')
   ))
-    return false
+    return null
   try {
-    return (
+    const fulfilled =
       runCli(
         'node',
         [join(repoRoot, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
@@ -164,10 +173,45 @@ function hasCurrentFulfilledReview(repoRoot: string, taskId: string): boolean {
           retries: 0,
         },
       ).exitCode === 0
-    )
+    return fulfilled
+      ? seatPayload(correlatedSeatEnvelopes(repoRoot, taskId, sha, 'codex-reviewer'))
+      : null
     // FAIL-OPEN-INTENT: stale or unavailable fulfilment evidence is a cache miss; rerun review.
   } catch {
-    return false
+    return null
+  }
+}
+
+/** Every correlated shard counts: the worst verdict and all findings, so none hides behind another. */
+function seatPayload(shards: Record<string, unknown>[]): ExternalReviewPayload | null {
+  const payloads = shards.map(shardPayload)
+  if (payloads.length === 0 || payloads.some((payload) => payload === null)) return null
+  return (payloads as ExternalReviewPayload[]).reduce((merged, payload) => ({
+    verdict:
+      VERDICT_RANK[payload.verdict] > VERDICT_RANK[merged.verdict]
+        ? payload.verdict
+        : merged.verdict,
+    confidence: Math.min(merged.confidence, payload.confidence),
+    findings: [...merged.findings, ...payload.findings],
+    refutations: [...merged.refutations, ...payload.refutations],
+    acceptanceFit: { ...merged.acceptanceFit, ...payload.acceptanceFit },
+  }))
+}
+
+function shardPayload(shard: Record<string, unknown>): ExternalReviewPayload | null {
+  const { verdict, confidence, findings, refutations, acceptanceFit } = shard
+  if (
+    !(verdict === 'PASS' || verdict === 'WARN' || verdict === 'FAIL') ||
+    typeof confidence !== 'number' ||
+    !isRecordList(findings)
+  )
+    return null
+  return {
+    verdict,
+    confidence,
+    findings,
+    refutations: isRecordList(refutations) ? refutations : [],
+    acceptanceFit: isRecord(acceptanceFit) ? acceptanceFit : {},
   }
 }
 
@@ -574,7 +618,10 @@ function runShipCrossModelReview(
   if (options.cfg.diffEgressConsent) {
     try {
       assertReviewTreeClean(repoRoot)
-      if (options.cfg.enabled && hasCurrentFulfilledReview(repoRoot, options.taskId)) {
+      const envelope = options.cfg.enabled
+        ? currentFulfilledEnvelope(repoRoot, options.taskId)
+        : null
+      if (envelope !== null) {
         assertFrozenReviewHead(repoRoot, reviewHead)
         return {
           provider: 'codex',
@@ -583,6 +630,7 @@ function runShipCrossModelReview(
           diffTruncated: false,
           degradationReasons: [],
           recorded: true,
+          envelope,
         }
       }
       diff = runCli('git', ['diff', '--binary', `${reviewBase}..${reviewHead}`], {

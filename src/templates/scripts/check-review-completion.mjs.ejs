@@ -843,16 +843,20 @@ function resolveTaskContext(sidecar) {
 
 /**
  * @param {Record<string, unknown>[]} envelopes
+ * @param {{ agent: string, shards: Record<string, unknown>[] }[]} panel
  * @returns {{ exitCode: number }}
  */
-function reportCorrelated(envelopes) {
-  process.stdout.write(`${JSON.stringify({ envelopes })}\n`)
+function reportCorrelated(envelopes, panel) {
+  const seats = Object.fromEntries(panel.map(({ agent, shards }) => [agent, shards]))
+  process.stdout.write(`${JSON.stringify({ envelopes, seats })}\n`)
   return { exitCode: 0 }
 }
 
 /**
  * #2858 — the round verdict at a SHA is the admitted panel of the completion gate: the active
- * treatment must match and panelAdmission must pass, otherwise the round is not covered. The
+ * treatment must match and panelAdmission must pass, otherwise the round is not covered. `seats`
+ * carries each dispatched agent's correlated returns by the same per-agent rule, so an already
+ * answered seat of an incomplete panel is reused instead of dispatched again. The
  * checkout binding is deliberately not applied here: the query reads the verdict of a past SHA,
  * the branch leg is already enforced by loadSidecarForCheck, and a moved HEAD is the task's
  * reviewedSourceChanged decision (a new round), not an uncovered one.
@@ -864,10 +868,11 @@ function reportCorrelated(envelopes) {
  */
 function queryCorrelated(sidecar, task, files, valid) {
   if (sidecar.sha !== correlatedSha || activeTreatmentFailure(sidecar, task) !== null) {
-    return reportCorrelated([]).exitCode
+    return reportCorrelated([], []).exitCode
   }
   const { failures, panel } = panelAdmission(sidecar, task, files, valid)
-  return reportCorrelated(failures.length > 0 ? [] : panel.flatMap(({ shards }) => shards)).exitCode
+  const admitted = failures.length > 0 ? [] : panel.flatMap(({ shards }) => shards)
+  return reportCorrelated(admitted, panel).exitCode
 }
 
 function main() {

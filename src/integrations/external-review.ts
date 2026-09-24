@@ -58,7 +58,7 @@ type ExternalReviewDegradationReason =
   | 'coercion-failed'
   | 'envelope-rejected'
 
-interface ExternalReviewPayload {
+export interface ExternalReviewPayload {
   verdict: 'PASS' | 'WARN' | 'FAIL'
   confidence: number
   findings: Array<Record<string, unknown>>
