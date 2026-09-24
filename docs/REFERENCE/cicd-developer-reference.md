@@ -149,6 +149,14 @@ explicit `AC-N` ids plus non-goals; at verification and close a reviewer-written
 evidence line. That is the mechanical form of **"an unproven criterion is a REJECT"** — green
 tests say the code does what it does, not that it does what was asked.
 
+One exception, written in the plan and covered by its hash: a criterion written
+`AC-N: [exact-main] …` can only be proven on `main`, so the pre-merge fit may mark it
+`NOT-TESTED`. `arbiter lifecycle advance --to complete` then refuses until the push/main CI run on the
+PR's merge SHA is terminal green, judged by the same CI authority as the no-PR path. Every other
+criterion still needs `PASS`. A plan that marks every criterion is refused at admission. A review
+envelope that leaves an unmarked criterion non-PASS is recorded as an ordinary review return, and
+the round message names each non-PASS criterion (#2865).
+
 **It is inert unless you turn it on.** Two layers of default-off, deliberately:
 
 - gated on `features.acceptanceAnchor` in `arbiter.json`, with `ARBITER_ACCEPTANCE_ANCHOR=1/0`

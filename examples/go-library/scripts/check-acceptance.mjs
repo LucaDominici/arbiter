@@ -71,7 +71,7 @@ function fail(msg) {
   process.stderr.write(`FAIL check-acceptance: ${msg}\n`)
 }
 
-/** Validate one plan body's anchor; returns { ok, criteriaIds, errors }. */
+/** Validate one plan body's anchor; returns { ok, criteriaIds, exactMainIds, errors }. */
 export function checkPlanAnchor(planBody) {
   const anchor = parsePlanAnchor(planBody)
   const errors = []
@@ -79,7 +79,7 @@ export function checkPlanAnchor(planBody) {
     errors.push(
       'plan lacks the frozen anchor: add "## Acceptance Criteria" (verbatim from the issue, explicit AC-N ids) and "## Non-Goals"',
     )
-    return { ok: false, criteriaIds: [], errors }
+    return { ok: false, criteriaIds: [], exactMainIds: [], errors }
   }
   if (anchor.criteria.length === 0) {
     errors.push('plan "## Acceptance Criteria" has no `- AC-N: …` criterion bullet')
@@ -96,9 +96,15 @@ export function checkPlanAnchor(planBody) {
       )
   }
   if (anchor.nonGoals.length === 0) errors.push('plan lacks a non-empty "## Non-Goals" section')
+  const exactMainIds = anchor.criteria.filter((c) => c.exactMain).map((c) => c.id)
+  if (exactMainIds.length > 0 && exactMainIds.length === anchor.criteria.length)
+    errors.push(
+      'every criterion is marked [exact-main] — at least one criterion must be provable before merge',
+    )
   return {
     ok: errors.length === 0,
     criteriaIds: anchor.criteria.map((c) => c.id),
+    exactMainIds,
     errors,
   }
 }
@@ -132,11 +138,16 @@ function runPlanMode(root, args, planIdx) {
   const result = checkPlanAnchor(plan.body)
   for (const e of result.errors) fail(e)
   if (!result.ok) return 1
+  // #2865: the ids `complete` must prove on the exact-main CI run (JSON on stdout, nothing else).
+  if (args.includes('--exact-main-ids')) {
+    console.log(JSON.stringify(result.exactMainIds))
+    return 0
+  }
   const checkCurrent = args.includes('--check-derived-current')
   const derivedExit = checkPlanDerivedGates(root, plan.body, checkCurrent)
   if (derivedExit !== 0) return derivedExit
   if (checkCurrent && reportUnwiredPlanCheckers(root, plan.body) !== 0) return 1
-  const fitExit = checkExplicitFitArg(root, args, result.criteriaIds)
+  const fitExit = checkExplicitFitArg(root, args, result)
   if (fitExit !== 0) return fitExit
   console.log('OK check-acceptance (--plan mode)')
   return 0
@@ -261,7 +272,7 @@ function checkPlanDerivedGates(root, planBody, forceCurrent = false) {
 }
 
 // --ac-fit <path>: validate a named artifact against the plan's criteria (all-PASS).
-function checkExplicitFitArg(root, args, criteriaIds) {
+function checkExplicitFitArg(root, args, planIds) {
   const fitIdx = args.indexOf('--ac-fit')
   if (fitIdx === -1) return 0
   const fitArg = args[fitIdx + 1]
@@ -270,7 +281,7 @@ function checkExplicitFitArg(root, args, criteriaIds) {
     fail(`--ac-fit artifact not found: ${fitArg}`)
     return 2
   }
-  const errors = explicitFitErrors(root, fitAbs, criteriaIds)
+  const errors = explicitFitErrors(root, fitAbs, planIds)
   if (errors.length > 0) {
     for (const e of errors) fail(e)
     return 1
@@ -297,9 +308,9 @@ function activeTaskFitState(root, fitAbs) {
   return resolve(fitAbs) === resolve(taskFit) ? state : null
 }
 
-function explicitFitErrors(root, fitAbs, criteriaIds) {
+function explicitFitErrors(root, fitAbs, planIds) {
   const state = activeTaskFitState(root, fitAbs)
-  const fit = readValidatedFit(fitAbs, criteriaIds, true, state?.taskId, root)
+  const fit = readValidatedFit(fitAbs, planIds, true, state?.taskId, root)
   if (state === null || fit.errors.length > 0 || fit.json === undefined) return fit.errors
   return boundFitErrors(root, state, state.plan, fit.json)
 }
@@ -443,7 +454,7 @@ function resolveGatePlan(root, state, phase) {
     for (const e of result.errors) fail(e)
     return { exit: 1 }
   }
-  return { planRef, criteriaIds: result.criteriaIds }
+  return { planRef, criteriaIds: result.criteriaIds, exactMainIds: result.exactMainIds }
 }
 
 // Per-task ac-fit contract: validate when present; REQUIRED (all-PASS) at late phases,
@@ -528,7 +539,7 @@ function boundFitErrors(root, state, planRef, json) {
   return errors
 }
 
-function checkTaskFit(root, state, phase, planRef, criteriaIds) {
+function checkTaskFit(root, state, phase, planRef, planIds) {
   const fitPath = join(
     root,
     '.arbiter',
@@ -539,7 +550,7 @@ function checkTaskFit(root, state, phase, planRef, criteriaIds) {
   const isWaveWorker = planRef.includes('#')
   const late = LATE_PHASES.has(phase)
   if (existsSync(fitPath)) {
-    const fit = readValidatedFit(fitPath, criteriaIds, late, state.taskId, root)
+    const fit = readValidatedFit(fitPath, planIds, late, state.taskId, root)
     const errors = fit.errors
     if (late && fit.errors.length === 0 && fit.json !== undefined)
       errors.push(...boundFitErrors(root, state, planRef, fit.json))
@@ -570,7 +581,7 @@ function runGateMode(root) {
   if (planResolved.exit !== undefined) return planResolved.exit
   const { planRef, criteriaIds } = planResolved
 
-  const fitExit = checkTaskFit(root, state, phase, planRef, criteriaIds)
+  const fitExit = checkTaskFit(root, state, phase, planRef, planResolved)
   if (fitExit !== 0) return fitExit
 
   console.log(`OK check-acceptance (phase ${phase}, ${criteriaIds.length} criteria)`)
@@ -595,7 +606,7 @@ function main() {
   return runGateMode(root)
 }
 
-function readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, root) {
+function readValidatedFit(absPath, planIds, requireAllPass, expectedTaskId, root) {
   let json
   try {
     json = JSON.parse(readRegularFileSync(absPath, 'utf-8'))
@@ -603,7 +614,11 @@ function readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, 
   } catch {
     return { errors: [`ac-fit artifact is not valid JSON: ${absPath}`] }
   }
-  const errors = validateAcFit(json, criteriaIds, { requireAllPass, expectedTaskId })
+  const errors = validateAcFit(json, planIds.criteriaIds, {
+    requireAllPass,
+    expectedTaskId,
+    exactMainIds: planIds.exactMainIds,
+  })
   if (root && errors.length === 0)
     errors.push(...enforceAcFitCitations(json, root, json.sha ?? 'HEAD', absPath))
   return { json, errors }

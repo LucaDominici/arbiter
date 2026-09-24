@@ -118,7 +118,7 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
    block. If another ordinary round would be needed, report BLOCKED or deliberately force it. A
    round whose only findings are LOW is complete and parks those findings; the foreground
    `--review-round` command reports the result before returning.
-8. **Verify** — join review completion and all-PASS acceptance fit with green CI for the exact frozen SHA. Record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`; only then mark the draft PR ready.
+8. **Verify** — join review completion and all-PASS acceptance fit with green CI for the exact frozen SHA. A plan criterion written `AC-N: [exact-main] …` may stay NOT-TESTED here; `complete` then requires the green push/main CI run on the merge SHA. Record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`; only then mark the draft PR ready.
 9. **Land** — reuse the unchanged qualification through PR and CI. Merge, verify green post-merge CI,
    perform live proof when applicable, close every carried issue, then clean up.
 

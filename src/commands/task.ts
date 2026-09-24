@@ -898,6 +898,9 @@ function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
   if (!permitsGitHubCalls(dir)) {
     // Skipped, never silent: a repo that has not set `permitGitHub: true` must not be shelled out
     // to, but a completion that skipped the landing check still has to be attributable.
+    const exactMain = exactMainCriteria(dir)
+    if (exactMain.length > 0)
+      throw prGateRefusal(`[exact-main] ${exactMain.join(', ')} need the exact-main CI run.`)
     appendLog(dir, 'complete ← pr-check skipped (permitGitHub not set)')
     return true
   }
@@ -942,7 +945,52 @@ function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?:
       ? evaluateMerged(snapshots, branch, opts.pr)
       : evaluateHarnessCompletion(dir, snapshots, candidateSha, opts)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
+  checkExactMainCi(dir, opts, snapshots, verdict.number)
   appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
+}
+
+/** #2865 — the plan's `[exact-main]` criterion ids, from the emitted checker (fail-closed). */
+function exactMainCriteria(dir: string): string[] {
+  if (!acceptanceProfileEnabled(dir)) return []
+  const plan = readUnifiedState(dir)?.plan.trim() ?? ''
+  const out = runRequiredTaskChecker(dir, 'check-acceptance.mjs', [
+    '--plan',
+    plan,
+    '--exact-main-ids',
+  ])
+  const ids: unknown = JSON.parse(out)
+  if (!Array.isArray(ids)) throw new Error('check-acceptance.mjs --exact-main-ids: not a list')
+  return ids.map(String)
+}
+
+/**
+ * #2865 — `[exact-main]` criteria are proven only by the push/main CI run on the merge SHA. Only
+ * those runs are judged: an `exact-pr` fast-forward's merge SHA also carries the PR's runs.
+ */
+function checkExactMainCi(
+  dir: string,
+  opts: TaskAdvanceOptions,
+  snapshots: readonly PrSnapshot[],
+  prNumber: number,
+): void {
+  const exactMain = exactMainCriteria(dir)
+  if (exactMain.length === 0) return
+  const mergeSha = snapshots.find((pr) => pr.number === prNumber)?.mergeCommit?.oid
+  const checks =
+    mergeSha === undefined
+      ? []
+      : (opts.readCommitCi?.(mergeSha, dir) ?? readCommitCi(mergeSha, dir))
+  const mainRuns = checks.filter(
+    (check) =>
+      check.checkSuite?.branch === 'main' && check.checkSuite.workflowRun?.event === 'push',
+  )
+  if (!successfulPostMainCi(mainRuns)) {
+    throw prGateRefusal(
+      `[exact-main] ${exactMain.join(', ')}: the exact-main CI run on merge ${mergeSha ?? '(unknown)'} ` +
+        `of PR #${prNumber} is red, pending or missing. Wait for it to finish green, then retry.`,
+    )
+  }
+  appendLog(dir, `complete ← exact-main CI green on ${mergeSha}`)
 }
 
 function evaluateHarnessCompletion(
