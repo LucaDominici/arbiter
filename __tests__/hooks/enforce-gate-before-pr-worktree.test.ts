@@ -220,3 +220,68 @@ describe('enforce-gate-before-pr heredoc data (#2862)', () => {
     expect(runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir).status).toBe(2)
   })
 })
+
+// #2862 review: an output redirection or a read-only filter after a draft creation leaves it a
+// draft; input redirection, background `&` and command substitution stay ambiguous. Text a shell
+// runs through `-c` or `eval` is shell, so a PR command inside it is guarded; the quoted
+// arguments of any other command stay data.
+describe('enforce-gate-before-pr shell forms (#2862 review)', () => {
+  function hookIn(command: string): ReturnType<typeof spawnSync> {
+    const dir = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-forms-')))
+    initRepo(dir)
+    return runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
+  }
+
+  it.each([
+    'gh pr create --draft --title T --body-file F 2>&1 | tail -1',
+    'gh pr create --draft --fill > /tmp/pr-url',
+    'gh pr create --draft --fill >> /tmp/pr-url',
+    'gh pr create --draft --fill 2>/dev/null',
+    'gh pr create --draft --fill &> /tmp/pr-url',
+    'gh pr create --draft --fill >/dev/null 2>&1',
+    'cd /tmp && gh pr create --draft --fill 2>&1 | grep -o "https://[^ ]*"',
+  ])('recognizes a redirected or filtered draft creation: %s', (command) => {
+    const result = hookIn(command)
+    expect(result.status, String(result.stderr)).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
+  it.each([
+    'gh pr create --draft --fill < /tmp/body',
+    'gh pr create --draft --fill &',
+    'gh pr create --draft --fill > "$(gh pr ready)"',
+    'gh pr create --draft --fill > >(cat)',
+    'gh pr create --title >/tmp/x --draft',
+    'gh pr create --draft --fill 2>&1 | xargs gh pr ready',
+  ])('keeps an ambiguous or non-draft redirection blocked: %s', (command) => {
+    expect(hookIn(command).status).toBe(2)
+  })
+
+  it.each([
+    'bash -c "gh pr create --fill"',
+    "sh -c 'gh pr ready 12'",
+    'zsh -c "gh pr create --fill"',
+    'bash -lc "gh pr create --fill"',
+    'env bash -c "gh pr create --fill"',
+    'eval "gh pr create --fill"',
+    'bash -c "sh -c \'gh pr create --fill\'"',
+    'bash -c "true; eval \'gh pr ready\'"',
+    'bash -c "gh pr create --draft --fill"',
+  ])('guards a PR command a shell runs from its -c or eval payload: %s', (command) => {
+    const result = hookIn(command)
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('No valid gate-pass.json or ci-pass.json')
+  })
+
+  it.each([
+    'gh issue create --title t --body "bash -c \'gh pr create --fill\'"',
+    'gh issue comment 1 --body "eval gh pr create --fill"',
+    'git commit -m "sh -c \\"gh pr ready\\""',
+    'gh issue create --title t --body "$(cat <<\'EOF\'\nbash -c "gh pr create --fill"\nEOF\n)"',
+    'bash -c "echo done" > /tmp/out',
+  ])('treats a quoted argument of another command as data: %s', (command) => {
+    const result = hookIn(command)
+    expect(result.status, String(result.stderr)).toBe(0)
+    expect(result.stderr).toBe('')
+  })
+})
