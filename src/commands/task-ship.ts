@@ -1267,7 +1267,11 @@ function fulfilledReviewEnvelope(
   plan: PlannedReviewRound,
 ): NonNullable<typeof result.envelope> {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) {
-    throw noReviewData(plan, result.degradationReasons.join(', ') || 'empty reviewer result')
+    const reasons = result.degradationReasons.join(', ') || 'empty reviewer result'
+    throw noReviewData(
+      plan,
+      result.rejectionDetail === undefined ? reasons : `${reasons}: ${result.rejectionDetail}`,
+    )
   }
   return result.envelope
 }

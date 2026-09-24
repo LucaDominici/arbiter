@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { readFileTranslated } from '../utils/fs.js'
@@ -1406,65 +1406,37 @@ function reviewerFindings(raw: unknown): ReviewRoundEnvelope['findings'] | null 
   return severities.map((severity) => ({ severity }))
 }
 
-function isReviewerEnvelope(
-  parsed: unknown,
-  taskId: string,
-  frozenSha: string,
-): parsed is Record<string, unknown> {
-  return (
-    isRecord(parsed) &&
-    parsed['schema'] === 'arbiter-agent-return-v1' &&
-    typeof parsed['agent'] === 'string' &&
-    parsed['taskId'] === taskId &&
-    parsed['role'] === 'reviewer' &&
-    typeof parsed['branch'] === 'string' &&
-    parsed['sha'] === frozenSha &&
-    typeof parsed['ts'] === 'string' &&
-    ['PASS', 'WARN', 'FAIL'].includes(String(parsed['verdict'])) &&
-    typeof parsed['confidence'] === 'number'
-  )
-}
-
-function readReviewerEnvelope(
-  path: string,
-  taskId: string,
-  frozenSha: string,
-): ReviewRoundEnvelope | null {
-  try {
-    if (!lstatSync(path).isFile()) return null
-    const parsed: unknown = JSON.parse(readFileTranslated(path, 'utf8'))
-    if (!isReviewerEnvelope(parsed, taskId, frozenSha)) return null
-    const findings = reviewerFindings(parsed['findings'])
-    return findings === null ? null : { sha: frozenSha, findings }
-  } catch {
-    return null
-  }
-}
-
+/**
+ * #2858 — a reviewer return counts for the round only when check-review-completion correlates it
+ * with the dispatch record: one rule for this lookup and the completion gate. No dispatch record
+ * means no verdict; a missing script or unreadable answer throws instead of reopening the round.
+ */
 function latestReviewerEnvelopeFor(
   dir: string,
   taskId: string | undefined,
   frozenSha: string | null,
 ): ReviewRoundEnvelope | undefined {
   if (taskId === undefined || frozenSha === null) return undefined
-  const taskDir = join(dir, '.arbiter', 'evidence', 'agent-returns', sanitizeTaskId(taskId))
-  let entries: string[]
-  try {
-    entries = readdirSync(taskDir)
-      .filter((entry) => entry.endsWith('.json'))
-      .sort()
-  } catch {
-    return undefined
+  if (!existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))) return undefined
+  const stdout = runRequiredTaskChecker(dir, 'check-review-completion.mjs', [
+    '--task',
+    taskId,
+    `--correlated-sha=${frozenSha}`,
+  ])
+  const parsed: unknown = JSON.parse(stdout)
+  const envelopes = isRecord(parsed) ? parsed['envelopes'] : undefined
+  if (!Array.isArray(envelopes) || !envelopes.every(isRecord)) {
+    throw new Error(`check-review-completion.mjs returned no correlated envelope list: ${stdout}`)
   }
   const findings: { severity: string }[] = []
-  let found = false
-  for (const entry of entries) {
-    const envelope = readReviewerEnvelope(join(taskDir, entry), taskId, frozenSha)
-    if (envelope === null) continue
-    found = true
-    findings.push(...envelope.findings)
+  for (const envelope of envelopes) {
+    const correlated = reviewerFindings(envelope['findings'])
+    if (correlated === null) {
+      throw new Error(`check-review-completion.mjs returned malformed findings for ${taskId}`)
+    }
+    findings.push(...correlated)
   }
-  return found ? { sha: frozenSha, findings } : undefined
+  return envelopes.length > 0 ? { sha: frozenSha, findings } : undefined
 }
 
 function assertReviewSubjectFrozen(dir: string): void {
@@ -1683,13 +1655,13 @@ function admissionArgsForTask(taskId: string, plan: string): string[] {
   return args
 }
 
-function runRequiredTaskChecker(dir: string, scriptName: string, args: readonly string[]): void {
+function runRequiredTaskChecker(dir: string, scriptName: string, args: readonly string[]): string {
   const script = join(dir, 'scripts', scriptName)
   if (!existsSync(script)) {
     throw new Error(`${scriptName} is required by the active delivery profile but is missing`)
   }
   try {
-    runCli('node', [script, ...args], { cwd: dir, timeoutMs: 30_000 })
+    return runCli('node', [script, ...args], { cwd: dir, timeoutMs: 30_000 }).stdout
   } catch (err) {
     throw new Error(
       `${scriptName} blocked the lifecycle transition: ${err instanceof Error ? err.message : String(err)}`,
