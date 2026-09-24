@@ -73,8 +73,9 @@ describe('debt-report.mjs.ejs', () => {
     const lib = renderTemplate('scripts/debt-lib.mjs.ejs', data)
 
     expect(report).toContain("optionValue('--only-metric')")
-    expect(report).toContain("onlyMetric !== 'complexityViolations'")
+    expect(report).toContain("new Set(['complexityViolations', 'publicApiSurface'])")
     expect(lib).toContain("opts.onlyMetric === 'complexityViolations'")
+    expect(lib).toContain("opts.onlyMetric === 'publicApiSurface'")
   })
 
   it('requires a freshness token before reusing a gate coverage summary', () => {
@@ -89,15 +90,17 @@ describe('debt-report.mjs.ejs', () => {
 
   it('keeps the self and rendered debt tolerance equal to the coverage ratchet', () => {
     const data = makeDataWithProfile({ language: 'typescript' })
-    const rendered = renderTemplate('scripts/debt-report.mjs.ejs', data)
-    const selfReport = readFileSync(resolve('scripts/debt-report.mjs'), 'utf-8')
+    const rendered = renderTemplate('scripts/debt-lib.mjs.ejs', data)
+    const selfLib = readFileSync(resolve('scripts/debt-lib.mjs'), 'utf-8')
     const coverageRatchet = readFileSync(resolve('scripts/check-coverage-ratchet.mjs'), 'utf-8')
-    const value = (source: string, name: string): number =>
-      Number(new RegExp(`const ${name} = (\\d+(?:\\.\\d+)?)`).exec(source)?.[1])
+    const value = (source: string, pattern: string): number =>
+      Number(new RegExp(`${pattern}(\\d+(?:\\.\\d+)?)`).exec(source)?.[1])
 
-    const ratchetTolerance = value(coverageRatchet, 'TOLERANCE')
-    expect(value(selfReport, 'COVERAGE_NOISE_TOLERANCE_PP')).toBe(ratchetTolerance)
-    expect(value(rendered, 'COVERAGE_NOISE_TOLERANCE_PP')).toBe(ratchetTolerance)
+    const ratchetTolerance = value(coverageRatchet, 'const TOLERANCE = ')
+    for (const metric of ['coverageLine', 'coverageBranch']) {
+      expect(value(selfLib, `DEBT_METRIC_TOLERANCES = .*${metric}: `)).toBe(ratchetTolerance)
+      expect(value(rendered, `DEBT_METRIC_TOLERANCES = .*${metric}: `)).toBe(ratchetTolerance)
+    }
     expect(90).toBeLessThan(90.41 - ratchetTolerance)
   })
 

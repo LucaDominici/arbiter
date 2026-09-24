@@ -310,6 +310,7 @@ describe('result-first preflight (#2724)', () => {
   it.each([
     ['pass', {}, 0],
     ['scripts/pii-scan.mjs', {}, 1],
+    ['scripts/check-anti-telemetry.mjs', {}, 1],
     ['scripts/check-self-dogfood.mjs', {}, 1],
     ['scripts/regenerate-examples.mjs', {}, 1],
     ['pass', { BOOTSTRAP_DIRTY: '1' }, 0],
@@ -324,7 +325,9 @@ describe('result-first preflight (#2724)', () => {
       ['node', 'scripts/check-secret-scan.mjs'],
       ['node', 'scripts/check-no-tracked-artifacts.mjs'],
       ['node', 'scripts/check-fail-closed-audit.mjs'],
+      ['node', 'scripts/check-anti-telemetry.mjs'],
       ['node', 'scripts/debt-report.mjs', '--gate', '--only-metric', 'complexityViolations'],
+      ['node', 'scripts/debt-report.mjs', '--gate', '--only-metric', 'publicApiSurface'],
       ['node', 'scripts/check-self-dogfood.mjs'],
       ['node', 'scripts/regenerate-examples.mjs', '--check'],
     ])

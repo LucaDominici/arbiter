@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2863",
+  "test_path": "__tests__/commands/ship-review.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "00821cb3409b9a49b98a25cf3796cd69f739f578",
+  "test_blob_sha": "cd6782128ca1c269e62d16128f3d53e27c1f3684",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/ship-review.test.ts (50 tests | 1 failed) 9992ms\n     × refuses the freeze while a template commit is newer than the bake snapshots (#2863 AC-4) 186ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 49 passed (50)\n   Start at  20:09:22\n   Duration  10.58s (transform 411ms, setup 8ms, import 496ms, tests 9.99s, environment 0ms)\n\n\nstderr | __tests__/commands/ship-review.test.ts > review rounds through arbiter ship (#2400 wiring) > refuses the freeze while a template commit is newer than the bake snapshots (#2863 AC-4)\n\n\n\n\n\n\nstderr | __tests__/commands/ship-review.test.ts > review rounds through arbiter ship (#2400 wiring) > refuses the freeze while a template commit is newer than the bake snapshots (#2863 AC-4)\n\n\n\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/ship-review.test.ts > review rounds through arbiter ship (#2400 wiring) > refuses the freeze while a template commit is newer than the bake snapshots (#2863 AC-4)\nAssertionError: expected [Function] to throw an error\n\n- Expected:\nnull\n\n+ Received:\nundefined\n\n ❯ __tests__/commands/ship-review.test.ts:401:63\n    399|       ],\n    400|     })\n    401|     expect(() => ship({ reviewRound: true, headSha: SHA_B })).toThrow(\n       |                                                               ^\n    402|       /BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake/,\n    403|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/ship-review.test.ts",
+  "recorded_at": "2026-09-24T18:09:32.951Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/ship-review.test.ts"
+  ]
+}

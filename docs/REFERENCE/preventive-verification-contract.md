@@ -66,8 +66,18 @@ arbiter lifecycle start --id '#NNN' --plan path/to/plan.md
 Then read the next `/ship` step to review the refreshed commands and unresolved obligations before
 entering RED.
 
-Arbiter's own pre-push preflight executes two cheap final-gate slices that have caused avoidable CI
-rework: the fail-closed audit and the existing complexity baseline measurement. Generated
+Each debt ratchet in the list shows its baseline, tolerance and the resulting floor or ceiling. The
+record stores only these static values, so a changed measurement keeps it current and a changed
+baseline requires a re-anchor. At a Standard plan step, `/ship` also measures the public API count
+read-only; branch coverage reads `current: not measured at plan`.
+
+When a template change owes the bake regeneration, the review freeze refuses a `src/templates/**`
+commit newer than the latest bake snapshot commit and names
+`BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake`. Rebake last, after the final template fix.
+
+Arbiter's own pre-push preflight executes cheap final-gate slices that have caused avoidable CI
+rework: the fail-closed audit, anti-telemetry, and the existing complexity and public API baseline
+measurements (`--only-metric publicApiSurface`, zero tolerance). Generated
 TypeScript targets with debt gates enabled execute the applicable complexity slice. It uses
 `debt-report.mjs --gate --only-metric complexityViolations`, fails when the collector is unavailable,
 and does not run coverage, type checking, dead-code or duplication collectors. The complete debt

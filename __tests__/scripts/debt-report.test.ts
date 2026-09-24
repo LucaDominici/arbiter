@@ -109,6 +109,41 @@ describe('debt-report.mjs (gate: debt ratchet enforcement)', () => {
     }
   })
 
+  it('gates the public API surface alone: one added export fails, the baseline count passes (#2863 AC-1)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = writeMetricFixture(dir, 0)
+      const baselinePath = join(dir, 'scripts', 'debt-baseline.json')
+      const baseline = JSON.parse(readFileSync(baselinePath, 'utf-8'))
+      baseline.metrics.publicApiSurface = { value: 1, unit: 'count', direction: 'lower-is-better' }
+      writeFileSync(baselinePath, JSON.stringify(baseline))
+      mkdirSync(join(dir, 'src'))
+      writeFileSync(join(dir, 'src', 'a.ts'), 'export const a = 1\n')
+      const gate = () =>
+        spawnSync(
+          'node',
+          [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'publicApiSurface'],
+          {
+            cwd: dir,
+            encoding: 'utf-8',
+            env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+          },
+        )
+
+      expect(gate().status).toBe(0)
+      writeFileSync(join(dir, 'src', 'a.ts'), 'export const a = 1\nexport const b = 2\n')
+      const result = gate()
+
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('publicApiSurface')
+      expect(result.stderr).toContain('GATE FAIL')
+      expect(existsSync(join(dir, 'calls.txt'))).toBe(false)
+      expect(existsSync(join(dir, '.coverage-tmp'))).toBe(false)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('rejects an unknown preventive metric without invoking collectors', () => {
     const { dir, cleanup } = makeTemp()
     try {

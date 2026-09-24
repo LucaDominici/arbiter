@@ -366,6 +366,17 @@ export function countTodos(cwd) {
   return count
 }
 
+// Measurement-noise tolerance for v8-coverage metrics (#2253): CI's v8
+// collector measures ~0.2pp lower than a locally-captured baseline on the
+// same code (platform/timing variance in which lines v8 marks covered), so a
+// strict any-decrease-is-a-regression comparison is structurally prone to a
+// first-CI false regression the moment the baseline is captured on a
+// different machine than CI (observed: line coverage -0.16pp, branch coverage
+// -0.22pp — both well under a real change). check-coverage-ratchet.mjs
+// (#1483) carries this exact TOLERANCE=0.4 pp noise floor for the
+// same v8-jitter reason; mirroring its value here is parity, not invention.
+export const DEBT_METRIC_TOLERANCES = Object.freeze({ coverageLine: 0.4, coverageBranch: 0.4 })
+
 /** Count top-level TypeScript export declarations without platform grep heuristics. */
 export function countPublicApi(cwd) {
   let count = 0
@@ -554,6 +565,22 @@ function coverageMetricsFromSummary(summary) {
   }
 }
 
+function collectPublicApiSurface(cwd, metrics, collectionErrors) {
+  if (existsSync(resolve(cwd, 'src'))) {
+    try {
+      metrics.publicApiSurface = {
+        value: countPublicApi(cwd),
+        unit: 'count',
+        direction: 'lower-is-better',
+      }
+    } catch (error) {
+      const reason = `public API scan failed: ${error instanceof Error ? error.message : String(error)}`
+      collectionErrors.push({ metric: 'publicApiSurface', reason })
+      process.stderr.write(`[baseline] ERROR: ${reason}\n`)
+    }
+  }
+}
+
 function collectComplexityViolations(cwd, metrics, collectionErrors) {
   const [command, ...args] = DEBT_METRIC_COMMANDS.complexityViolations
   const result = spawnOrSkip('complexityViolations', 'eslint', command, args, { cwd })
@@ -594,7 +621,7 @@ function collectComplexityViolations(cwd, metrics, collectionErrors) {
  *   Sink for tool-ran-but-collection-failed events (distinct from
  *   tool-not-installed, which soft-skips). debt-report --gate hard-fails on
  *   any entry (#1286, fail-closed).
- * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null, coverageSummaryPath?: string, coverageStartedAt?: number, onlyMetric?: 'complexityViolations'}} [opts]
+ * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null, coverageSummaryPath?: string, coverageStartedAt?: number, onlyMetric?: 'complexityViolations' | 'publicApiSurface'}} [opts]
  *   spawnCoverage is injectable for tests, mirroring jscpdScan's opts.spawn
  *   seam: it replaces the `npx vitest run --coverage` invocation so a unit test
  *   can deterministically simulate "vitest ran, no summary written" (the
@@ -605,6 +632,10 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   const metrics = {}
   if (opts.onlyMetric === 'complexityViolations') {
     collectComplexityViolations(cwd, metrics, collectionErrors)
+    return metrics
+  }
+  if (opts.onlyMetric === 'publicApiSurface') {
+    collectPublicApiSurface(cwd, metrics, collectionErrors)
     return metrics
   }
 
@@ -727,21 +758,7 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   }
 
   // ── Public API surface (library archetype — count of top-level exports) ───
-  {
-    if (existsSync(resolve(cwd, 'src'))) {
-      try {
-        metrics.publicApiSurface = {
-          value: countPublicApi(cwd),
-          unit: 'count',
-          direction: 'lower-is-better',
-        }
-      } catch (error) {
-        const reason = `public API scan failed: ${error instanceof Error ? error.message : String(error)}`
-        collectionErrors.push({ metric: 'publicApiSurface', reason })
-        process.stderr.write(`[baseline] ERROR: ${reason}\n`)
-      }
-    }
-  }
+  collectPublicApiSurface(cwd, metrics, collectionErrors)
 
   // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
   // Language-agnostic: reads `.arbiter/findings/*.jsonl`. Spool absent → omitted

@@ -374,6 +374,46 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     expect(() => ship({ reviewRound: true, headSha: SHA_B })).toThrow(/clean HEAD/)
   })
 
+  it('refuses the freeze while a template commit is newer than the bake snapshots (#2863 AC-4)', () => {
+    const commit = (files: string[], message: string) => {
+      for (const file of files) {
+        mkdirSync(join(dir, file, '..'), { recursive: true })
+        writeFileSync(join(dir, file), `${message}\n`)
+      }
+      execFileSync('git', ['add', ...files], { cwd: dir })
+      execFileSync('git', ['commit', '-q', '-m', message], { cwd: dir })
+    }
+    const snapshot = '__tests__/integration/e2e/bake/__snapshots__/ts-cli.json'
+    const template = 'src/templates/AGENTS.md.ejs'
+    ship({ advance: true, headSha: SHA_A })
+    commit([template], 'fix: template before any rebake')
+    ship({ reviewRound: true, headSha: SHA_A })
+
+    writeUnifiedState(dir, {
+      derivedGates: [
+        {
+          name: 'integration suite (INV-25)',
+          kind: 'artifact-regenerate',
+          command: 'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake',
+        },
+      ],
+    })
+    expect(() => ship({ reviewRound: true, headSha: SHA_B })).toThrow(
+      /BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake/,
+    )
+    commit([snapshot], 'test: rebake')
+    commit([template], 'fix: template after the rebake')
+    expect(() => ship({ reviewRound: true, headSha: SHA_B })).toThrow(
+      /BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake/,
+    )
+    expect(review().rounds).toBe(1)
+    commit([snapshot], 'test: rebake again')
+    ship({ reviewRound: true, headSha: SHA_B })
+    commit([template, snapshot], 'fix: template and rebake together')
+    ship({ reviewRound: true, headSha: SHA_B })
+    expect(review().rounds).toBe(2)
+  })
+
   it('does not burn a round just for re-reading the step', () => {
     ship({ advance: true, headSha: SHA_A })
     ship({ reviewRound: true, headSha: SHA_A })

@@ -236,6 +236,21 @@ const plantComplexityRatchet = (d, source) => {
   write(d, 'src/a.js', source)
 }
 
+const plantPublicApiRatchet = (d, source) => {
+  write(
+    d,
+    'scripts/debt-baseline.json',
+    JSON.stringify({
+      version: 2,
+      capturedAt: '2026-09-24',
+      commit: 'fixture',
+      archetype: 'fixture',
+      metrics: { publicApiSurface: { value: 1, unit: 'count', direction: 'lower-is-better' } },
+    }),
+  )
+  write(d, 'src/a.ts', source)
+}
+
 /** The discrimination proofs, keyed by guard name (must cover every entry in GUARDS). */
 export const FLIP_REGISTRY = {
   // ── gh-audit guards: proven via their pure classifiers ────────────────────────────────────
@@ -559,6 +574,13 @@ export const FLIP_REGISTRY = {
         `export function f(x) {\n${Array.from({ length: 11 }, (_, i) => `  if (x === ${i + 1}) return ${i + 1}`).join('\n')}\n  return 0\n}\n`,
       ),
     plantClean: (d) => plantComplexityRatchet(d, 'export const ok = true\n'),
+  },
+  'public API ratchet (preventive)': {
+    kind: 'file-scan',
+    inject: 'cwd',
+    argv: () => ['--gate', '--only-metric', 'publicApiSurface'],
+    plantBad: (d) => plantPublicApiRatchet(d, 'export const a = 1\nexport const b = 2\n'),
+    plantClean: (d) => plantPublicApiRatchet(d, 'export const a = 1\n'),
   },
   // #2560: check-todo-max-age.mjs newly admitted to the CANON-25 family via the declared roster
   // (gate-roster.mjs) — its old name/basename matched none of the three regexes, so it sat

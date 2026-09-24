@@ -547,6 +547,8 @@ export interface ShipResult {
   profile: ShipProfile
   /** Plan-time verification contract persisted in the active task state (#2773). */
   derivedGates?: unknown[]
+  /** Debt metrics measured read-only at a Standard plan step (#2863). */
+  debtCurrent?: Record<string, number>
 }
 
 /**
@@ -654,19 +656,54 @@ function displayGateValue(value: unknown, fallback: string): string {
   return fallback
 }
 
-function formatGateThreshold(raw: unknown): string {
+function roundLimit(value: number): number {
+  return Math.round(value * 1e6) / 1e6
+}
+
+function formatDebtRatchet(
+  name: string,
+  value: number,
+  tolerance: number,
+  lowerIsBetter: boolean,
+  current: number | undefined,
+): string {
+  const limit = lowerIsBetter
+    ? `ceiling ${roundLimit(value + tolerance)}`
+    : `floor ${roundLimit(value - tolerance)}`
+  return `${name}: baseline ${value}, tolerance ${tolerance}, ${limit}, current: ${current ?? 'not measured at plan'}`
+}
+
+function formatGateThreshold(raw: unknown, debtCurrent: Record<string, number> = {}): string {
   const threshold = raw as {
     name?: unknown
     value?: unknown
     source?: unknown
     measurement?: unknown
+    direction?: unknown
+    tolerance?: unknown
+  }
+  if (
+    typeof threshold.name === 'string' &&
+    typeof threshold.value === 'number' &&
+    typeof threshold.tolerance === 'number'
+  ) {
+    return formatDebtRatchet(
+      threshold.name,
+      threshold.value,
+      threshold.tolerance,
+      threshold.direction === 'lower-is-better',
+      debtCurrent[threshold.name],
+    )
   }
   const measurement =
     typeof threshold.measurement === 'string' ? ` via ${threshold.measurement}` : ''
   return `${displayGateValue(threshold.name, 'unnamed')}=${displayGateValue(threshold.value, 'unknown')} (${displayGateValue(threshold.source, 'unknown source')})${measurement}`
 }
 
-function derivedGateLines(derivedGates: unknown[] | undefined): string[] {
+function derivedGateLines(
+  derivedGates: unknown[] | undefined,
+  debtCurrent: Record<string, number> | undefined,
+): string[] {
   if (!derivedGates || derivedGates.length === 0) return []
   return [
     'Gates awaiting this change:',
@@ -687,7 +724,7 @@ function derivedGateLines(derivedGates: unknown[] | undefined): string[] {
           : undefined,
         typeof gate.condition === 'string' ? `when: ${gate.condition}` : undefined,
         Array.isArray(gate.thresholds)
-          ? `thresholds: ${gate.thresholds.map(formatGateThreshold).join(', ')}`
+          ? `thresholds: ${gate.thresholds.map((item) => formatGateThreshold(item, debtCurrent)).join(', ')}`
           : undefined,
         gate.status === 'unresolved'
           ? `UNRESOLVED: ${displayGateValue(gate.reason, 'reason unavailable')}`
@@ -700,7 +737,7 @@ function derivedGateLines(derivedGates: unknown[] | undefined): string[] {
 }
 
 function gateContractLines(result: ShipResult): string[] {
-  if (result.phase === 'plan') return derivedGateLines(result.derivedGates)
+  if (result.phase === 'plan') return derivedGateLines(result.derivedGates, result.debtCurrent)
   if (result.phase === 'complete' || !result.derivedGates?.length) return []
   const count = result.derivedGates.length
   return [
@@ -1429,6 +1466,33 @@ function isReadOnlyShipRequest(
   )
 }
 
+const PUBLIC_API_COUNT_SCRIPT = [
+  "import { pathToFileURL } from 'node:url'",
+  'const { countPublicApi } = await import(pathToFileURL(process.argv[1]).href)',
+  'process.stdout.write(String(countPublicApi(process.cwd())))',
+].join('\n')
+
+/** #2863 AC-2 — the plan step shows the public API count the preflight ratchet will compare. */
+function planDebtCurrent(
+  root: string,
+  phase: TaskPhase,
+  tier: ShipTier,
+): Record<string, number> | undefined {
+  if (phase !== 'plan' || tier !== 'Standard') return undefined
+  try {
+    const stdout = runCli(
+      'node',
+      ['--input-type=module', '-e', PUBLIC_API_COUNT_SCRIPT, join(root, 'scripts', 'debt-lib.mjs')],
+      { cwd: root, timeoutMs: 5000 },
+    ).stdout
+    const count = Number(stdout)
+    return Number.isInteger(count) ? { publicApiSurface: count } : undefined
+    // FAIL-OPEN-INTENT: the count is a plan-time hint; without it the line says "not measured at plan" and preflight still gates the ratchet.
+  } catch {
+    return undefined
+  }
+}
+
 function readOnlyShipResult(
   root: string,
   state: UnifiedTaskState,
@@ -1460,8 +1524,18 @@ function readOnlyShipResult(
       ...(state.review ? { review: state.review } : {}),
     },
     ...(state.derivedGates ? { derivedGates: state.derivedGates } : {}),
+    ...optionalDebtCurrent(root, state.phase, treatment.tier),
     profile,
   }
+}
+
+function optionalDebtCurrent(
+  root: string,
+  phase: TaskPhase,
+  tier: ShipTier,
+): Pick<ShipResult, 'debtCurrent'> {
+  const debtCurrent = planDebtCurrent(root, phase, tier)
+  return debtCurrent ? { debtCurrent } : {}
 }
 
 function persistShipTreatment(
@@ -1523,6 +1597,7 @@ function buildActiveShipResult(input: {
     tier: treatment.tier,
     treatment,
     ...(state?.derivedGates ? { derivedGates: state.derivedGates } : {}),
+    ...optionalDebtCurrent(root, phase, treatment.tier),
     ...(preparedChainAdd !== null ? { trainDecision: preparedChainAdd.affinity } : {}),
     profile,
   }
