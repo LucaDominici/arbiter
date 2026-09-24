@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2862",
+  "test_path": "__tests__/hooks/enforce-gate-before-pr-worktree.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "0d45e9997bf473508488ff6f0459a84aedd7337c",
+  "test_blob_sha": "6faa25ae7e1d211bd69599d577e62b66cb167363",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/hooks/enforce-gate-before-pr-worktree.test.ts (47 tests | 2 failed) 1713ms\n     × treats a quoted argument of another command as data: gh issue create --title eval --body \"gh pr create --fill\" 33ms\n     × treats a quoted argument of another command as data: echo bash -c \"gh pr create --fill\" 33ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 45 passed (47)\n   Start at  17:01:19\n   Duration  2.28s (transform 440ms, setup 8ms, import 474ms, tests 1.71s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/hooks/enforce-gate-before-pr-worktree.test.ts > enforce-gate-before-pr shell forms (#2862 review) > treats a quoted argument of another command as data: gh issue create --title eval --body \"gh pr create --fill\"\n FAIL  |unit| __tests__/hooks/enforce-gate-before-pr-worktree.test.ts > enforce-gate-before-pr shell forms (#2862 review) > treats a quoted argument of another command as data: echo bash -c \"gh pr create --fill\"\nAssertionError: [arbiter] GATE GUARD: No valid gate-pass.json or ci-pass.json found.\nNo ci-pass.json receipt found.\nOpen a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n: expected 2 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 2\n\n ❯ __tests__/hooks/enforce-gate-before-pr-worktree.test.ts:286:50\n    284|   ])('treats a quoted argument of another command as data: %s', (comma…\n    285|     const result = hookIn(command)\n    286|     expect(result.status, String(result.stderr)).toBe(0)\n       |                                                  ^\n    287|     expect(result.stderr).toBe('')\n    288|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/hooks/enforce-gate-before-pr-worktree.test.ts",
+  "recorded_at": "2026-09-24T15:01:22.246Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/hooks/enforce-gate-before-pr-worktree.test.ts"
+  ]
+}

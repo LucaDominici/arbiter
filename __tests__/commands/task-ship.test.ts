@@ -788,6 +788,11 @@ describe('ship final-gate action ordering', () => {
     expect(sequence).not.toContain('check-all.mjs')
     expect(close.action).toContain('Reuse the recorded CI verdict')
     expect(close.action).toContain('node scripts/pr-merge-watch.mjs <owner/repo> <pr>')
+    // #2862 AC-5: the draft is marked ready first; pr-merge-watch keeps refusing drafts.
+    expect(close.action).toContain('gh pr ready <pr>')
+    expect(close.action.indexOf('gh pr ready <pr>')).toBeLessThan(
+      close.action.indexOf('pr-merge-watch.mjs'),
+    )
     expect(close.action).toMatch(
       /lifecycle, review, applicable acceptance, receipt, and local HEAD agree/,
     )

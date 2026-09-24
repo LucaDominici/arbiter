@@ -332,6 +332,11 @@ function requestedTaskMatches(requestedTaskId: string | undefined, boundTaskId: 
   return normalizeChainId(requestedTaskId) === boundTaskId
 }
 
+/** #2862 — the stale-binding error names the exact recovery command. */
+function staleBindingMessage(taskId: string, worktree: string): string {
+  return `native host binding is stale — run arbiter lifecycle preflight --id '${taskId}' --worktree "${worktree}"`
+}
+
 function assertNativeCheckoutIdentity(
   root: string,
   requestedTaskId: string | undefined,
@@ -351,11 +356,12 @@ function assertNativeCheckoutIdentity(
     live.worktreePath !== binding.worktreePath ||
     live.branch !== binding.branch
   ) {
-    throw new Error('native host binding is stale — run arbiter lifecycle preflight again')
+    throw new Error(staleBindingMessage(state.taskId, binding.worktreePath))
   }
 }
 
 function assertNativeTranscriptAttestation(
+  taskId: string,
   binding: NativeHostBinding,
   host: NativeHostContext,
 ): void {
@@ -368,7 +374,7 @@ function assertNativeTranscriptAttestation(
     requireTranscript(binding.worktreePath, sessionId, host.homeDir ?? homedir()) !==
       binding.transcriptPath
   ) {
-    throw new Error('native host binding is stale — run arbiter lifecycle preflight again')
+    throw new Error(staleBindingMessage(taskId, binding.worktreePath))
   }
 }
 
@@ -381,7 +387,7 @@ function assertBoundNativeHost(
   if (!state?.hostBinding) return
   const binding = state.hostBinding
   assertNativeCheckoutIdentity(root, requestedTaskId, state, binding, host)
-  assertNativeTranscriptAttestation(binding, host)
+  assertNativeTranscriptAttestation(state.taskId, binding, host)
 }
 
 /** Require the exact checkout binding before `/ship` creates or changes task state. */

@@ -75,7 +75,8 @@ function shellOutputFailure(output: string): string | null {
   if (countSummary(plain, 'skipped|ignored|pending|todo') > 0) {
     return 'recorded shell command contains skipped tests; no GREEN proof exists'
   }
-  return /^[^\n]+: PASS[ \t]*$/m.test(plain)
+  // #2862: accept both verdict conventions — `<name>: PASS` and `PASS: <name>`.
+  return /^[^\n]+: PASS[ \t]*$/m.test(plain) || /^PASS:[ \t]+\S.*$/m.test(plain)
     ? null
     : 'recorded shell command produced no explicit PASS verdict'
 }

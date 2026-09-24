@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
 import { renderTemplate } from '../../../src/utils/render.js'
+import { shipStepFor } from '../../../src/commands/task-ship.js'
 import { makeConfig, materializeGateEvidenceLib, writeGatePassEvidence } from '../../helpers.js'
 
 const RAW_HOOK_PATH = resolve(
@@ -206,6 +207,47 @@ describe('enforce-gate-before-pr hook', () => {
       dir,
     )
     expect(result.status).toBe(2)
+  })
+
+  it('ignores PR-creation text inside a quoted cat heredoc argument of another command (#2862)', () => {
+    const dir = track(setupGitRepo())
+    const command = [
+      'gh issue create --title "friction" --body "$(cat <<\'EOF\'',
+      'Ship prints `gh pr create --draft`, then run "gh pr ready" && $(gh pr ready).',
+      'EOF',
+      ')"',
+    ].join('\n')
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
+    expect(result.status).toBe(0)
+  })
+
+  it.each([
+    [
+      'non-draft create with a heredoc body',
+      'gh pr create --title "t" --body "$(cat <<\'EOF\'\n--draft\nEOF\n)"',
+    ],
+    ['heredoc piped into a shell', "cat <<'EOF' | bash\ngh pr create --draft\nEOF"],
+    ['unquoted heredoc delimiter', 'gh issue create --body "$(cat <<EOF\n$(gh pr ready)\nEOF\n)"'],
+    [
+      'command substitution beside a heredoc',
+      'gh issue create --body "$(cat <<\'EOF\'\nx\nEOF\n)$(gh pr ready)"',
+    ],
+    ['backticks in an issue body', 'gh issue create --body "`gh pr ready`"'],
+  ])('keeps %s blocked (#2862)', (_label, command) => {
+    const dir = track(setupGitRepo())
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
+    expect(result.status).toBe(2)
+  })
+
+  it('allows the draft creation command Ship prints at review (#2862)', () => {
+    const dir = track(setupGitRepo())
+    const step = shipStepFor('refactor', 'Standard', undefined, '#9002')
+    const printed = [step.action, step.command ?? ''].join('\n')
+    const draftCreate = /`([^`]*gh pr create --draft[^`]*)`/.exec(printed)?.[1]
+    expect(draftCreate, printed).toBeDefined()
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: draftCreate }, dir)
+    expect(result.status, String(result.stderr)).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
   })
 
   it.each([
