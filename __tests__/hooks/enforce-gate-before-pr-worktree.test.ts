@@ -279,6 +279,8 @@ describe('enforce-gate-before-pr shell forms (#2862 review)', () => {
     'git commit -m "sh -c \\"gh pr ready\\""',
     'gh issue create --title t --body "$(cat <<\'EOF\'\nbash -c "gh pr create --fill"\nEOF\n)"',
     'bash -c "echo done" > /tmp/out',
+    'gh issue create --title eval --body "gh pr create --fill"',
+    'echo bash -c "gh pr create --fill"',
   ])('treats a quoted argument of another command as data: %s', (command) => {
     const result = hookIn(command)
     expect(result.status, String(result.stderr)).toBe(0)
