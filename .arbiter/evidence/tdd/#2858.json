@@ -1,0 +1,19 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2858",
+  "test_path": "__tests__/commands/ship-review.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "97b0a93cf3b025d8a9917face8b01d7facb2222c",
+  "test_blob_sha": "048fef29d64ddba013fa66986f937337772ef70b",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/ship-review.test.ts (41 tests | 2 failed | 38 skipped) 1376ms\n     × #2858: E_REVIEW_NO_DATA carries the recorder exit code and output tail 379ms\n     × #2858: an undispatched envelope never closes the open round; the native retry does 467ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 1 passed | 38 skipped (41)\n   Start at  12:21:43\n   Duration  1.84s (transform 292ms, setup 8ms, import 363ms, tests 1.38s, environment 0ms)\n\n\nstderr | __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858: E_REVIEW_NO_DATA carries the recorder exit code and output tail\n\n\n\n\n\n\n\n\n\nstderr | __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858: an undispatched envelope never closes the open round; the native retry does\n\n\n\n\n\n\n\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858: E_REVIEW_NO_DATA carries the recorder exit code and output tail\nAssertionError: expected 'review round 2: Codex reviewer return…' to match /recorder exit 1: .*missing-2858\\.ts/s\n\n- Expected:\n/recorder exit 1: .*missing-2858\\.ts/s\n\n+ Received:\n\"review round 2: Codex reviewer returned no data (envelope-rejected); no envelope was written and the round remains open\"\n\n ❯ __tests__/commands/ship-review.test.ts:828:47\n    826|\n    827|     expect(thrown).toMatchObject({ code: 'E_REVIEW_NO_DATA' })\n    828|     expect(String((thrown as Error).message)).toMatch(/recorder exit 1…\n       |                                               ^\n    829|   })\n    830|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858: an undispatched envelope never closes the open round; the native retry does\nAssertionError: expected [ 'Phase: refactor', …(10) ] to include 'review round 2: PASS — 0 findings (0 …'\n ❯ __tests__/commands/ship-review.test.ts:864:40\n    862|     )\n    863|\n    864|     expect(buildShipStepLines(result)).toContain(\n       |                                        ^\n    865|       'review round 2: PASS — 0 findings (0 blocking) · next: advance',\n    866|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/ship-review.test.ts",
+  "recorded_at": "2026-09-24T10:21:45.245Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/ship-review.test.ts",
+    "-t",
+    "#2858"
+  ]
+}
