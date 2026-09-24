@@ -162,6 +162,76 @@ describe('check-review-completion.mjs', () => {
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
   })
 
+  it('counts the native Codex return beside an undispatched same-SHA file (#2858)', () => {
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['codex-reviewer'],
+      expectedProvenance: {
+        'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      },
+    })
+    writeEnvelope('codex-reviewer-0', envelope('codex-reviewer'))
+    writeEnvelope(
+      'codex-reviewer-1',
+      envelope('codex-reviewer', {
+        provenance: { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      }),
+    )
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('reports only dispatch-correlated returns in query mode (#2858)', () => {
+    const codex = { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' }
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['codex-reviewer'],
+      expectedProvenance: { 'codex-reviewer': codex },
+    })
+    writeEnvelope('codex-reviewer-0', envelope('codex-reviewer'))
+    writeEnvelope(
+      'codex-reviewer-1',
+      envelope('codex-reviewer', {
+        provenance: codex,
+        findings: [
+          { id: 'f-1', severity: 'med', kind: 'behavioral', claim: 'Still broken.', citations: [] },
+        ],
+      }),
+    )
+    const query = (sha: string) =>
+      spawnSync(
+        'node',
+        [
+          CHECK_SCRIPT,
+          '--task',
+          TASK,
+          `--sidecar=${sidecar}`,
+          `--evidence-dir=${evidenceDir}`,
+          `--schema=${SCHEMA}`,
+          `--repo-root=${tmpDir}`,
+          `--correlated-sha=${sha}`,
+        ],
+        { encoding: 'utf-8', timeout: 10000 },
+      )
+
+    const current = query('0123456789abcdef')
+    expect(current.status).toBe(0)
+    const { envelopes } = JSON.parse(current.stdout) as {
+      envelopes: { provenance: unknown; findings: unknown[] }[]
+    }
+    expect(envelopes).toHaveLength(1)
+    expect(envelopes[0]?.provenance).toEqual(codex)
+    expect(envelopes[0]?.findings).toHaveLength(1)
+
+    const other = query('deadbeef')
+    expect(other.status).toBe(0)
+    expect(JSON.parse(other.stdout)).toEqual({ envelopes: [] })
+  })
+
   it('preserves the legacy pass when the sidecar does not declare expected provenance', () => {
     writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
     writeEnvelope('alpha', envelope('alpha'))

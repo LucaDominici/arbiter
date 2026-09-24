@@ -281,9 +281,33 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
   it('#2850 D6: an evidence-only commit keeps a PASS round; a source commit re-reviews', () => {
     const git = (...args: string[]) =>
       execFileSync('git', args, { cwd: dir, encoding: 'utf-8' }).trim()
+    // #2858: the PASS counts only through the dispatch record check-review-completion reads.
+    for (const path of [
+      'scripts/check-review-completion.mjs',
+      'scripts/lib/agent-return-validate.mjs',
+      'scripts/lib/gate-args.mjs',
+      'scripts/lib/evidence-binding.mjs',
+      'scripts/lib/run-helpers.mjs',
+      'schemas/agent-return.schema.json',
+    ]) {
+      mkdirSync(join(dir, path, '..'), { recursive: true })
+      copyFileSync(resolve(import.meta.dirname, '../..', path), join(dir, path))
+    }
+    git('add', 'scripts', 'schemas')
+    git('commit', '-q', '-m', 'test: install review completion')
     const reviewed = git('rev-parse', 'HEAD')
     ship({ advance: true, headSha: reviewed })
     ship({ reviewRound: true, headSha: reviewed })
+    writeFileSync(
+      join(dir, '.arbiter', 'agents-dispatched.json'),
+      JSON.stringify({
+        count: 1,
+        agents: ['domain'],
+        taskId: '#100',
+        branch: 'task/#100-review',
+        sha: reviewed,
+      }),
+    )
     const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
     mkdirSync(evidenceDir, { recursive: true })
     writeFileSync(
@@ -299,6 +323,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
         verdict: 'PASS',
         confidence: 1,
         findings: [],
+        provenance: { vendor: 'anthropic', dispatch: 'subagent' },
       }),
     )
     mkdirSync(join(dir, '.agents'), { recursive: true })
@@ -760,6 +785,111 @@ describe('review rounds own the Codex seat (#2747)', () => {
       'review round 1: PASS — 0 findings (0 blocking) · next: advance',
     )
     expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: secondSha })
+  })
+
+  function commitFix(): string {
+    writeFileSync(join(dir, 'candidate.ts'), 'export const candidate = true\n')
+    execFileSync('git', ['add', 'candidate.ts'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'fix: address review'], { cwd: dir })
+    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+  }
+
+  function reviewWith(output: string, headSha: string, originalPath: string) {
+    vi.stubEnv('PATH', `${installCodex(output)}:${originalPath}`)
+    return runTaskShip({
+      dir,
+      reviewRound: true,
+      headSha,
+      profileOverride: codexProfile,
+      externalModelAccess: codexAccess,
+    })
+  }
+
+  const blockingFail =
+    '{"verdict":"FAIL","confidence":1,"findings":[{"id":"high-1","severity":"high","kind":"behavioral","claim":"The acceptance behavior is broken.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[{"id":"AC-1","verdict":"FAIL","evidence":[{"file":"plan.md","line":4}]}]}}'
+
+  const rejectedByRecorder = `{"verdict":"PASS","confidence":1,"findings":[{"id":"s-1","severity":"low","kind":"structural","claim":"Cites a file the subject lacks.","citations":[{"file":"missing-2858.ts","line":1}]}],"refutations":[],${passingFit}}`
+
+  function rejectedRound(fixed: string, originalPath: string): unknown {
+    try {
+      reviewWith(rejectedByRecorder, fixed, originalPath)
+    } catch (error) {
+      return error
+    }
+    return undefined
+  }
+
+  it('#2858: E_REVIEW_NO_DATA carries the recorder exit code and output tail', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const thrown = rejectedRound(commitFix(), originalPath)
+
+    expect(thrown).toMatchObject({ code: 'E_REVIEW_NO_DATA' })
+    expect(String((thrown as Error).message)).toMatch(/recorder exit 1: .*missing-2858\.ts/s)
+  })
+
+  it('#2858: an undispatched envelope never closes the open round; the native retry does', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const fixed = commitFix()
+
+    expect(rejectedRound(fixed, originalPath)).toMatchObject({ code: 'E_REVIEW_NO_DATA' })
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+
+    const returns = join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747')
+    const foreign = join(returns, `codex-reviewer-${readdirSync(returns).length}.json`)
+    writeFileSync(
+      foreign,
+      JSON.stringify({
+        schema: 'arbiter-agent-return-v1',
+        agent: 'codex-reviewer',
+        role: 'reviewer',
+        taskId: '#2747',
+        branch: 'task/#2747-review-runtime',
+        sha: fixed,
+        ts: '2026-09-24T00:00:00.000Z',
+        verdict: 'PASS',
+        confidence: 1,
+        findings: [],
+        provenance: { vendor: 'anthropic', dispatch: 'subagent' },
+      }),
+    )
+
+    const result = reviewWith(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      fixed,
+      originalPath,
+    )
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 2: PASS — 0 findings (0 blocking) · next: advance',
+    )
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+    expect(existsSync(foreign)).toBe(true)
+  })
+
+  it('#2858: a native blocking verdict still counts, so the fix opens the next round', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const fixed = commitFix()
+
+    const result = reviewWith(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      fixed,
+      originalPath,
+    )
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 2: PASS — 0 findings (0 blocking) · next: advance',
+    )
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+    const again = reviewWith(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      fixed,
+      originalPath,
+    )
+    expect(again.reviewDispatched).toBe(false)
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
   })
 
   it('keeps plan-only behavior when the planned treatment has no Codex seat', () => {
