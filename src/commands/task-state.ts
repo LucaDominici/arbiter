@@ -164,6 +164,14 @@ export interface UnifiedTaskState {
    * manifest at plan→red and refuses the transition if this drifted from a re-anchor.
    */
   derivedGates?: unknown[]
+  /**
+   * #2875 AC-3 — sha256 of the anchored plan file's content (fragment stripped) at the moment
+   * `derivedGates` was last computed. Lets `checkPlanContractCurrent` tell "only a derived
+   * artifact (a command/threshold the manifest resolves to) drifted, safe to silently
+   * re-derive" apart from "the plan itself changed, a real re-anchor is required" — without
+   * re-reading `derivedGates` deep-equal against the plan's own semantics.
+   */
+  derivedGatesPlan?: string
 }
 
 /** #2400 — how many review rounds this task has spent, and what the last one was pinned to. */
