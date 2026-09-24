@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { resolveLandingContract } from './exact-sha-policy.mjs'
+import { LANDING_CONTRACT, resolveLandingContract } from './exact-sha-policy.mjs'
 
 const CONTRACT_CAPABILITY = '@arbiter-gate-contract arbiter-gate-contract-v1'
 
@@ -36,7 +36,13 @@ function landingRoute(root) {
   } catch {
     config = undefined
   }
-  if (config?.collaborationMode === 'trunk-solo' && config.solo?.mergeMode === 'direct') {
+  const mode = config?.collaborationMode
+  // Reviewed-PR profiles land through a normal GitHub PR merge; the exact-SHA resolver
+  // governs only the pr-merge-watch route, so it is required only where that route is promised.
+  if (mode === 'peer-review' || mode === 'gated-review') {
+    return { supported: true, route: `${mode}: ${LANDING_CONTRACT[mode].landing}` }
+  }
+  if (mode === 'trunk-solo' && config.solo?.mergeMode === 'direct') {
     return {
       supported: true,
       route: 'trunk-solo + solo.mergeMode direct: gated direct push (--no-pr)',
