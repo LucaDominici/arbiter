@@ -22,7 +22,8 @@ function optionValue(name) {
 const gateMode = process.argv.includes('--gate')
 const requireImprovement = process.argv.includes('--require-improvement')
 const onlyMetric = optionValue('--only-metric')
-if (onlyMetric !== undefined && onlyMetric !== 'complexityViolations') {
+const PREVENTIVE_METRICS = new Set(['complexityViolations', 'publicApiSurface'])
+if (onlyMetric !== undefined && !PREVENTIVE_METRICS.has(onlyMetric)) {
   process.stderr.write(`[arbiter] unsupported --only-metric: ${onlyMetric}\n`)
   process.exit(2)
 }

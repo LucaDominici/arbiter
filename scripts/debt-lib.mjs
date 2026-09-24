@@ -554,6 +554,22 @@ function coverageMetricsFromSummary(summary) {
   }
 }
 
+function collectPublicApiSurface(cwd, metrics, collectionErrors) {
+  if (existsSync(resolve(cwd, 'src'))) {
+    try {
+      metrics.publicApiSurface = {
+        value: countPublicApi(cwd),
+        unit: 'count',
+        direction: 'lower-is-better',
+      }
+    } catch (error) {
+      const reason = `public API scan failed: ${error instanceof Error ? error.message : String(error)}`
+      collectionErrors.push({ metric: 'publicApiSurface', reason })
+      process.stderr.write(`[baseline] ERROR: ${reason}\n`)
+    }
+  }
+}
+
 function collectComplexityViolations(cwd, metrics, collectionErrors) {
   const [command, ...args] = DEBT_METRIC_COMMANDS.complexityViolations
   const result = spawnOrSkip('complexityViolations', 'eslint', command, args, { cwd })
@@ -594,7 +610,7 @@ function collectComplexityViolations(cwd, metrics, collectionErrors) {
  *   Sink for tool-ran-but-collection-failed events (distinct from
  *   tool-not-installed, which soft-skips). debt-report --gate hard-fails on
  *   any entry (#1286, fail-closed).
- * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null, coverageSummaryPath?: string, coverageStartedAt?: number, onlyMetric?: 'complexityViolations'}} [opts]
+ * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null, coverageSummaryPath?: string, coverageStartedAt?: number, onlyMetric?: 'complexityViolations' | 'publicApiSurface'}} [opts]
  *   spawnCoverage is injectable for tests, mirroring jscpdScan's opts.spawn
  *   seam: it replaces the `npx vitest run --coverage` invocation so a unit test
  *   can deterministically simulate "vitest ran, no summary written" (the
@@ -605,6 +621,10 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   const metrics = {}
   if (opts.onlyMetric === 'complexityViolations') {
     collectComplexityViolations(cwd, metrics, collectionErrors)
+    return metrics
+  }
+  if (opts.onlyMetric === 'publicApiSurface') {
+    collectPublicApiSurface(cwd, metrics, collectionErrors)
     return metrics
   }
 
@@ -727,21 +747,7 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   }
 
   // ── Public API surface (library archetype — count of top-level exports) ───
-  {
-    if (existsSync(resolve(cwd, 'src'))) {
-      try {
-        metrics.publicApiSurface = {
-          value: countPublicApi(cwd),
-          unit: 'count',
-          direction: 'lower-is-better',
-        }
-      } catch (error) {
-        const reason = `public API scan failed: ${error instanceof Error ? error.message : String(error)}`
-        collectionErrors.push({ metric: 'publicApiSurface', reason })
-        process.stderr.write(`[baseline] ERROR: ${reason}\n`)
-      }
-    }
-  }
+  collectPublicApiSurface(cwd, metrics, collectionErrors)
 
   // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
   // Language-agnostic: reads `.arbiter/findings/*.jsonl`. Spool absent → omitted

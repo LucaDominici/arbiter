@@ -73,8 +73,9 @@ describe('debt-report.mjs.ejs', () => {
     const lib = renderTemplate('scripts/debt-lib.mjs.ejs', data)
 
     expect(report).toContain("optionValue('--only-metric')")
-    expect(report).toContain("onlyMetric !== 'complexityViolations'")
+    expect(report).toContain("new Set(['complexityViolations', 'publicApiSurface'])")
     expect(lib).toContain("opts.onlyMetric === 'complexityViolations'")
+    expect(lib).toContain("opts.onlyMetric === 'publicApiSurface'")
   })
 
   it('requires a freshness token before reusing a gate coverage summary', () => {
