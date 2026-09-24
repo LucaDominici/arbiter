@@ -970,6 +970,61 @@ describe('review rounds own the Codex seat (#2747)', () => {
     expect(readUnifiedState(dir)?.review).toEqual(reviewed)
   })
 
+  function firstMixedPanelRound(output: string, originalPath: string): string {
+    const sha = seedRuntimeFixture(
+      ['scripts/check-cross-model-review.mjs', 'schemas/cross-model-dispatch.schema.json'],
+      {
+        'arbiter.json': JSON.stringify({ crossModelReview: codexConfig }),
+      },
+    )
+    const seeded = readUnifiedState(dir)?.treatment
+    writeUnifiedState(dir, {
+      treatment: {
+        ...seeded!,
+        tier: 'Standard',
+        sensitive: true,
+        finalReviewers: 2,
+        reviewerVerticals: ['security', 'data-integrity'],
+      },
+    })
+    reviewWith(output, sha, originalPath)
+    const sidecar = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
+    )
+    expect(sidecar).toMatchObject({
+      count: 2,
+      agents: ['anthropic-reviewer', 'codex-reviewer'],
+      treatmentHash: readUnifiedState(dir)?.treatment?.signalsHash,
+    })
+    return sha
+  }
+
+  /** The retry's Codex fails loudly, so a reused seat is the only way the round can still answer. */
+  function retryWithFailingCodex(sha: string, originalPath: string) {
+    const marker = join(dir, 'bin', 'codex-invoked')
+    const bin = join(dir, 'bin', 'retry')
+    mkdirSync(bin, { recursive: true })
+    writeFileSync(join(bin, 'codex'), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, 'utf8')
+    chmodSync(join(bin, 'codex'), 0o755)
+    vi.stubEnv('PATH', `${bin}:${originalPath}`)
+    const retry = () =>
+      runTaskShip({
+        dir,
+        reviewRound: true,
+        headSha: sha,
+        profileOverride: codexProfile,
+        externalModelAccess: codexAccess,
+      })
+    return { retry, marker }
+  }
+
+  function codexReturnFiles(): string[] {
+    const root = join(dir, '.arbiter')
+    return readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((path) => /(^|\/)codex-reviewer[^/]*\.json$/.test(path))
+      .map((path) => join(root, path))
+  }
+
   it.each([
     ['PASS', 'review round 1: PASS — 0 findings (0 blocking) · next: rework'],
     ['blocking', 'review round 1: FAIL — 1 findings (1 blocking) · next: rework'],
@@ -977,58 +1032,69 @@ describe('review rounds own the Codex seat (#2747)', () => {
     '#2858 R3: a mixed-panel retry reuses the admitted %s Codex seat instead of crashing',
     (verdict, round) => {
       const originalPath = process.env.PATH ?? ''
-      const sha = seedRuntimeFixture(
-        ['scripts/check-cross-model-review.mjs', 'schemas/cross-model-dispatch.schema.json'],
-        {
-          'arbiter.json': JSON.stringify({ crossModelReview: codexConfig }),
-        },
-      )
-      const seeded = readUnifiedState(dir)?.treatment
-      writeUnifiedState(dir, {
-        treatment: {
-          ...seeded!,
-          tier: 'Standard',
-          sensitive: true,
-          finalReviewers: 2,
-          reviewerVerticals: ['security', 'data-integrity'],
-        },
-      })
-      const first = reviewWith(
+      const sha = firstMixedPanelRound(
         verdict === 'PASS'
           ? `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`
           : blockingFail,
-        sha,
         originalPath,
       )
-      expect(buildShipStepLines(first)).toContain(round)
-      const sidecar = JSON.parse(
-        readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
-      )
-      expect(sidecar).toMatchObject({
-        count: 2,
-        agents: ['anthropic-reviewer', 'codex-reviewer'],
-        treatmentHash: readUnifiedState(dir)?.treatment?.signalsHash,
-      })
+      const { retry, marker } = retryWithFailingCodex(sha, originalPath)
 
-      const marker = join(dir, 'bin', 'codex-invoked')
-      const bin = join(dir, 'bin', 'retry')
-      mkdirSync(bin, { recursive: true })
-      writeFileSync(join(bin, 'codex'), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, 'utf8')
-      chmodSync(join(bin, 'codex'), 0o755)
-      vi.stubEnv('PATH', `${bin}:${originalPath}`)
-      const retry = runTaskShip({
-        dir,
-        reviewRound: true,
-        headSha: sha,
-        profileOverride: codexProfile,
-        externalModelAccess: codexAccess,
-      })
-
-      expect(buildShipStepLines(retry)).toContain(round)
+      expect(buildShipStepLines(retry())).toContain(round)
       expect(existsSync(marker)).toBe(false)
       expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: sha })
     },
   )
+
+  it('#2858 R3: every admitted Codex shard counts on reuse — the worst verdict and all findings', () => {
+    const originalPath = process.env.PATH ?? ''
+    const sha = firstMixedPanelRound(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      originalPath,
+    )
+    const [first] = codexReturnFiles()
+    const shard = JSON.parse(readFileSync(first!, 'utf8')) as Record<string, unknown>
+    delete shard['refutations']
+    delete shard['acceptanceFit']
+    writeFileSync(
+      join(first!, '..', 'codex-reviewer-2858.json'),
+      JSON.stringify({
+        ...shard,
+        verdict: 'WARN',
+        confidence: 0.5,
+        findings: [
+          {
+            id: 'low-1',
+            severity: 'low',
+            kind: 'structural',
+            claim: 'A second shard carries its own finding.',
+            citations: [{ file: 'plan.md', line: 1 }],
+          },
+        ],
+      }),
+    )
+    const { retry, marker } = retryWithFailingCodex(sha, originalPath)
+
+    expect(buildShipStepLines(retry())).toContain(
+      'review round 1: WARN — 1 findings (0 blocking) · next: rework',
+    )
+    expect(existsSync(marker)).toBe(false)
+  })
+
+  it('#2858 R3: a missing Codex return is a cache miss, so the retry dispatches Codex again', () => {
+    const originalPath = process.env.PATH ?? ''
+    const sha = firstMixedPanelRound(
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+      originalPath,
+    )
+    const returns = codexReturnFiles()
+    expect(returns).not.toHaveLength(0)
+    for (const file of returns) rmSync(file)
+    const { retry, marker } = retryWithFailingCodex(sha, originalPath)
+
+    expect(retry).toThrow(/Codex reviewer returned no data \(invocation-failed\)/)
+    expect(existsSync(marker)).toBe(true)
+  })
 
   it('keeps plan-only behavior when the planned treatment has no Codex seat', () => {
     const sha = seedRuntimeFixture()
