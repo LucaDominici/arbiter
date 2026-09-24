@@ -1096,25 +1096,34 @@ describe('result-first read-only status (#2724)', () => {
   })
 
   it('measures the public API count at a Standard plan without writing state (#2863 AC-2)', () => {
-    runTaskShip({ dir, taskId: '#2863', tier: 'S' })
-    writeUnifiedState(dir, { phase: 'plan', derivedGates: [debtRatchet] })
     mkdirSync(join(dir, 'scripts'), { recursive: true })
     writeFileSync(
       join(dir, 'scripts/debt-lib.mjs'),
       'export function countPublicApi(cwd) { return cwd.length > 0 ? 7 : 0 }\n',
     )
-    expect(runTaskShip({ dir }).debtCurrent).toBeUndefined()
-    const seeded = readUnifiedState(dir)?.treatment
-    writeUnifiedState(dir, {
-      tier: 'Standard',
-      ...(seeded ? { treatment: { ...seeded, tier: 'Standard', requestedTier: 'Standard' } } : {}),
-    })
+    const narrow = {
+      taskId: '#2863',
+      tier: 'S',
+      gatherTierSignals: () => ({
+        labels: [],
+        blastRadius: 0,
+        callerCount: 0,
+        milestoneBundled: false,
+        complete: true,
+        changedFiles: ['docs/issue.md'],
+      }),
+    } as const
+    runTaskShip({ dir, ...narrow })
+    writeUnifiedState(dir, { phase: 'plan', derivedGates: [debtRatchet] })
+    const planS = runTaskShip({ dir, ...narrow })
+    expect([planS.phase, planS.tier, planS.debtCurrent]).toEqual(['plan', 'S', undefined])
+
     const path = join(dir, '.claude/.task/status.json')
     const before = readFileSync(path, 'utf8')
-
     const first = runTaskShip({ dir })
     const second = runTaskShip({ dir })
 
+    expect(first.tier).toBe('Standard')
     expect(first.debtCurrent).toEqual({ publicApiSurface: 7 })
     expect(second).toEqual(first)
     expect(readFileSync(path, 'utf8')).toBe(before)
