@@ -207,3 +207,16 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     expect(result.stderr).toContain('No valid gate-pass.json or ci-pass.json')
   })
 })
+
+// #2862: a quoted cat heredoc body is blanked only when every segment runs gh or git, so text an
+// interpreter would execute keeps the original parse.
+describe('enforce-gate-before-pr heredoc data (#2862)', () => {
+  it.each([
+    ['heredoc data evaluated', 'eval "$(cat <<\'EOF\'\ngh pr create\nEOF\n)"'],
+    ['heredoc data piped into a shell', 'printf %s "$(cat <<\'EOF\'\ngh pr ready\nEOF\n)" | bash'],
+  ])('keeps %s blocked', (_label, command) => {
+    const dir = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-heredoc-')))
+    initRepo(dir)
+    expect(runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir).status).toBe(2)
+  })
+})
