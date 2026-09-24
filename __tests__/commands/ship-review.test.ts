@@ -764,7 +764,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     )
 
     expect(buildShipStepLines(result)).toContain(
-      'review round 1: FAIL — 1 findings (1 blocking) · next: rework',
+      'review round 1: FAIL — 1 findings (1 blocking) · next: rework · non-PASS: AC-1 FAIL',
     )
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(true)
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'ac-fit', '2747.json'))).toBe(false)
@@ -1062,7 +1062,10 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it.each([
     ['PASS', 'review round 1: PASS — 0 findings (0 blocking) · next: rework'],
-    ['blocking', 'review round 1: FAIL — 1 findings (1 blocking) · next: rework'],
+    [
+      'blocking',
+      'review round 1: FAIL — 1 findings (1 blocking) · next: rework · non-PASS: AC-1 FAIL',
+    ],
   ])(
     '#2858 R3: a mixed-panel retry reuses the admitted %s Codex seat instead of crashing',
     (verdict, round) => {

@@ -390,12 +390,19 @@ function validatedAcceptanceFit(parsed, schema, state, stamped) {
     return null
   }
   const criteriaIds = frozen.anchor.criteria.map((criterion) => criterion.id)
-  const errors = acceptanceFitErrors(env, criteriaIds, stamped.sha, '<stdin>')
+  const errors = acceptanceFitErrors(env, criteriaIds, stamped.sha, '<stdin>', false)
   if (errors.length > 0) {
     for (const error of errors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
     return null
   }
-  return { env, anchor: frozen.anchor }
+  // #2865: a well-formed fit with a non-PASS verdict outside the [exact-main] criteria is still a
+  // review result — it is recorded as a return, and no ac-fit is written, so acceptance stays blocked.
+  const exactMainIds = frozen.anchor.criteria.filter((c) => c.exactMain).map((c) => c.id)
+  const pending = validateAcFit(env.acceptanceFit, criteriaIds, {
+    requireAllPass: true,
+    exactMainIds,
+  })
+  return { env, anchor: frozen.anchor, accepted: pending.length === 0 }
 }
 
 function acceptanceFitErrors(env, criteriaIds, sha, fitPath, requireAllPass = true) {
@@ -455,6 +462,12 @@ function recordAcceptanceFit(parsed, schema) {
   const { state, stamped } = context
   const validated = validatedAcceptanceFit(parsed, schema, state, stamped)
   if (validated === null) return 1
+  if (!validated.accepted) {
+    process.stdout.write(
+      '[record-agent-return] NOTE: non-PASS acceptance criteria — recorded as a review return; no ac-fit written\n',
+    )
+    return recordReturn(parsed, schema)
+  }
   return writeAcceptanceFit(validated.env, validated.anchor, stamped)
 }
 
