@@ -502,8 +502,14 @@ function readFrozenTddEvidence(
     cwd: repoRoot,
     timeoutMs: 5000,
   }).stdout
+  return receipt.trim()
+}
+
+/** The prompt shows at most 16 KiB of receipt; review lines derive from the full receipt. */
+function displayedTddEvidence(receipt: string | null): string {
+  if (receipt === null) return '(none recorded)'
   return Buffer.byteLength(receipt, 'utf8') <= 16 * 1024
-    ? receipt.trim()
+    ? receipt
     : '(frozen RED receipt omitted: exceeds 16 KiB)'
 }
 
@@ -596,7 +602,7 @@ function frozenReviewPrompt(
     `Frozen plan (${brief.planPath} at ${headSha}; commands are requirements, not proof of execution):`,
     brief.planBody,
     'Recorded TDD RED evidence (proves the recorded failure only):',
-    tddEvidence ?? '(none recorded)',
+    displayedTddEvidence(tddEvidence),
   ].join('\n')
 }
 

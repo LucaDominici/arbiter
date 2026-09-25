@@ -346,6 +346,62 @@ describe.sequential(
       expect(result.reason).toContain('restored content does not match the RED blob')
     })
 
+    /** RED commits `original`; the head commit (with optional `body`) makes the test pass. */
+    function changedAfterRed(
+      prefix: string,
+      original: string,
+      body?: string,
+    ): { dir: string; ev: TddEvidence } {
+      const dir = shellRepo(prefix)
+      writeFileSync(join(dir, 't.sh'), original)
+      const red = commitAll(dir, 'red')
+      writeFileSync(join(dir, 't.sh'), PASSING)
+      git(dir, ['add', '-A'])
+      git(dir, ['commit', '--quiet', '-m', 'head', ...(body === undefined ? [] : ['-m', body])])
+      return { dir, ev: shellEvidence(red, gitBlobSha(original)) }
+    }
+
+    it('refuses a zero-work original as not running cleanly, not as FAILS', SHELL, () => {
+      const { dir, ev } = changedAfterRed('zero-work', '#!/bin/sh\nexit 0\n')
+      const head7 = git(dir, ['rev-parse', 'HEAD']).slice(0, 7)
+      const result = verifyGreenExecution(ev, dir)
+      expect(result.ok).toBe(false)
+      expect(result.reason).toContain(
+        `E_SPEC_TEST_CONFLICT: original t.sh@${ev.test_blob_sha?.slice(0, 7)} did not run cleanly ` +
+          `at ${head7} (3/3) (recorded shell command produced no explicit PASS verdict) ` +
+          'and no Test-Amend trailer binds blob',
+      )
+      expect(result.reason).toContain('Remedy: add "Test-Amend: ')
+      expect(result.reason).not.toContain('FAILS at')
+    })
+
+    it('names the invalid run when assertion failures and invalid runs mix', SHELL, () => {
+      const counter = join(mkdtempSync(join(tmpdir(), 'arbiter-green-2906-count-')), 'n')
+      dirs.push(resolve(counter, '..'))
+      const original = `#!/bin/sh\nif [ -e ${counter} ]; then exit 0; fi\n: > ${counter}\nprintf 'FAIL: x\\n'\n`
+      const { dir, ev } = changedAfterRed('mixed', original)
+      const result = verifyGreenExecution(ev, dir)
+      expect(result.ok).toBe(false)
+      expect(result.reason).toMatch(
+        /did not run cleanly at [0-9a-f]{7} \(3\/3\) \(recorded shell command produced no explicit PASS verdict\)/,
+      )
+    })
+
+    it(
+      'accepts a zero-work original with a binding Test-Amend trailer as test-amend',
+      SHELL,
+      () => {
+        const trailer = `Test-Amend: ${gitBlobSha(PASSING).slice(0, 7)} AC-3 zero-work original`
+        const { dir, ev } = changedAfterRed('zero-work-amend', '#!/bin/sh\nexit 0\n', trailer)
+        const result = verifyGreenExecution(ev, dir)
+        expect(result.ok).toBe(true)
+        expect(result.testChange).toMatchObject({
+          class: 'test-amend',
+          reason: 'AC-3 zero-work original',
+        })
+      },
+    )
+
     it('refuses a replay error and removes the detached worktree', SHELL, () => {
       const dir = shellRepo('restore-error')
       writeFileSync(join(dir, 't.sh'), PASSING)

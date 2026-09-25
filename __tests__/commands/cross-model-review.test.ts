@@ -1554,6 +1554,20 @@ describe('frozen review prompt: pinned test changed after RED (#2906 AC-4)', () 
     expect(review(dir)).not.toContain('Pinned RED test')
   })
 
+  it('names the change from the full receipt when the prompt omits a receipt over 16 KiB', () => {
+    const { dir } = redFixture()
+    const receipt = JSON.parse(readFileSync(join(dir, EVIDENCE), 'utf8')) as Record<string, string>
+    writeFileSync(
+      join(dir, EVIDENCE),
+      JSON.stringify({ ...receipt, test_run_log: 'x'.repeat(17 * 1024) }),
+    )
+    writeFileSync(join(dir, 't.sh'), "printf 'PASS: head\\n'\n")
+    git(dir, ['commit', '--quiet', '-am', 'fix: head with an oversized receipt'])
+    const prompt = review(dir)
+    expect(prompt).toContain('(frozen RED receipt omitted: exceeds 16 KiB)')
+    expect(LINE.exec(prompt)?.[3]).toMatch(/^structural /)
+  })
+
   it('adds no line when the pinned test is unchanged', () => {
     const { dir } = redFixture()
     const prompt = review(dir)

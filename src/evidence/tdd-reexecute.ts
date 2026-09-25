@@ -77,13 +77,26 @@ function tapOutputFailure(output: string): string | null {
   return passed > 0 ? null : 'recorded TAP command reported no passing tests'
 }
 
+// #2906: the failure verdicts of a run that executed its assertions; any other reason is invalid.
+const STILL_FAILS = 'recorded test still fails'
+const SHELL_FAILURE_VERDICT = 'recorded shell command emitted a failure verdict'
+const GRADLE_FAILING = 'fresh Gradle/JUnit results contain failing tests'
+
+function isAssertionFailure(reason: string): boolean {
+  return (
+    reason === SHELL_FAILURE_VERDICT ||
+    reason === GRADLE_FAILING ||
+    reason.startsWith(`${STILL_FAILS} (exit `)
+  )
+}
+
 // Shared with RED capture; a missing shell signature fails closed by matching every output.
 const SHELL_FAILURE =
   FAILURE_SIGNATURES.find(({ framework }) => framework === 'shell')?.pattern ?? /(?:)/
 
 function shellOutputFailure(output: string): string | null {
   const plain = stripVTControlCharacters(output)
-  if (SHELL_FAILURE.test(plain)) return 'recorded shell command emitted a failure verdict'
+  if (SHELL_FAILURE.test(plain)) return SHELL_FAILURE_VERDICT
   if (countSummary(plain, 'skipped|ignored|pending|todo') > 0) {
     return 'recorded shell command contains skipped tests; no GREEN proof exists'
   }
@@ -193,7 +206,7 @@ function gradleXmlFailure(xml: readonly string[]): string | null {
   }
   if (tests === 0) return 'fresh Gradle/JUnit results reported zero tests'
   if (skipped > 0) return 'fresh Gradle/JUnit results contain skipped tests'
-  if (failures > 0 || errors > 0) return 'fresh Gradle/JUnit results contain failing tests'
+  if (failures > 0 || errors > 0) return GRADLE_FAILING
   if (tests - failures - errors <= 0) return 'fresh Gradle/JUnit results reported no passing tests'
   return null
 }
@@ -291,7 +304,7 @@ function greenCliFailure(err: CliError, cmd: string, timeoutMs: number): string 
   if (err.exitCode === 137 || err.exitCode === 134) {
     return `recorded test command was interrupted or hit a resource failure (exit ${err.exitCode})`
   }
-  return `recorded test still fails (exit ${err.exitCode})`
+  return `${STILL_FAILS} (exit ${err.exitCode})`
 }
 
 /** Default timeout for the re-run itself. Matches record-red's own default (#1951). */
@@ -448,11 +461,12 @@ function replayOriginalAtHead(
     }
     linkNodeModules(repoDir, worktreeDir, ev.test_cwd ?? '.')
     const cwd = resolveRecordedTestCwd(worktreeDir, ev.test_cwd) ?? worktreeDir
-    let passes = 0
+    const failures: string[] = []
     for (let run = 0; run < ORIGINAL_REPLAY_RUNS; run++) {
-      if (greenRunFailure(ev, testCommand, cwd, worktreeDir, timeoutMs) === null) passes++
+      const failure = greenRunFailure(ev, testCommand, cwd, worktreeDir, timeoutMs)
+      if (failure !== null) failures.push(failure)
     }
-    return classifyOriginalReplay(ev, { dir: g, red: red.sha, head }, blobs, passes)
+    return classifyOriginalReplay(ev, { dir: g, red: red.sha, head }, blobs, failures)
     // FAIL-OPEN-INTENT: a replay error is a refusal, never a pass.
   } catch (err) {
     return { ok: false, reason: `${refused}: ${String(err)}` }
@@ -465,9 +479,10 @@ function classifyOriginalReplay(
   ev: TddEvidence,
   range: { dir: string; red: string; head: string },
   blobs: PinnedTestBlobs,
-  passes: number,
+  failures: readonly string[],
 ): RedExecutionResult {
   const { redBlob, headBlob } = blobs
+  const passes = ORIGINAL_REPLAY_RUNS - failures.length
   if (passes === ORIGINAL_REPLAY_RUNS) {
     return { ok: true, testChange: { class: 'structural', redBlob, headBlob } }
   }
@@ -492,9 +507,18 @@ function classifyOriginalReplay(
   return {
     ok: false,
     reason:
-      `${original} FAILS at ${head7} (${ORIGINAL_REPLAY_RUNS}/${ORIGINAL_REPLAY_RUNS}) and no Test-Amend trailer binds blob ${cur7}. ` +
+      `${original} ${zeroPassVerdict(failures, head7)} and no Test-Amend trailer binds blob ${cur7}. ` +
       `Remedy: add "Test-Amend: ${cur7} <reason naming the AC>" to a commit, or restore the original test and fix the code.`,
   }
+}
+
+/** An original that never passed either FAILS its assertions or did not run cleanly. */
+function zeroPassVerdict(failures: readonly string[], head7: string): string {
+  const runs = `${ORIGINAL_REPLAY_RUNS}/${ORIGINAL_REPLAY_RUNS}`
+  const invalid = failures.find((reason) => !isAssertionFailure(reason))
+  return invalid === undefined
+    ? `FAILS at ${head7} (${runs})`
+    : `did not run cleanly at ${head7} (${runs}) (${invalid})`
 }
 
 /**
