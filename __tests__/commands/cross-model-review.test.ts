@@ -1409,3 +1409,126 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
     }
   })
 })
+
+describe('frozen review prompt: pinned test changed after RED (#2906 AC-4)', () => {
+  const EVIDENCE = '.arbiter/evidence/tdd/#2906.json'
+  const LINE =
+    /^Pinned RED test t\.sh changed after RED \(([0-9a-f]{7})\.\.([0-9a-f]{7})\), class (.+)\. Rule explicitly on this hunk: does it preserve the requirement of the acceptance criteria\?$/m
+  const git = (dir: string, args: string[]): string =>
+    execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim()
+
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import('../../src/utils/run-cli.js')>(
+      '../../src/utils/run-cli.js',
+    )
+    mockedInvoke.mockClear()
+    mockedInvoke.mockReturnValue({
+      provider: 'codex',
+      status: 'fulfilled',
+      diffBytes: 0,
+      diffTruncated: false,
+      degradationReasons: [],
+      recorded: true,
+      envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+    })
+    mockedRunCli.mockReset()
+    mockedRunCli.mockImplementation((command, args, opts) =>
+      command === 'git'
+        ? actual.runCli(command, args, opts)
+        : { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 },
+    )
+  })
+
+  /** RED commit with t.sh, evidence and plan committed after it; returns the RED blob. */
+  function redFixture(): { dir: string; redBlob: string } {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-2906-prompt-'))
+    git(dir, ['init', '--quiet'])
+    git(dir, ['config', 'user.name', 'Arbiter Test'])
+    git(dir, ['config', 'user.email', 'test.invalid'])
+    writeFileSync(join(dir, 't.sh'), "printf 'FAIL: red\\n'\n")
+    git(dir, ['add', '-A'])
+    git(dir, ['commit', '--quiet', '-m', 'test: red'])
+    const red = git(dir, ['rev-parse', 'HEAD'])
+    const redBlob = git(dir, ['rev-parse', 'HEAD:t.sh'])
+    mkdirSync(join(dir, '.arbiter/evidence/tdd'), { recursive: true })
+    mkdirSync(join(dir, '.claude/plans'), { recursive: true })
+    writeFileSync(join(dir, PLAN_REF), FROZEN_PLAN)
+    writeFileSync(
+      join(dir, EVIDENCE),
+      JSON.stringify({
+        $schemaVersion: 1,
+        task_id: '#2906',
+        test_path: 't.sh',
+        test_commit_sha: red,
+        test_blob_sha: redBlob,
+        test_run_log: 'FAIL: red',
+        observed_failure: 'FAIL: red',
+        recorded_at: '2026-09-25T00:00:00.000Z',
+        test_command: ['sh', 't.sh'],
+      }),
+    )
+    git(dir, ['add', '-A'])
+    git(dir, ['commit', '--quiet', '-m', 'chore: evidence'])
+    return { dir, redBlob }
+  }
+
+  function review(dir: string): string {
+    runShipCrossModelReview({
+      dir,
+      taskId: '#2906',
+      tier: 'Standard',
+      phase: 'refactor',
+      vertical: 'bugs',
+      cfg: { ...cfg, diffEgressConsent: false },
+      baseSha: git(dir, ['rev-list', '--max-parents=0', 'HEAD']),
+      headSha: git(dir, ['rev-parse', 'HEAD']),
+      planRef: PLAN_REF,
+    })
+    const prompt = mockedInvoke.mock.calls[0]?.[0].prompt ?? ''
+    rmSync(dir, { recursive: true, force: true })
+    return prompt
+  }
+
+  it('names a structural change and says the original was not re-run at this head', () => {
+    const { dir, redBlob } = redFixture()
+    writeFileSync(join(dir, 't.sh'), "printf 'PASS: head\\n'\n")
+    git(dir, ['commit', '--quiet', '-am', 'fix: head'])
+    const cur = git(dir, ['rev-parse', 'HEAD:t.sh'])
+    const head7 = git(dir, ['rev-parse', 'HEAD']).slice(0, 7)
+    const match = LINE.exec(review(dir))
+    expect(match?.slice(1, 3)).toEqual([redBlob.slice(0, 7), cur.slice(0, 7)])
+    expect(match?.[3]).toBe(
+      `structural (GREEN replayed the original at refactor entry; not re-run at ${head7})`,
+    )
+  })
+
+  it('names the Test-Amend reason when a trailer binds the head blob', () => {
+    const { dir } = redFixture()
+    writeFileSync(join(dir, 't.sh'), "printf 'PASS: head\\n'\n")
+    git(dir, ['add', '-A'])
+    const cur7 = git(dir, ['hash-object', 't.sh']).slice(0, 7)
+    git(dir, ['commit', '--quiet', '-m', 'test: amend', '-m', `Test-Amend: ${cur7} AC-2 new range`])
+    expect(LINE.exec(review(dir))?.[3]).toBe('test-amend: AC-2 new range')
+  })
+
+  it('flags a Test-Amend trailer that binds an earlier blob as unverified', () => {
+    const { dir } = redFixture()
+    writeFileSync(join(dir, 't.sh'), "printf 'PASS: v1\\n'\n")
+    git(dir, ['add', '-A'])
+    const old7 = git(dir, ['hash-object', 't.sh']).slice(0, 7)
+    git(dir, ['commit', '--quiet', '-m', 'test: amend', '-m', `Test-Amend: ${old7} AC-2 v1`])
+    writeFileSync(join(dir, 't.sh'), "printf 'PASS: v2\\n'\n")
+    git(dir, ['commit', '--quiet', '-am', 'test: edit again'])
+    const cur7 = git(dir, ['rev-parse', 'HEAD:t.sh']).slice(0, 7)
+    expect(LINE.exec(review(dir))?.[3]).toBe(
+      `unverified: Test-Amend binds ${old7}, head is ${cur7}`,
+    )
+  })
+
+  it('adds no line when the pinned test is unchanged', () => {
+    const { dir } = redFixture()
+    const prompt = review(dir)
+    expect(prompt).toContain('"test_path":"t.sh"')
+    expect(prompt).not.toContain('Pinned RED test')
+  })
+})

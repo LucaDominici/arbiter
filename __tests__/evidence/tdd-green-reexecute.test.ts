@@ -159,31 +159,49 @@ describe.sequential('verifyGreenExecution real runner output', () => {
     expect(result.reason).toMatch(/Go test was skipped/)
   })
 
-  it('rejects an unrelated passing replacement at the recorded test path', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'arbiter-green-content-'))
-    dirs.push(dir)
-    symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
-    const testPath = 'recorded.test.ts'
-    const recordedContent =
-      "import { it, expect } from 'vitest'\nit('recorded RED', () => expect(1).toBe(2))\n"
-    writeFileSync(
-      join(dir, testPath),
-      `${recordedContent}it('unrelated', () => expect(1).toBe(1))\n`,
-    )
-    const result = verifyGreenExecution(
-      fixture(
-        testPath,
-        `FAIL ${testPath}\n1 test failed`,
-        ['npx', 'vitest', 'run', testPath],
-        gitBlobSha(recordedContent),
-      ),
-      dir,
-    )
-    expect(result.ok).toBe(false)
-    expect(result.reason).toMatch(/content|blob|recorded RED test/i)
-  })
+  it(
+    'rejects an unrelated passing replacement at the recorded test path',
+    { timeout: 60_000 },
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), 'arbiter-green-content-'))
+      dirs.push(dir)
+      symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
+      git(dir, ['init', '--quiet'])
+      git(dir, ['config', 'user.name', 'Arbiter Test'])
+      git(dir, ['config', 'user.email', 'test.invalid'])
+      writeFileSync(join(dir, '.gitignore'), 'node_modules\n')
+      const testPath = 'recorded.test.ts'
+      const recordedContent =
+        "import { it, expect } from 'vitest'\nit('recorded RED', () => expect(1).toBe(2))\n"
+      writeFileSync(join(dir, testPath), recordedContent)
+      git(dir, ['add', '-A'])
+      git(dir, ['commit', '--quiet', '-m', 'record RED test'])
+      const redCommit = git(dir, ['rev-parse', 'HEAD'])
+      writeFileSync(
+        join(dir, testPath),
+        "import { it, expect } from 'vitest'\nit('unrelated', () => expect(1).toBe(1))\n",
+      )
+      git(dir, ['commit', '--quiet', '-am', 'replace the recorded test'])
 
-  it('derives RED content for legacy receipts without test_blob_sha', () => {
+      const result = verifyGreenExecution(
+        {
+          ...fixture(
+            testPath,
+            `FAIL ${testPath}\n1 test failed`,
+            ['npx', 'vitest', 'run', testPath],
+            gitBlobSha(recordedContent),
+          ),
+          test_commit_sha: redCommit,
+        },
+        dir,
+      )
+      expect(result.ok).toBe(false)
+      expect(result.reason).toContain('E_SPEC_TEST_CONFLICT')
+      expect(result.reason).toContain('FAILS at')
+    },
+  )
+
+  it('derives RED content for legacy receipts without test_blob_sha', { timeout: 60_000 }, () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-green-legacy-content-'))
     dirs.push(dir)
     symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
