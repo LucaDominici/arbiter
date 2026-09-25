@@ -207,6 +207,8 @@ describe('runCrossModelReview (#2357)', () => {
 
   it('builds the review prompt from the frozen plan and exact candidate range', () => {
     mockedRunCli.mockImplementation((command, args) => {
+      if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'origin/main')
+        return { stdout: `${BASE_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
       if (command === 'git' && args[0] === 'status')
         return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
       if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
@@ -266,7 +268,7 @@ describe('runCrossModelReview (#2357)', () => {
     )
     const prompt = mockedInvoke.mock.calls[0]?.[0].prompt ?? ''
     expect(prompt).toContain('Task: #2747')
-    expect(prompt).toContain(`Base SHA: ${BASE_SHA}`)
+    expect(prompt).toContain(`Task base SHA (acceptance fit): ${BASE_SHA}`)
     expect(prompt).toContain(`Head SHA: ${HEAD_SHA}`)
     expect(prompt).toContain('Acceptance criteria hash: frozen-ac-hash')
     expect(prompt).toContain(
@@ -508,7 +510,9 @@ describe('runCrossModelReview (#2357)', () => {
       ['diff', '--binary', `${BASE_SHA}..${HEAD_SHA}`],
       expect.objectContaining({ cwd: '/tmp/project' }),
     )
-    expect(mockedInvoke.mock.calls[0]?.[0].prompt).toContain(`Base SHA: ${BASE_SHA}`)
+    expect(mockedInvoke.mock.calls[0]?.[0].prompt).toContain(
+      `Task base SHA (acceptance fit): ${BASE_SHA}`,
+    )
   })
 
   it('refuses dispatch when the frozen plan reference is missing', () => {
@@ -921,6 +925,9 @@ describe('runCrossModelReview (#2357)', () => {
         }
         if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD') {
           return { stdout: `${sha}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'origin/main') {
+          return { stdout: `${BASE_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
         }
         if (command === 'git' && args[0] === 'status') {
           return { stdout: ' M tracked.txt\n', stderr: '', exitCode: 0, durationMs: 1 }
@@ -1449,6 +1456,7 @@ describe('frozen review prompt: pinned test changed after RED (#2906 AC-4)', () 
     git(dir, ['add', '-A'])
     git(dir, ['commit', '--quiet', '-m', 'test: red'])
     const red = git(dir, ['rev-parse', 'HEAD'])
+    git(dir, ['update-ref', 'refs/remotes/origin/main', red])
     const redBlob = git(dir, ['rev-parse', 'HEAD:t.sh'])
     mkdirSync(join(dir, '.arbiter/evidence/tdd'), { recursive: true })
     mkdirSync(join(dir, '.claude/plans'), { recursive: true })

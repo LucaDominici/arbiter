@@ -127,7 +127,7 @@ export function planReviewRound(
  */
 export function reviewScopeLine(base: string, rounds: number, maxRounds: number): string {
   return (
-    `git diff ${base}..HEAD (round ${rounds} of ${maxRounds}) · ` +
+    `changed since last round: git diff ${base}..HEAD (round ${rounds} of ${maxRounds}; acceptance fit uses the task base) · ` +
     'only LOW findings may be parked; applicable MED/HIGH/CRITICAL and AC-fit failures still block'
   )
 }
