@@ -23,6 +23,13 @@
 // Usage:
 //   node scripts/check-refutation-verdicts.mjs [--evidence-dir=<path>] [--repo-root=<dir>]
 //       [--require-marker=<task>]
+// --repo-root (#2860) is where `.claude/.task/status.json` is read from to learn which task the
+// caller has DECLARED it is working — defaults to this script's own repo. Without --require-marker,
+// a declared task selects the marker BOUND to it (A03-003), never a bare directory-walk order;
+// with no declared task, one marker is unambiguous but two or more refuse to be picked from
+// silently (exit 2). Quorum counts one vote per skeptic ENVELOPE, not per raw refutation entry
+// (A03-004): an envelope repeating or self-contradicting a verdict on the same finding casts at
+// most one vote.
 // --require-marker names the task a caller has DECLARED needs a refutation marker (#2614):
 // with it set, a missing marker BOUND to that exact task is exit 1 instead of the vacuous pass
 // below — bound both by directory (the sanitized task id) and by the marker's own `task` field,
@@ -41,6 +48,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
 
 const argv = process.argv.slice(2)
+const ROOT = arg('repo-root', argv) ? resolve(arg('repo-root', argv)) : repoDefault
 const EVIDENCE_DIR = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
   : join(repoDefault, '.arbiter', 'evidence', 'agent-returns')
@@ -60,12 +68,12 @@ function sanitizeTask(task) {
 }
 
 /**
- * Find the refutation marker under the evidence dir (any task subdir).
+ * List every refutation marker path under the evidence dir (any task subdir).
  * @param {string} evidenceDir
- * @returns {{ path: string, body: Record<string, unknown> } | null}
+ * @returns {string[]}
  */
-function findMarker(evidenceDir) {
-  if (!existsSync(evidenceDir)) return null
+function listMarkers(evidenceDir) {
+  if (!existsSync(evidenceDir)) return []
   /** @type {string[]} */
   const markers = []
   const walk = (dir) => {
@@ -83,8 +91,15 @@ function findMarker(evidenceDir) {
     }
   }
   walk(evidenceDir)
-  if (markers.length === 0) return null
-  const path = markers[0]
+  return markers
+}
+
+/**
+ * Parse a marker file.
+ * @param {string} path
+ * @returns {{ path: string, body: Record<string, unknown> }}
+ */
+function readMarker(path) {
   try {
     const body = JSON.parse(readFileSync(path, 'utf-8'))
     return { path, body: /** @type {Record<string, unknown>} */ (body) }
@@ -93,6 +108,56 @@ function findMarker(evidenceDir) {
       `cannot parse marker ${path}: ${err instanceof Error ? err.message : String(err)}`,
     )
   }
+}
+
+/**
+ * The task the caller has DECLARED it is working (#2860): read from the repo's own task state,
+ * never guessed. Anything but a well-formed '#NNN' string is treated as no identity — the
+ * ambiguity it exists to resolve stays unresolved, not silently accepted.
+ * @param {string} root
+ * @returns {string | null}
+ */
+function declaredTask(root) {
+  const p = join(root, '.claude', '.task', 'status.json')
+  if (!existsSync(p)) return null
+  const s = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(p, 'utf-8')))
+  return typeof s['taskId'] === 'string' && isTaskId(s['taskId']) ? s['taskId'] : null
+}
+
+/**
+ * Select the marker to adjudicate (A03-003): a declared task is looked up by its own binding
+ * (same rule as --require-marker); with no declared task, a single marker is unambiguous, but
+ * two or more is a corpus this script must refuse to silently pick markers[0] from.
+ * @param {string} evidenceDir
+ * @param {string | null} task
+ * @returns {{ path: string, body: Record<string, unknown> } | null}
+ */
+function selectMarker(evidenceDir, task) {
+  if (task) return findMarkerForTask(evidenceDir, task)
+  const all = listMarkers(evidenceDir)
+  if (all.length > 1) {
+    throw new Error(`${all.length} refutation markers and no task identity; refusing to pick one`)
+  }
+  return all.length ? readMarker(all[0]) : null
+}
+
+/**
+ * One skeptic verdict per envelope (A03-004): an envelope that names the same target more than
+ * once must not cast more than one vote, and an envelope that contradicts itself on the same
+ * target (both UPHELD and REFUTED) casts none.
+ * @param {Record<string, unknown>} env
+ * @param {string} id
+ * @returns {string | null}
+ */
+function envelopeVerdict(env, id) {
+  const refs = Array.isArray(env['refutations']) ? env['refutations'] : []
+  const verdicts = new Set(
+    refs
+      .map((r) => /** @type {Record<string, unknown>} */ (r))
+      .filter((r) => r['target'] === id && /^(UPHELD|REFUTED)$/.test(String(r['verdict'])))
+      .map((r) => String(r['verdict'])),
+  )
+  return verdicts.size === 1 ? [...verdicts][0] : null
 }
 
 /**
@@ -181,13 +246,9 @@ export function unaddressedAboveFloor(skeptics, actedOn, n) {
     let upheld = 0
     let refuted = 0
     for (const env of skeptics) {
-      const refs = Array.isArray(env['refutations']) ? env['refutations'] : []
-      for (const r of refs) {
-        const rr = /** @type {Record<string, unknown>} */ (r)
-        if (rr['target'] !== id) continue
-        if (rr['verdict'] === 'UPHELD') upheld++
-        else if (rr['verdict'] === 'REFUTED') refuted++
-      }
+      const v = envelopeVerdict(env, id)
+      if (v === 'UPHELD') upheld++
+      else if (v === 'REFUTED') refuted++
     }
     // Only a finding the skeptics actually confirmed blocks the loop. One below quorum, or
     // majority-refuted, is not a real finding and must not hold the wave hostage.
@@ -210,7 +271,7 @@ function main() {
   try {
     marker = REQUIRE_MARKER
       ? findMarkerForTask(EVIDENCE_DIR, REQUIRE_MARKER)
-      : findMarker(EVIDENCE_DIR)
+      : selectMarker(EVIDENCE_DIR, declaredTask(ROOT))
   } catch (err) {
     process.stderr.write(
       `[check-refutation-verdicts] ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
@@ -250,13 +311,8 @@ function main() {
     /** @type {{ verdict: string }[]} */
     const verdicts = []
     for (const env of skeptics) {
-      const refs = Array.isArray(env['refutations']) ? env['refutations'] : []
-      for (const r of refs) {
-        const rr = /** @type {Record<string, unknown>} */ (r)
-        if (rr['target'] === id && (rr['verdict'] === 'UPHELD' || rr['verdict'] === 'REFUTED')) {
-          verdicts.push({ verdict: String(rr['verdict']) })
-        }
-      }
+      const v = envelopeVerdict(env, id)
+      if (v) verdicts.push({ verdict: v })
     }
     if (verdicts.length < N) {
       process.stdout.write(
