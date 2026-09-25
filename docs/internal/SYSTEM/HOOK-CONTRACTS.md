@@ -164,7 +164,9 @@ visible and fail-closed (#2862). Output redirections (`>`, `>>`, `2>&1`, `&>`) a
 are not arguments, so a redirected or filtered draft creation stays a draft; input redirection,
 background `&` and command substitution remain ambiguous. The payload of `eval` and of a shell's
 `-c` at the command head (past `env`, `command` and `VAR=value`) is parsed as shell, so a PR command
-inside it is guarded, draft or not; the same words later in a segment are arguments.
+inside it is guarded, draft or not; the same words later in a segment are arguments. A refused
+ambiguous draft creation (command substitution or a heredoc in the PR-creation segment) names the
+working form in its refusal: `gh pr create --draft --title <title> --body-file <file>` (#2869).
 
 **Corollary for `.claude/hooks/lib.mjs`.** Its approved divergence from the template is exactly one
 thing — `findInlineSuppression` delegates to `scripts/lib/suppressions-shared.mjs` instead of the
@@ -214,6 +216,9 @@ following boundary statement applies.
 - The #2054 Bash-channel pattern guard in `stop-dangerous.mjs` uses this same settings-hook chain
   and inherits the delegated-session limitation.
 - Therefore, no Arbiter enforcement claim may rest on a `.claude/settings.json` hook alone.
+- Decision (#2869, 2026-09-25): creation-time PR guarding stays advisory, defence-in-depth;
+  enforcement lives at the merge boundary (`CI Required`, `pr-merge-watch`). Path-qualified `gh`,
+  `xargs`, aliases, functions, scripts on disk and direct REST calls remain accepted out of scope.
 
 **Enforcement verification (AC-2022.2/3, 2026-08-03):** all three compensating controls are wired
 and fail-closed, verified on this tree — `core.hooksPath=.githooks` (`commit-msg`/`pre-commit`/
