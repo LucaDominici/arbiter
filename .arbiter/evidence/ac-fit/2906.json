@@ -1,0 +1,115 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2906",
+  "criteria": [
+    {
+      "id": "AC-2906.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 85
+        },
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 101
+        },
+        {
+          "file": "src/evidence/tdd-reexecute.ts",
+          "line": 471
+        }
+      ]
+    },
+    {
+      "id": "AC-2906.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 110
+        },
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 124
+        },
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 140
+        },
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 157
+        },
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 170
+        },
+        {
+          "file": "src/evidence/tdd-reexecute.ts",
+          "line": 482
+        }
+      ]
+    },
+    {
+      "id": "AC-2906.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 181
+        },
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 198
+        },
+        {
+          "file": "src/evidence/tdd-reexecute.ts",
+          "line": 453
+        },
+        {
+          "file": "__tests__/evidence/tdd-green-reexecute.test.ts",
+          "line": 89
+        }
+      ]
+    },
+    {
+      "id": "AC-2906.4",
+      "verdict": "FAIL",
+      "evidence": [
+        {
+          "file": "src/commands/cross-model-review.ts",
+          "line": 519
+        },
+        {
+          "file": "__tests__/commands/cross-model-review.test.ts",
+          "line": 1492
+        }
+      ]
+    },
+    {
+      "id": "AC-2906.5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 110
+        },
+        {
+          "file": "__tests__/evidence/tdd-test-amend-2906.test.ts",
+          "line": 216
+        },
+        {
+          "file": "__tests__/commands/cross-model-review.test.ts",
+          "line": 1492
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2906-test-amend",
+  "sha": "41f3adc90a924939ff54dee3d05ec175bef53e64",
+  "planHash": "fa8aaa4349106f6ba83697e05dfb9de98c0e301a",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2906/domain-0.json",
+    "sha256": "0c301155d488b9093aba34571ac5136f397507c36c89a8a90aeb4f3449b8ce44"
+  }
+}
