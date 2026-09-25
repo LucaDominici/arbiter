@@ -5,6 +5,7 @@ import {
   readFileSync,
   realpathSync,
   readdirSync,
+  statSync,
   type Dirent,
 } from 'node:fs'
 import { randomUUID } from 'node:crypto'
@@ -643,6 +644,33 @@ async function recordAdoptedCheckout(
   }
 }
 
+/**
+ * Advisory-only (#2895 AC-4): the graph is optional evidence for /ship's graph-coverage
+ * signal (CANON-01: never a gate). Missing or stale here just means it hasn't caught up
+ * with the adopted checkout's HEAD yet.
+ */
+function graphFreshnessHint(root: string): string | null {
+  const graphPath = join(root, 'graphify-out', 'graph.json')
+  if (!existsSync(graphPath)) {
+    return 'hint: graphify-out/graph.json is missing — run `graphify update .` for ship graph-coverage signals.'
+  }
+  try {
+    const commitEpochSeconds = Number(
+      runCli('git', ['log', '-1', '--format=%ct'], { cwd: root, timeoutMs: 10_000 }).stdout.trim(),
+    )
+    if (
+      Number.isFinite(commitEpochSeconds) &&
+      statSync(graphPath).mtimeMs < commitEpochSeconds * 1000
+    ) {
+      return 'hint: graphify-out/graph.json is stale — run `graphify update .` for ship graph-coverage signals.'
+    }
+    return null
+    // FAIL-OPEN-INTENT: any git error means no hint, never a blocker.
+  } catch {
+    return null
+  }
+}
+
 /** Adopt and prepare an existing native checkout without taking ownership of its cleanup. */
 export async function runWorktreeAdopt(opts: WorktreeAdoptOptions): Promise<void> {
   const caller = opts.cwd ?? process.cwd()
@@ -659,6 +687,7 @@ export async function runWorktreeAdopt(opts: WorktreeAdoptOptions): Promise<void
   const summary = materializeLinks(specs, gitRoot, requested)
   assertResolvableLinks(specs, requested)
   await recordAdoptedCheckout(gitRoot, taskId, requested, live)
+  const graphHint = graphFreshnessHint(requested)
 
   if (opts.json) {
     jsonOutput('worktree prepare', 'ok', {
@@ -666,12 +695,14 @@ export async function runWorktreeAdopt(opts: WorktreeAdoptOptions): Promise<void
       worktreePath: realpathSync(requested),
       branch: live.branch,
       linkSummary: summary,
+      graphHint,
     })
     return
   }
   process.stdout.write(`Adopted checkout: ${realpathSync(requested)}\n`)
   process.stdout.write(`Branch:           ${live.branch}\n`)
   printLinkSummary(summary)
+  if (graphHint !== null) process.stdout.write(`${graphHint}\n`)
 }
 
 // ---------------------------------------------------------------------------
