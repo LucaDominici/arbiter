@@ -404,7 +404,7 @@
     "scripts/check-suppression-rationale.mjs": "80e248a14ebc385449a6baa6e666b673e5b811ec85a28ab8a23a44b9e5390e1a",
     "scripts/check-suppressions.mjs": "ddd80e4642fe937f4cb36a5adc4e6568411533e4c6e9cddaf934f3d4df0b93f0",
     "scripts/check-tabletop-evidence.mjs": "2d0945e0867bc92456f9d40edc7b3f2754d8f55d529205708be709a0ba5fab74",
-    "scripts/check-tdd-evidence.mjs": "385091092ed551a8ce7c39681ccbd0c3afeb00b8323a25c3870a4a73d4a270aa",
+    "scripts/check-tdd-evidence.mjs": "f02ae2b76d87f68b86ed28a266693898718d992b502dcf7515a5ce52bb05e8fb",
     "scripts/check-test-naming.mjs": "8c0574cc74838fae0a6f2dc679d58e4ddabeaa9777892f53893cd20739703d3d",
     "scripts/check-test-pyramid.mjs": "132eb6a858324b67e84a8729eb65175f8fbcaadfa35656ea0b96b218a9f733ec",
     "scripts/check-test-scope-tier.mjs": "593b9beaec9929ef2862b57c67987cd481efd660caa1b4b15cafab959ccefdef",
