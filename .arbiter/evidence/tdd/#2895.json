@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2895",
+  "test_path": "__tests__/commands/ship-tier-evidence-json-2895.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "3a51a4017a0ad96379ea7f0d7e3aff282fcdba1a",
+  "test_blob_sha": "7672dcfe83203cfc57c2faaef6a6c092bb17f2df",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/ship-tier-evidence-json-2895.test.ts (4 tests | 3 failed) 12ms\n     × .arbiter/evidence/tdd/backdoor.ts (a code file, not evidence data) is not exempt: stays out of graph coverage 5ms\n     × .arbiter/evidence/tdd/sub/x.json (a subdirectory, not the flat evidence dir) is not exempt: stays out of graph coverage 1ms\n     × .arbiter/evidence/tdd/x.json.ts (a code file with .json in its name, not a .json file) is not exempt: stays out of graph coverage 1ms\n\n Test Files  1 failed (1)\n      Tests  3 failed | 1 passed (4)\n   Start at  13:55:52\n   Duration  320ms (transform 168ms, setup 8ms, import 211ms, tests 12ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/ship-tier-evidence-json-2895.test.ts > gatherTierSignals — TDD evidence JSON exclusion is anchored (#2896 F1) > .arbiter/evidence/tdd/backdoor.ts (a code file, not evidence data) is not exempt: stays out of graph coverage\n FAIL  |unit| __tests__/commands/ship-tier-evidence-json-2895.test.ts > gatherTierSignals — TDD evidence JSON exclusion is anchored (#2896 F1) > .arbiter/evidence/tdd/sub/x.json (a subdirectory, not the flat evidence dir) is not exempt: stays out of graph coverage\n FAIL  |unit| __tests__/commands/ship-tier-evidence-json-2895.test.ts > gatherTierSignals — TDD evidence JSON exclusion is anchored (#2896 F1) > .arbiter/evidence/tdd/x.json.ts (a code file with .json in its name, not a .json file) is not exempt: stays out of graph coverage\nAssertionError: expected { labels: [], …(6) } to match object { complete: false }\n(6 matching properties omitted from actual)\n\n- Expected\n+ Received\n\n  {\n-   \"complete\": false,\n+   \"complete\": true,\n  }\n\n ❯ __tests__/commands/ship-tier-evidence-json-2895.test.ts:98:75\n     96|     writeFile(dir, relativePath)\n     97|\n     98|     expect(gatherTierSignals(dir, '#2896', '.claude/plans/task-2896.md…\n       |                                                                           ^\n     99|       complete: false,\n    100|     })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/ship-tier-evidence-json-2895.test.ts",
+  "recorded_at": "2026-09-25T11:55:52.647Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/ship-tier-evidence-json-2895.test.ts"
+  ]
+}

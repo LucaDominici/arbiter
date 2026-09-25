@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+  utimesSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -1074,6 +1082,30 @@ describe('runWorktreeAdopt — branch coverage', () => {
     } finally {
       rmSync(previousPath, { recursive: true, force: true })
     }
+  })
+
+  it('emits a stale graph hint when graphify-out/graph.json predates HEAD (#2895 AC-4)', async () => {
+    const graphPath = join(worktreePath, 'graphify-out', 'graph.json')
+    mkdirSync(join(worktreePath, 'graphify-out'), { recursive: true })
+    writeFileSync(graphPath, '{"nodes":[],"links":[]}\n')
+    utimesSync(graphPath, new Date(0), new Date(0))
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'worktree list --porcelain') return ok(inventory())
+      if (args?.join(' ') === 'log -1 --format=%ct') return ok('2000000000')
+      return ok(gitRoot)
+    })
+    const out: string[] = []
+    const stdoutSpy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((value: string | Uint8Array): boolean => {
+        out.push(String(value))
+        return true
+      })
+
+    await runWorktreeAdopt({ taskId: '#2564', cwd: gitRoot, worktreePath })
+    stdoutSpy.mockRestore()
+
+    expect(out.some((line) => /graphify-out\/graph\.json is stale/.test(line))).toBe(true)
   })
 })
 

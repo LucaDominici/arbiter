@@ -174,6 +174,19 @@ const BAKE_SNAP = /__snapshots__\//
 const WORKFLOW_PATH = /^\.github\/workflows\//
 const SRC_PATH = /^src\//
 
+// #2895 — prose the graph never indexes (AST-only), any path, not just the repo root. Narrower
+// than the documentation-only routing check below on purpose: `docs/*.ts` is still code.
+const GRAPH_UNINDEXED_PATH = /\.md$/
+// #2895 follow-up — TDD evidence is data, not code; every task that records red evidence has
+// one of these in the diff, so this had to join the .md exclusion for XS/S to stay reachable.
+// #2896 F1 — anchored to the exact shape `.gitignore` un-ignores (`!.arbiter/evidence/tdd/*.json`):
+// no subdirectory, filename ends in `.json`. A wildcard prefix here would exempt code too.
+const TDD_EVIDENCE_PATH = /^\.arbiter\/evidence\/tdd\/[^/]+\.json$/
+
+function isGraphUnindexed(file: string): boolean {
+  return GRAPH_UNINDEXED_PATH.test(file) || TDD_EVIDENCE_PATH.test(file)
+}
+
 interface PremortemDecision {
   decision: 'required' | 'deterministic' | 'skip-llm'
   reason: string
@@ -496,9 +509,10 @@ export function gatherTierSignals(
     const changedFiles = unique([...manifest, ...(actual ?? [])]).sort()
     const candidates = new Set(changedFiles)
     const documentationOnly = changedFiles.every((file) => /^(?:docs\/|[^/]+\.md$)/.test(file))
+    const graphCandidates = new Set([...candidates].filter((file) => !isGraphUnindexed(file)))
     const graph = documentationOnly
       ? { blastRadius: 0, callerCount: 0, complete: true }
-      : gatherGraphSignals(root, candidates)
+      : gatherGraphSignals(root, graphCandidates)
     return {
       ...issue,
       ...graph,
