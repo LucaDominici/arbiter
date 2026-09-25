@@ -394,7 +394,7 @@ function recordRedEvidence(params: {
   if (sig === null) {
     return {
       ok: false,
-      reason: `no recognised failure signature in test output — the test appears to pass or produced unrecognised output. Tests must be RED before recording evidence.`,
+      reason: `no recognised failure signature in test output — the test appears to pass or produced unrecognised output. Tests must be RED before recording evidence. Shell tests must print a line "FAIL: <label>" (leading spaces or tabs allowed, the colon is required).`,
     }
   }
 
