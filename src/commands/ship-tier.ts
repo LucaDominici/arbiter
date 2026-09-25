@@ -7,10 +7,11 @@ import { join } from 'node:path'
 import { runCli, runCliJson } from '../utils/run-cli.js'
 import { readFileTranslated } from '../utils/fs.js'
 
-export type ShipTier = 'XS' | 'S' | 'Standard'
+type ShipTier = 'XS' | 'S' | 'Standard'
 type ModelCapability = 'economy' | 'capable' | 'frontier'
-export type ShipExecutionOutcome =
+type ShipExecutionOutcome =
   'new-risk' | 'no-progress' | 'timeout' | 'oom' | 'rate-limit' | 'tool-unavailable' | 'ci-queue'
+export type { ShipTier, ShipExecutionOutcome }
 type ReviewVertical =
   | 'domain'
   | 'type-safety'
@@ -164,6 +165,115 @@ const SENSITIVE_PATHS: readonly [RegExp, ReviewVertical][] = [
   [/(?:^|\/)(?:locks?|mutex|concurrenc)(?:y|ies)?(?:\/|\.|-)|gate-mutex/i, 'concurrency'],
   [/^(?:\.github\/|Dockerfile$|docker\/|deploy\/|release\/)/i, 'deployment'],
 ]
+
+// #2890 — path classes the premortem decision keys off. Paths and treatment only, never file
+// contents (AC-2890.3).
+const HOOK_PATH = /(?:^|\/)hooks\//
+const TEMPLATE_EJS = /^src\/templates\/.*\.ejs$/
+const BAKE_SNAP = /__snapshots__\//
+const WORKFLOW_PATH = /^\.github\/workflows\//
+const SRC_PATH = /^src\//
+
+interface PremortemDecision {
+  decision: 'required' | 'deterministic' | 'skip-llm'
+  reason: string
+  areas: number
+  hooks: boolean
+  templates: boolean
+  workflows: boolean
+  sensitive: boolean
+  tier: ShipTier
+  checklist?: true
+}
+
+/**
+ * #2890 AC-2 — six ordered rules over the plan manifest + resolved ship treatment, deciding
+ * whether the (costly, $11-17/run) LLM premortem is required, runs on the deterministic CI-infra
+ * checklist instead, or is skipped entirely for a consumer-only XS/S delivery.
+ *
+ * Rule order is force > hooks/templates > workflows > sensitive > standard-multi-area >
+ * consumer-xs > default. AC-2 lists the consumer-xs skip as rule (1) and workflows as rule (5)
+ * after sensitive as rule (3); both are evaluated earlier here on purpose (premortem brief §1):
+ * `.github/workflows/**` always matches the `deployment` SENSITIVE_PATHS entry, so sensitive
+ * must be checked after workflows or rule 5 is unreachable (owner-approved 2026-09-25); and
+ * hooks/templates/workflows must be checked before the consumer-xs skip or an XS plan that only
+ * touches `__snapshots__/` or `packages/kernel/hooks/` would wrongly skip the premortem.
+ */
+type PremortemBase = Omit<PremortemDecision, 'decision' | 'reason' | 'checklist'>
+
+function premortemBase(files: readonly string[], treatment: ShipTreatment): PremortemBase {
+  const hooks = files.some((file) => HOOK_PATH.test(file))
+  const templates = files.some((file) => TEMPLATE_EJS.test(file) || BAKE_SNAP.test(file))
+  const workflows = files.some((file) => WORKFLOW_PATH.test(file))
+  const areas = new Set(files.map((file) => file.split('/').slice(0, 2).join('/'))).size
+  return {
+    areas,
+    hooks,
+    templates,
+    workflows,
+    sensitive: treatment.sensitive,
+    tier: treatment.tier,
+  }
+}
+
+/** Rules force → hooks/templates → workflows → sensitive — split out to hold complexity ≤10. */
+function earlyPremortemRule(base: PremortemBase, force: boolean): PremortemDecision | null {
+  if (force) return { decision: 'required', reason: 'forced', ...base }
+  if (base.hooks || base.templates) {
+    return { decision: 'required', reason: 'R1-hooks-templates', ...base }
+  }
+  if (base.workflows)
+    return { decision: 'deterministic', reason: 'R8-ci-infra', checklist: true, ...base }
+  if (base.sensitive) return { decision: 'required', reason: 'R4-sensitive', ...base }
+  return null
+}
+
+function evaluatePremortem(
+  files: readonly string[],
+  treatment: ShipTreatment | undefined,
+  opts: { force?: boolean } = {},
+): PremortemDecision {
+  if (!treatment) {
+    return {
+      decision: 'required',
+      reason: 'R7-no-treatment',
+      areas: 0,
+      hooks: false,
+      templates: false,
+      workflows: false,
+      sensitive: false,
+      tier: 'Standard',
+    }
+  }
+  const base = premortemBase(files, treatment)
+  const early = earlyPremortemRule(base, opts.force === true)
+  if (early) return early
+  const small = treatment.tier !== 'Standard'
+  if (!small && base.areas >= 2)
+    return { decision: 'required', reason: 'R3-standard-multi-area', ...base }
+  // Fail-closed (premortem brief §3): an unreadable/empty manifest must never resolve skip-llm.
+  if (files.length === 0) return { decision: 'required', reason: 'R7-empty-manifest', ...base }
+  if (small && !files.some((file) => SRC_PATH.test(file))) {
+    return { decision: 'skip-llm', reason: 'R5-consumer-xs', ...base }
+  }
+  return { decision: 'deterministic', reason: 'R6-default', ...base }
+}
+
+/**
+ * #2890 AC-3 — the plan's `premortem:` frontmatter value, or a manifest path matching
+ * `PREMORTEM_*`. Extraction only (no existence/content check); the caller validates the
+ * reference fail-closed.
+ */
+function parsePremortemRef(plan: string, manifest: readonly string[]): string | null {
+  const frontMatter = plan.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1]
+  const declared = frontMatter?.match(/^premortem:\s*(\S.*?)\s*$/m)?.[1]
+  if (declared !== undefined) return declared
+  return manifest.find((file) => /(^|\/)PREMORTEM_[^/]*$/.test(file)) ?? null
+}
+
+// Bundled on one line to hold publicApiSurface net-zero (#2890 premortem brief §1 export budget):
+// readPlanManifest (defined below) is otherwise module-local.
+export { evaluatePremortem, parsePremortemRef, readPlanManifest, type PremortemDecision }
 
 function unique<T>(values: readonly T[]): T[] {
   return [...new Set(values)]

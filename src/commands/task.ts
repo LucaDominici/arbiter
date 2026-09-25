@@ -42,7 +42,7 @@ import {
   type PlannedReviewRound,
   type ReviewRoundEnvelope,
 } from './ship-review.js'
-import { isShipTreatment } from './ship-tier.js'
+import { isShipTreatment, parsePremortemRef, readPlanManifest } from './ship-tier.js'
 
 // Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
 // Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
@@ -896,6 +896,16 @@ function prGateSnapshots(
 }
 
 /**
+ * #2890 AC-5 — appended to every delivery-record log line so the decision and the actual
+ * review-round count survive in `.claude/.task/log.md`, recomputable across deliveries.
+ */
+function premortemLogSuffix(dir: string): string {
+  const state = readUnifiedState(dir)
+  if (!state?.premortem) return ''
+  return ` premortem=${state.premortem.decision} rounds=${reviewStateOf(state).rounds}`
+}
+
+/**
  * The two explicit skips, each written to the digest log so a completion that did NOT verify a
  * merged PR stays attributable. Returns true when the gate is satisfied without a PR check.
  */
@@ -912,7 +922,7 @@ function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
     if (!successfulPostMainCi(checks)) {
       throw prGateRefusal('direct post-main CI cannot establish a successful candidate result.')
     }
-    appendLog(dir, 'complete ← no-pr (direct landing)')
+    appendLog(dir, `complete ← no-pr (direct landing)${premortemLogSuffix(dir)}`)
     return true
   }
   if (!permitsGitHubCalls(dir)) {
@@ -921,7 +931,7 @@ function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
     const exactMain = exactMainCriteria(dir)
     if (exactMain.length > 0)
       throw prGateRefusal(`[exact-main] ${exactMain.join(', ')} need the exact-main CI run.`)
-    appendLog(dir, 'complete ← pr-check skipped (permitGitHub not set)')
+    appendLog(dir, `complete ← pr-check skipped (permitGitHub not set)${premortemLogSuffix(dir)}`)
     return true
   }
   return false
@@ -966,7 +976,7 @@ function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?:
       : evaluateHarnessCompletion(dir, snapshots, candidateSha, opts)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   checkExactMainCi(dir, opts, snapshots, verdict.number)
-  appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
+  appendLog(dir, `complete ← PR #${verdict.number} MERGED${premortemLogSuffix(dir)}`)
 }
 
 /** #2865 — the plan's `[exact-main]` criterion ids, from the emitted checker (fail-closed). */
@@ -1010,7 +1020,7 @@ function checkExactMainCi(
         `of PR #${prNumber} is red, pending or missing. Wait for it to finish green, then retry.`,
     )
   }
-  appendLog(dir, `complete ← exact-main CI green on ${mergeSha}`)
+  appendLog(dir, `complete ← exact-main CI green on ${mergeSha}${premortemLogSuffix(dir)}`)
 }
 
 function evaluateHarnessCompletion(
@@ -1566,6 +1576,7 @@ function assertReviewSubjectFrozen(dir: string): void {
   }
   assertBaseCurrent(dir)
   checkBakeAfterTemplates(dir)
+  checkPremortemRequired(dir)
 }
 
 /**
@@ -1638,6 +1649,38 @@ function checkBakeAfterTemplates(dir: string): void {
     throw new Error(
       `review freeze: a src/templates commit is newer than the last bake snapshot commit; run \`${BAKE_REGENERATE_COMMAND}\` and commit the snapshots last`,
     )
+  }
+}
+
+/**
+ * #2890 AC-3 — `required` without a valid premortem reference (the plan's `premortem:`
+ * frontmatter, or a `PREMORTEM_*` manifest path) refuses the freeze. The reference is only
+ * validated (exists, regular file, inside the repo, non-empty) — its content is never read.
+ */
+function checkPremortemRequired(dir: string): void {
+  const state = readUnifiedState(dir)
+  if (state?.premortem?.decision !== 'required') return
+  const plan = state.plan
+  const planBody = plan.length > 0 ? readFileTranslated(join(dir, plan), 'utf-8') : ''
+  const manifest = plan.length > 0 ? [...(readPlanManifest(dir, plan) ?? [])] : []
+  const ref = plan.length > 0 ? parsePremortemRef(planBody, manifest) : null
+  if (ref !== null && isValidPremortemRef(dir, ref)) return
+  throw new UserFacingError(
+    t('errors.E_PREMORTEM_REQUIRED', { rule: state.premortem.reason, plan }),
+  )
+}
+
+function isValidPremortemRef(dir: string, ref: string): boolean {
+  if (ref.length === 0 || ref.startsWith('/') || ref.split('/').some((seg) => seg === '..')) {
+    return false
+  }
+  const resolved = resolve(dir, ref)
+  if (!resolved.startsWith(resolve(dir) + '/')) return false
+  try {
+    const stat = lstatSync(resolved)
+    return stat.isFile() && stat.size > 0
+  } catch {
+    return false
   }
 }
 
