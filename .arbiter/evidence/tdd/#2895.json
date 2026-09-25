@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2895",
+  "test_path": "__tests__/commands/ship-tier.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "a15868ef27ceb5f4f8d458949efe0bf3f48d27c2",
+  "test_blob_sha": "2a4e302a820984bfb46f11b4c7b1a5ac26eba099",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/ship-tier.test.ts (31 tests | 1 failed) 1613ms\n     × qualifies XS with a committed plan .md plus two covered scripts, and widens when an uncovered script is added (#2895 AC-3) 6ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n   Start at  13:16:10\n   Duration  2.44s (transform 638ms, setup 11ms, import 727ms, tests 1.61s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/ship-tier.test.ts > gatherTierSignals (#2180) > qualifies XS with a committed plan .md plus two covered scripts, and widens when an uncovered script is added (#2895 AC-3)\nAssertionError: expected { labels: [], …(6) } to match object { changedFiles: [ …(3) ], …(1) }\n(5 matching properties omitted from actual)\n\n- Expected\n+ Received\n\n@@ -2,7 +2,7 @@\n    \"changedFiles\": [\n      \".claude/plans/task-2180.md\",\n      \"scripts/a.sh\",\n      \"scripts/b.sh\",\n    ],\n-   \"complete\": true,\n+   \"complete\": false,\n  }\n\n ❯ __tests__/commands/ship-tier.test.ts:490:75\n    488|     utimesSync(graph, fresh, fresh)\n    489|\n    490|     expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md…\n       |                                                                           ^\n    491|       changedFiles: ['.claude/plans/task-2180.md', 'scripts/a.sh', 'sc…\n    492|       complete: true,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/ship-tier.test.ts",
+  "recorded_at": "2026-09-25T11:16:12.988Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/ship-tier.test.ts"
+  ]
+}
