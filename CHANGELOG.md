@@ -8,6 +8,12 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- Generated projects' evidence gate (INV-33) now fails closed: an absent, schema-invalid, or
+  sha-tampered `.evidence/SUMMARY.json` exits nonzero instead of the previous WARN-and-PASS on
+  first run. `evidence-collect.mjs` fails closed too — a failed tool or a stale coverage/mutation
+  report now forces `obs_gate: FAIL` with the reason recorded in the signed summary. First-run
+  consumers see the gate FAIL until the collector has produced a signed summary at least once
+  (#2887).
 - The distributed PR guard now ignores unsupported shell syntax when no PR command exists, while
   preserving fail-closed handling for ambiguous `gh pr create` and `gh pr ready` invocations (#2830).
 - Worktree preparation now discovers and cache-isolates installed `node_modules` at nested package roots (#2799).
