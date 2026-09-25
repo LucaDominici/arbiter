@@ -240,7 +240,7 @@
     ".claude/hooks/check-no-orphan-todo.mjs": "3f1b0dec92ab73fa4486193dcdd492086e596a8f8141ca0b45ecccddd111b30a",
     ".claude/hooks/check-no-placeholders.mjs": "dc9c691e2dd5f3b645c3f5c2404f152c68f941fbd5d1af6fd781071cb5d4ab66",
     ".claude/hooks/check-no-skipped-tests.mjs": "b96b8d8770a981bd76f2710ea81825393774e4be22548b3617a2f9f2079605f6",
-    ".claude/hooks/enforce-gate-before-pr.mjs": "f7098dabefc7f02f80d4426bfba94375aea9a9c4fa95301b16b9a60b9238335c",
+    ".claude/hooks/enforce-gate-before-pr.mjs": "6dd9a3928582958166a866ab9a82f1914041dfbb2688dcafecec927269d384ca",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/hooks.mjs": "164211b4b73aa6c5baae6ceaaec767d0125936ea4faf42e60244c3fd7f7d3948",
     ".claude/hooks/lib.mjs": "f3cd4742f7157d174d40e3d82db7333e394ecc167b11d5f2ff409c6491c0dab3",
