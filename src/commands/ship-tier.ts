@@ -177,9 +177,12 @@ const SRC_PATH = /^src\//
 // #2895 — prose the graph never indexes (AST-only), any path, not just the repo root. Narrower
 // than the documentation-only routing check below on purpose: `docs/*.ts` is still code.
 const GRAPH_UNINDEXED_PATH = /\.md$/
+// #2895 follow-up — TDD evidence is data, not code; every task that records red evidence has
+// one of these in the diff, so this had to join the .md exclusion for XS/S to stay reachable.
+const TDD_EVIDENCE_PATH = /^\.arbiter\/evidence\/tdd\//
 
 function isGraphUnindexed(file: string): boolean {
-  return GRAPH_UNINDEXED_PATH.test(file)
+  return GRAPH_UNINDEXED_PATH.test(file) || TDD_EVIDENCE_PATH.test(file)
 }
 
 interface PremortemDecision {
