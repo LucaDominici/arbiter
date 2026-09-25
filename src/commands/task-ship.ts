@@ -22,6 +22,7 @@ import {
   normalizeChainId,
   type TaskStatePatch,
   type UnifiedTaskState,
+  reviewStateOf,
 } from './task-state.js'
 import { assertShipHostBinding, runTaskAdvance, runTaskResume, runTaskReviewRound } from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
@@ -1056,6 +1057,9 @@ function shipTreatmentFor(
   root: string,
   state: ReturnType<typeof readUnifiedState>,
   opts: TaskShipOptions,
+  // #2891 AC-3 — an eject drops the prior treatment as a widening floor: `resolvedTier`
+  // otherwise preserves whatever tier a since-dropped member widened the train to.
+  ejected = false,
 ): ShipTreatment {
   const signals = (opts.gatherTierSignals ?? gatherTierSignals)(
     root,
@@ -1068,7 +1072,7 @@ function shipTreatmentFor(
       ...signals,
       ...(opts.executionOutcome !== undefined ? { executionOutcome: opts.executionOutcome } : {}),
     },
-    state?.treatment,
+    ejected ? undefined : state?.treatment,
   )
 }
 
@@ -1285,12 +1289,18 @@ function assertChainAddAllowed(
   throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
 }
 
+interface PreparedChainAdd {
+  additions: readonly string[]
+  now: Date
+  affinity: AffinityVerdict
+}
+
 function prepareChainAdd(
   root: string,
   opts: TaskShipOptions,
   limits: TrainLimits,
   state: UnifiedTaskState | null,
-): { additions: readonly string[]; now: Date; affinity: AffinityVerdict } | null {
+): PreparedChainAdd | null {
   const additions = chainAddContext(opts, state).additions
   if (additions.length === 0 && opts.seal !== true) return null
 
@@ -1309,6 +1319,7 @@ function persistTrainAppend(
 ): void {
   const existing = state?.chainIds ?? []
   const chainIds = appendChainIds(existing, additions)
+  const ejected = (affinity.ejected?.length ?? 0) > 0
   writeUnifiedState(root, {
     chainIds,
     // Stamp the open time on the first append only; `timestamps` is shallow-merged, so this
@@ -1316,7 +1327,11 @@ function persistTrainAppend(
     ...(state?.timestamps.chainOpened === undefined
       ? { timestamps: { chainOpened: now.toISOString() } }
       : {}),
+    // #2891 AC-3 — an eject drops the freeze marker (not the round budget) so the narrowed
+    // train re-freezes on the next round instead of replaying a review pinned to the wider one.
+    ...(ejected ? { review: { ...reviewStateOf(state), lastReviewedSha: null } } : {}),
   })
+  if (ejected) appendLog(root, 'ship → train re-freezes: review marker cleared after eject')
   appendLog(root, `ship → train +${chainIds.length - existing.length} (${chainIds.join(', ')})`)
   appendLog(
     root,
@@ -1324,10 +1339,12 @@ function persistTrainAppend(
   )
 }
 
-function applyPreparedChainAdd(
-  root: string,
-  prepared: { additions: readonly string[]; now: Date; affinity: AffinityVerdict } | null,
-): void {
+/** #2891 AC-3 — true when this run's chain-add verdict ejected a member (drives the treatment reset). */
+function chainAddEjected(prepared: PreparedChainAdd | null): boolean {
+  return (prepared?.affinity.ejected?.length ?? 0) > 0
+}
+
+function applyPreparedChainAdd(root: string, prepared: PreparedChainAdd | null): void {
   if (prepared === null) return
   persistTrainAppend(
     root,
@@ -1871,7 +1888,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'
-  const treatment = shipTreatmentFor(root, state, opts)
+  const treatment = shipTreatmentFor(root, state, opts, chainAddEjected(preparedChainAdd))
   persistShipTreatment(root, state, treatment)
   if (treatment.reasons.some((reason) => reason.startsWith('BLOCKED:'))) {
     appendLog(root, 'ship → BLOCKED: current implementation approach made no progress')
