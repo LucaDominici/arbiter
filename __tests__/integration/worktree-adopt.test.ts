@@ -89,6 +89,24 @@ describe('runWorktreeAdopt', () => {
     )
   })
 
+  it('prints an advisory hint when the graph is missing, and none once it is fresh (#2895 AC-4)', async () => {
+    git(repo, 'worktree', 'add', '-b', 'feature/graph-hint', checkout)
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+
+    await runWorktreeAdopt({ taskId: '#2895', cwd: checkout })
+    expect(write.mock.calls.map((call) => call[0]).join('')).toMatch(
+      /hint: graphify-out\/graph\.json is missing — run `graphify update \.`/,
+    )
+
+    write.mockClear()
+    mkdirSync(join(checkout, 'graphify-out'), { recursive: true })
+    writeFileSync(join(checkout, 'graphify-out', 'graph.json'), '{"nodes":[],"links":[]}\n')
+    await runWorktreeAdopt({ taskId: '#2895', worktreePath: checkout, cwd: repo })
+    expect(write.mock.calls.map((call) => call[0]).join('')).not.toMatch(/hint: graphify-out/)
+
+    write.mockRestore()
+  })
+
   it("links dependencies from the target checkout's nested package roots", async () => {
     mkdirSync(join(repo, 'frontend'), { recursive: true })
     writeFileSync(join(repo, 'frontend', 'package.json'), '{"name":"frontend"}\n')

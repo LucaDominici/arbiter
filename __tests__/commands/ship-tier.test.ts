@@ -401,6 +401,124 @@ describe('gatherTierSignals (#2180)', () => {
     })
   })
 
+  it('excludes the committed plan .md from graph coverage but still requires it for code files (#2895 AC-1, AC-2)', () => {
+    writePlanWithFiles(dir, ['.claude/plans/task-2180.md', 'src/uncovered.ts'])
+    const changed = writeFile(dir, 'src/uncovered.ts')
+    runCliJson.mockReturnValue({ labels: [], milestone: null })
+    runCli.mockImplementation((_cmd, args) => ({
+      stdout:
+        args[0] === 'diff' && args.includes('origin/main...HEAD')
+          ? '.claude/plans/task-2180.md\nsrc/uncovered.ts\n'
+          : '',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 0,
+    }))
+    const graphDir = join(dir, 'graphify-out')
+    mkdirSync(graphDir, { recursive: true })
+    const graph = join(graphDir, 'graph.json')
+    writeFileSync(graph, JSON.stringify({ nodes: [], links: [] }), 'utf-8')
+    const fresh = new Date(Date.now() + 2_000)
+    utimesSync(changed, new Date(fresh.getTime() - 1_000), new Date(fresh.getTime() - 1_000))
+    utimesSync(graph, fresh, fresh)
+
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
+      changedFiles: ['.claude/plans/task-2180.md', 'src/uncovered.ts'],
+      complete: false,
+    })
+  })
+
+  it('still requires graph coverage for code under docs/, unlike the plan .md (#2895 AC-1, AC-2)', () => {
+    writePlanWithFiles(dir, ['.claude/plans/task-2180.md', 'docs/build.ts'])
+    const changed = writeFile(dir, 'docs/build.ts')
+    runCliJson.mockReturnValue({ labels: [], milestone: null })
+    runCli.mockImplementation((_cmd, args) => ({
+      stdout:
+        args[0] === 'diff' && args.includes('origin/main...HEAD')
+          ? '.claude/plans/task-2180.md\ndocs/build.ts\n'
+          : '',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 0,
+    }))
+    const graphDir = join(dir, 'graphify-out')
+    mkdirSync(graphDir, { recursive: true })
+    const graph = join(graphDir, 'graph.json')
+    writeFileSync(graph, JSON.stringify({ nodes: [], links: [] }), 'utf-8')
+    const fresh = new Date(Date.now() + 2_000)
+    utimesSync(changed, new Date(fresh.getTime() - 1_000), new Date(fresh.getTime() - 1_000))
+    utimesSync(graph, fresh, fresh)
+
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
+      complete: false,
+    })
+  })
+
+  it('qualifies XS with a committed plan .md plus two covered scripts, and widens when an uncovered script is added (#2895 AC-3)', () => {
+    writePlanWithFiles(dir, ['.claude/plans/task-2180.md', 'scripts/a.sh', 'scripts/b.sh'])
+    const a = writeFile(dir, 'scripts/a.sh')
+    const b = writeFile(dir, 'scripts/b.sh')
+    runCliJson.mockReturnValue({ labels: [], milestone: null })
+    runCli.mockImplementation((_cmd, args) => ({
+      stdout:
+        args[0] === 'diff' && args.includes('origin/main...HEAD')
+          ? '.claude/plans/task-2180.md\nscripts/a.sh\nscripts/b.sh\n'
+          : '',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 0,
+    }))
+    const graphDir = join(dir, 'graphify-out')
+    mkdirSync(graphDir, { recursive: true })
+    const graph = join(graphDir, 'graph.json')
+    writeFileSync(
+      graph,
+      JSON.stringify({
+        nodes: [
+          { id: 'a', source_file: 'scripts/a.sh' },
+          { id: 'b', source_file: 'scripts/b.sh' },
+        ],
+        links: [],
+      }),
+      'utf-8',
+    )
+    const fresh = new Date(Date.now() + 2_000)
+    utimesSync(a, new Date(fresh.getTime() - 1_000), new Date(fresh.getTime() - 1_000))
+    utimesSync(b, new Date(fresh.getTime() - 1_000), new Date(fresh.getTime() - 1_000))
+    utimesSync(graph, fresh, fresh)
+
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
+      changedFiles: ['.claude/plans/task-2180.md', 'scripts/a.sh', 'scripts/b.sh'],
+      complete: true,
+    })
+    expect(
+      resolveShipTreatment('XS', gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md'))
+        .tier,
+    ).toBe('XS')
+
+    writePlanWithFiles(dir, [
+      '.claude/plans/task-2180.md',
+      'scripts/a.sh',
+      'scripts/b.sh',
+      'scripts/c.sh',
+    ])
+    const c = writeFile(dir, 'scripts/c.sh')
+    runCli.mockImplementation((_cmd, args) => ({
+      stdout:
+        args[0] === 'diff' && args.includes('origin/main...HEAD')
+          ? '.claude/plans/task-2180.md\nscripts/a.sh\nscripts/b.sh\nscripts/c.sh\n'
+          : '',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 0,
+    }))
+    utimesSync(c, new Date(fresh.getTime() - 1_000), new Date(fresh.getTime() - 1_000))
+
+    const widened = gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')
+    expect(widened.complete).toBe(false)
+    expect(resolveShipTreatment('XS', widened).tier).toBe('Standard')
+  })
+
   it('admits a qualified train through the production collector using the persisted plan', () => {
     writePlanWithFiles(dir, ['docs/guide.md'])
     runCliJson.mockReturnValue({ labels: [], milestone: null })
