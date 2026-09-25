@@ -53,10 +53,12 @@ import {
 
 import {
   appendChainIds,
+  disjointFilesFor,
   evaluateAffinity,
   evaluateSeal,
   evaluateSeedSize,
   hasShipTaskId,
+  isLegacyAffinity,
   resolveTrainLimits,
   shipTaskChanged,
   type TrainLimits,
@@ -845,8 +847,51 @@ function assertSeedWithinLimit(
  * Threaded from one resolve so the seed check and the append check can never disagree about the
  * limit mid-run.
  */
-function trainLimitsFor(ship: ShipConfig | undefined, opts: TaskShipOptions): TrainLimits {
-  return opts.trainLimits ?? resolveTrainLimits(ship)
+function trainLimitsFor(
+  ship: ShipConfig | undefined,
+  opts: TaskShipOptions,
+  tier?: ShipTier,
+): TrainLimits {
+  return opts.trainLimits ?? resolveTrainLimits(ship, tier)
+}
+
+/**
+ * #2891 AC-2 — the cap-3 XS/S profile applies to BOTH the `--chain` seed path and the
+ * `--chain-add` path, so the effective limit must be known before either check runs. Reuses
+ * `chainAddContext`'s additions (the full declared membership on a seed, or the appended ids on
+ * a chain-add) so a seed of 4 XS ids is refused exactly like a 4th `--chain-add` would be.
+ */
+function widestTrainTier(
+  root: string,
+  opts: TaskShipOptions,
+  state: UnifiedTaskState | null,
+  now: Date,
+): ShipTier {
+  const ctx = chainAddContext(opts, state)
+  return trainSignalsFor(root, opts, {
+    state: ctx.signalState,
+    now,
+    additions: ctx.additions,
+    chainSize: ctx.currentSize,
+  }).widenedTier
+}
+
+/**
+ * #2891 AC-2 — the cap-3 ceiling only binds when the caller has opted into the XS/S profile
+ * (its narrower 5-boolean affinity shape); a legacy-affinity train stays on the Standard bound
+ * even when every member happens to be low-risk.
+ */
+function effectiveTrainLimits(
+  root: string,
+  ship: ShipConfig | undefined,
+  opts: TaskShipOptions,
+  state: UnifiedTaskState | null,
+): TrainLimits {
+  const usesXsProfile = opts.trainAffinity !== undefined && !isLegacyAffinity(opts.trainAffinity)
+  const tier = usesXsProfile
+    ? widestTrainTier(root, opts, state, opts.now ?? new Date())
+    : undefined
+  return trainLimitsFor(ship, opts, tier)
 }
 
 function shipSeedPatch(
@@ -1068,6 +1113,36 @@ function primaryTrainTier(
   return { tier, planPath }
 }
 
+/**
+ * #2891 AC-1 — `disjointFiles` is computed from plan manifests for the XS/S profile, never
+ * read from `--affinity` JSON (`parseTrainAffinity` already refuses that key at the CLI
+ * boundary). A caller-supplied value (the `runTaskShip` programmatic seam — tests, or a future
+ * non-CLI caller) wins and is never overridden, same trust boundary as the other affinity
+ * booleans. Legacy-shaped affinity never touches this: the field does not exist on that profile.
+ */
+function affinityWithComputedDisjointFiles(
+  root: string,
+  affinity: TrainAffinitySignals,
+  primary: { taskId: string | undefined; planPath: string | undefined },
+  existingIds: readonly string[],
+  additions: readonly string[],
+): TrainAffinitySignals {
+  if (isLegacyAffinity(affinity) || affinity.disjointFiles !== undefined) return affinity
+  const memberIds = [
+    ...new Set([
+      ...(hasShipTaskId(primary.taskId) ? [primary.taskId as string] : []),
+      ...existingIds,
+      ...additions,
+    ]),
+  ]
+  const planPaths = memberIds.map((id) =>
+    id === primary.taskId && primary.planPath !== undefined
+      ? primary.planPath
+      : resolvePlanPath(id.replace(/^#/, ''), undefined),
+  )
+  return { ...affinity, disjointFiles: disjointFilesFor(root, planPaths) }
+}
+
 function trainSignalsFor(
   root: string,
   opts: TaskShipOptions,
@@ -1075,6 +1150,7 @@ function trainSignalsFor(
 ): TrainSignals {
   const gather = opts.gatherTierSignals ?? gatherTierSignals
   const primary = primaryTrainTier(root, opts, input.state)
+  const primaryId = shipPrimaryId(opts, input.state)
   return {
     // The primary id rides the same branch, gate and PR, so it counts toward the bound.
     chainSize: input.chainSize,
@@ -1089,7 +1165,17 @@ function trainSignalsFor(
       return tier === 'Standard' || acc === 'Standard' ? 'Standard' : tier === 'S' ? 'S' : acc
     }, primary.tier),
     explicitSeal: opts.seal === true,
-    ...(opts.trainAffinity !== undefined ? { affinity: opts.trainAffinity } : {}),
+    ...(opts.trainAffinity !== undefined
+      ? {
+          affinity: affinityWithComputedDisjointFiles(
+            root,
+            opts.trainAffinity,
+            { taskId: primaryId, planPath: primary.planPath },
+            input.state?.chainIds ?? [],
+            input.additions,
+          ),
+        }
+      : {}),
   }
 }
 
@@ -1098,6 +1184,17 @@ interface ChainAddContext {
   additions: readonly string[]
   currentSize: number
   projectedSize: number
+  /** #2891 AC-3 — chained ids dropped by a `--chain` re-declare that no longer names them. */
+  ejected: readonly string[]
+}
+
+/** #2891 AC-3 — ids a `--chain` re-declare drops by no longer naming them; `[]` on a plain append. */
+function ejectedIds(
+  existing: readonly string[],
+  replacement: readonly string[] | undefined,
+): readonly string[] {
+  if (replacement === undefined) return []
+  return existing.filter((id) => !replacement.includes(id))
 }
 
 function chainAddContext(opts: TaskShipOptions, state: UnifiedTaskState | null): ChainAddContext {
@@ -1115,7 +1212,26 @@ function chainAddContext(opts: TaskShipOptions, state: UnifiedTaskState | null):
     additions,
     currentSize: primaryCount + (replacement === undefined ? existing.length : 0),
     projectedSize: primaryCount + appendChainIds(base, chainAddIds).length,
+    ejected: ejectedIds(existing, replacement),
   }
+}
+
+/**
+ * #2891 AC-3 — a re-declare may DROP members (eject) or ADD members (grow), never both in one
+ * call: dropping one while adding a genuinely new one is a swap, and a swap is refused so an
+ * eject can never smuggle in an unproven id under cover of a shrink.
+ */
+function assertNoTrainSwap(
+  ejected: readonly string[],
+  additions: readonly string[],
+  existing: readonly string[],
+): void {
+  if (ejected.length === 0) return
+  const grown = additions.some((id) => !existing.includes(id))
+  if (!grown) return
+  const detail =
+    'a --chain re-declare cannot drop and add members in the same call; eject alone (re-declare without the id) or grow alone (--chain-add)'
+  throw new UserFacingError(t('errors.E_TRAIN_SWAP_REFUSED', { detail }))
 }
 
 function assertChainAddAllowed(
@@ -1125,23 +1241,43 @@ function assertChainAddAllowed(
   now: Date,
   limits: TrainLimits,
 ): AffinityVerdict {
-  const { signalState, additions, currentSize, projectedSize } = chainAddContext(opts, state)
-  const currentVerdict = evaluateSeal(
-    trainSignalsFor(root, opts, {
-      state: signalState,
-      now,
-      additions,
-      chainSize: currentSize,
-    }),
-    limits,
+  const { signalState, additions, currentSize, projectedSize, ejected } = chainAddContext(
+    opts,
+    state,
   )
+  const existingIds = signalState?.chainIds ?? []
+  // #2891 AC-3 — a pure eject only shrinks the chain: it cannot widen risk or exceed a cap, so
+  // it is accepted without re-running the growth seal (max-age in particular would otherwise
+  // refuse the very re-declare a REWORK round needs to drop a member).
+  if (ejected.length > 0 && additions.every((id) => existingIds.includes(id))) {
+    return {
+      decision: 'JOIN',
+      components: opts.trainAffinity ?? evaluateAffinity(undefined).components,
+      reason: 'member ejected on --chain re-declare',
+      ejected: [...ejected],
+    }
+  }
+  const signals = trainSignalsFor(root, opts, {
+    state: signalState,
+    now,
+    additions,
+    chainSize: currentSize,
+  })
+  const currentVerdict = evaluateSeal(signals, limits)
   if (currentVerdict.sealed) {
     // UserFacingError, not Error: a seal is the policy working as designed, not a fault. The
     // generic handler would print "Unexpected error", telling the operator something broke.
     const seal = { reason: currentVerdict.reason, detail: currentVerdict.detail }
     throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
   }
-  if (projectedSize <= limits.maxChain) return evaluateAffinity(opts.trainAffinity)
+  if (projectedSize <= limits.maxChain) {
+    // A swap (drop one, add a genuinely new one) only matters once the affinity/growth seal has
+    // already passed — a swap onto a broken affinity is refused for the affinity reason first,
+    // matching the plain-replacement seal an operator already expects.
+    assertNoTrainSwap(ejected, additions, existingIds)
+    const affinity = evaluateAffinity(opts.trainAffinity, { widestTier: signals.widenedTier })
+    return ejected.length > 0 ? { ...affinity, ejected: [...ejected] } : affinity
+  }
   const seal = {
     reason: 'max-chain' as const,
     detail: `the requested append would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
@@ -1728,7 +1864,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const shipConfig = shipConfigFor(root)
   // Validate the complete train mutation before seeding task metadata. A rejected append must
   // leave both fresh and existing state untouched, including task/tier/override fields.
-  const trainLimits = trainLimitsFor(shipConfig, opts)
+  const trainLimits = effectiveTrainLimits(root, shipConfig, opts, initialState)
   const preparedChainAdd = prepareChainAdd(root, opts, trainLimits, initialState)
   seedShipState(root, opts, trainLimits)
   applyPreparedChainAdd(root, preparedChainAdd)
