@@ -239,6 +239,39 @@ describe('enforce-gate-before-pr hook', () => {
     expect(result.status).toBe(2)
   })
 
+  it.each([
+    [
+      'unquoted heredoc body',
+      'gh pr create --draft --title "t" --body "$(cat <<EOF\nbody\nEOF\n)"',
+    ],
+    ['printf substitution body', 'gh pr create --draft --title "t" --body "$(printf \'%s\' body)"'],
+    [
+      'cd prefix, quoted heredoc and a trailing pipe (C25)',
+      'cd . && gh pr create --title "t" --body "$(cat <<\'EOF\'\nbody\nEOF\n)" --draft 2>&1 | tail -30',
+    ],
+  ])(
+    'refuses an ambiguous draft create with a %s and prints the working form (#2869)',
+    (_label, command) => {
+      const dir = track(setupGitRepo())
+      const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('gh pr create --draft --title <title> --body-file <file>')
+    },
+  )
+
+  it.each([
+    ['non-draft create', 'gh pr create --title "t" --body "$(cat <<EOF\nbody\nEOF\n)"'],
+    ['draft=false', 'gh pr create --draft=false --title "t" --body "$(printf x)"'],
+    ['pr ready', 'gh pr ready "$(cat n)"'],
+    ['unclosed quote', 'gh pr create --draft --title "t'],
+    ['chained ready', 'gh pr create --draft --title t --body "$(printf x)" && gh pr ready'],
+  ])('keeps the refusal without the draft working form for a %s (#2869)', (_label, command) => {
+    const dir = track(setupGitRepo())
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
+    expect(result.status).toBe(2)
+    expect(result.stderr).not.toContain('--body-file <file>')
+  })
+
   it('allows the draft creation command Ship prints at review (#2862)', () => {
     const dir = track(setupGitRepo())
     const step = shipStepFor('refactor', 'Standard', undefined, '#9002')
