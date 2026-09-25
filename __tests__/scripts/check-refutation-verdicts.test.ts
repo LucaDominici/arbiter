@@ -12,14 +12,20 @@ import { spawnSync } from 'node:child_process'
 
 const SCRIPT = new URL('../../scripts/check-refutation-verdicts.mjs', import.meta.url).pathname
 
+// run() always passes --repo-root so declaredTask() reads .claude/.task/status.json from the
+// hermetic tmpDir, never the live repo's own (#2550) — without this, #2860's fixtures would
+// flip vacuous the moment a real task is checked out.
+let tmpDirForRun = ''
+
 function run(
   evidenceDir: string,
   extraArgs: string[] = [],
 ): { exitCode: number; stdout: string; stderr: string } {
-  const r = spawnSync('node', [SCRIPT, '--evidence-dir', evidenceDir, ...extraArgs], {
-    encoding: 'utf-8',
-    timeout: 10000,
-  })
+  const r = spawnSync(
+    'node',
+    [SCRIPT, '--evidence-dir', evidenceDir, '--repo-root', tmpDirForRun, ...extraArgs],
+    { encoding: 'utf-8', timeout: 10000 },
+  )
   return { exitCode: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
 
@@ -55,6 +61,7 @@ describe('check-refutation-verdicts.mjs', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'refutation-'))
+    tmpDirForRun = tmpDir
     evidenceDir = join(tmpDir, '.arbiter', 'evidence', 'agent-returns')
     taskDir = join(evidenceDir, '_1943')
     mkdirSync(taskDir, { recursive: true })
@@ -68,6 +75,12 @@ describe('check-refutation-verdicts.mjs', () => {
   }
   function writeSkeptic(name: string, env: Record<string, unknown>) {
     writeFileSync(join(taskDir, name), JSON.stringify(env, null, 2))
+  }
+  // #2860: writes the declared-task marker the checker reads via --repo-root.
+  function writeStatus(taskId: unknown) {
+    const dir = join(tmpDir, '.claude', '.task')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'status.json'), JSON.stringify({ taskId }, null, 2))
   }
 
   it('vacuous pass when no marker exists', () => {
@@ -249,6 +262,118 @@ describe('check-refutation-verdicts.mjs', () => {
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, 'refutation-required.json'), JSON.stringify(body, null, 2))
   }
+
+  // ── #2860 A03-003: declared-task selection ────────────────────────────────────────────────
+  // A03-003: the checker must adjudicate the task DECLARED by the caller (via
+  // .claude/.task/status.json), never a bare markers[0] walk order. A clean earlier marker for
+  // another task must never hide a later failing marker for the declared one.
+  describe('#2860 A03-003 declared-task selection', () => {
+    function writeDeclaredCorpus() {
+      writeMarkerForTask('#100', { task: '#100', skeptics: 3, findings: [] })
+      writeMarkerForTask('#200', { task: '#200', skeptics: 3, findings: ['F-200'] })
+      writeFileSync(
+        join(evidenceDir, '_200', 's1.json'),
+        JSON.stringify(skepticEnvelope([{ target: 'F-200', verdict: 'UPHELD' }]), null, 2),
+      )
+    }
+
+    it('adjudicates the declared task, not markers[0]', () => {
+      writeDeclaredCorpus()
+      writeStatus('#200')
+      const r = run(evidenceDir)
+      expect(r.exitCode).toBe(1)
+      expect(r.stdout).toMatch(/need >= 3/)
+    })
+
+    it('clean declared task passes', () => {
+      writeDeclaredCorpus()
+      writeStatus('#100')
+      expect(run(evidenceDir).exitCode).toBe(0)
+    })
+
+    it('declared task without a marker stays vacuous (#2614 AC-2)', () => {
+      writeDeclaredCorpus()
+      writeStatus('#300')
+      expect(run(evidenceDir).exitCode).toBe(0)
+      expect(run(evidenceDir, ['--require-marker', '#300']).exitCode).toBe(1)
+    })
+
+    it('two markers and no identity refuse to pick', () => {
+      writeDeclaredCorpus()
+      const r = run(evidenceDir)
+      expect(r.exitCode).toBe(2)
+      expect(r.stderr).toMatch(/2 refutation markers .* no task identity/)
+    })
+
+    it('status.json taskId unknown/null is treated as no identity', () => {
+      writeDeclaredCorpus()
+      writeStatus(null)
+      expect(run(evidenceDir).exitCode).toBe(2)
+      // a single marker (no ambiguity) is unaffected by the missing identity
+      rmSync(join(evidenceDir, '_200'), { recursive: true, force: true })
+      expect(run(evidenceDir).exitCode).toBe(0)
+    })
+  })
+
+  // ── #2860 A03-004: one vote per skeptic envelope ──────────────────────────────────────────
+  // A03-004: quorum counts distinct skeptic envelopes, not raw refutations[] entries — one
+  // envelope repeating the same verdict N times must not satisfy quorum on its own.
+  describe('#2860 A03-004 one vote per envelope', () => {
+    beforeEach(() => {
+      writeMarkerForTask('#300', { task: '#300', skeptics: 3, findings: ['F-300'] })
+    })
+
+    it('one envelope repeating the same verdict 3 times counts as 1 vote', () => {
+      writeFileSync(
+        join(evidenceDir, '_300', 's1.json'),
+        JSON.stringify(
+          skepticEnvelope([
+            { target: 'F-300', verdict: 'UPHELD' },
+            { target: 'F-300', verdict: 'UPHELD' },
+            { target: 'F-300', verdict: 'UPHELD' },
+          ]),
+          null,
+          2,
+        ),
+      )
+      const r = run(evidenceDir)
+      expect(r.exitCode).toBe(1)
+      expect(r.stdout).toMatch(/1 skeptic verdict/)
+    })
+
+    it('three distinct envelopes, one vote each, satisfy quorum', () => {
+      writeFileSync(
+        join(evidenceDir, '_300', 's1.json'),
+        JSON.stringify(skepticEnvelope([{ target: 'F-300', verdict: 'UPHELD' }]), null, 2),
+      )
+      writeFileSync(
+        join(evidenceDir, '_300', 's2.json'),
+        JSON.stringify(skepticEnvelope([{ target: 'F-300', verdict: 'UPHELD' }]), null, 2),
+      )
+      writeFileSync(
+        join(evidenceDir, '_300', 's3.json'),
+        JSON.stringify(skepticEnvelope([{ target: 'F-300', verdict: 'UPHELD' }]), null, 2),
+      )
+      expect(run(evidenceDir).exitCode).toBe(0)
+    })
+
+    it('a self-contradicting envelope (UPHELD + REFUTED on the same target) counts as 0', () => {
+      writeFileSync(
+        join(evidenceDir, '_300', 's1.json'),
+        JSON.stringify(
+          skepticEnvelope([
+            { target: 'F-300', verdict: 'UPHELD' },
+            { target: 'F-300', verdict: 'REFUTED' },
+          ]),
+          null,
+          2,
+        ),
+      )
+      const r = run(evidenceDir)
+      expect(r.exitCode).toBe(1)
+      expect(r.stdout).toMatch(/0 skeptic verdict/)
+    })
+  })
 
   it('--require-marker fails when no marker exists for the task', () => {
     const r = run(evidenceDir, ['--require-marker', '#2614'])
