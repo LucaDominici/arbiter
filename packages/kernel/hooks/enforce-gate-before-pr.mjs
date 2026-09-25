@@ -244,11 +244,20 @@ function hasDraftFlag(tokens) {
   return valid && draft
 }
 
-const isDraft =
-  !hasAmbiguousGuard &&
+const draftIntent =
   guardedSegments.length === 1 &&
   guardedSegments[0].tokens[2] === 'create' &&
   hasDraftFlag(guardedSegments[0].tokens)
+const isDraft = !hasAmbiguousGuard && draftIntent
+
+// #2869: an ambiguous draft creation is refused (fail-closed), but the writer must not have to
+// rediscover the working form. Command substitution and heredocs in the PR-creation segment
+// are the ambiguity; a body file removes both.
+const NEXT_STEP =
+  'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n' +
+  (hasAmbiguousGuard && draftIntent && guardedSegments[0].executableExpansions.some(Boolean)
+    ? 'This draft creation was refused because its command contains a heredoc or command substitution. Working form: gh pr create --draft --title <title> --body-file <file>\n'
+    : '')
 
 function exitAfterStderr(code, message) {
   writeSync(2, message)
@@ -368,7 +377,7 @@ if (!existsSync(markerPath)) {
     2,
     `[arbiter] GATE GUARD: No valid gate-pass.json or ci-pass.json found${rootNote}.\n` +
       `${ciReceipt.reason}\n` +
-      'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n',
+      NEXT_STEP,
   )
 }
 
@@ -379,7 +388,7 @@ try {
   await exitAfterStderr(
     2,
     `[arbiter] GATE GUARD: gate-pass.json is invalid${rootNote}: ${err instanceof Error ? err.message : String(err)}\n` +
-      'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n',
+      NEXT_STEP,
   )
 }
 
@@ -413,6 +422,6 @@ if (!verdict.ok) {
     2,
     `[arbiter] GATE GUARD: gate-pass.json is stale or does not bind this checkout${rootNote}.\n` +
       `${verdict.reason}\n` +
-      'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n',
+      NEXT_STEP,
   )
 }
