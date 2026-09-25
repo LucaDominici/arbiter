@@ -102,6 +102,20 @@ describe('evaluatePremortem — six ordered rules over manifest + treatment (#28
       }),
     ).toMatchObject({ decision: 'required' })
   })
+
+  it('fail-closed: undefined treatment → required (#2890 premortem brief §3)', () => {
+    expect(evaluatePremortem(M_SINGLE_AREA, undefined)).toMatchObject({
+      decision: 'required',
+      reason: 'R7-no-treatment',
+    })
+  })
+
+  it('fail-closed: empty manifest → required, never skip-llm (#2890 premortem brief §3)', () => {
+    expect(evaluatePremortem([], treatmentFor('XS', []))).toMatchObject({
+      decision: 'required',
+      reason: 'R7-empty-manifest',
+    })
+  })
 })
 
 describe('ship plan prints and stores the premortem decision (#2890 AC-1)', () => {

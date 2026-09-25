@@ -279,6 +279,37 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     expect(log()).toContain(`review → round 1 at ${SHA_A.slice(0, 7)}`)
   })
 
+  const requiredPremortem = {
+    decision: 'required' as const,
+    reason: 'R4-sensitive',
+    areas: 1,
+    hooks: false,
+    templates: false,
+    workflows: false,
+    sensitive: true,
+    tier: 'XS' as const,
+  }
+
+  it('#2890 AC-3: required without a valid premortem reference refuses the review freeze', () => {
+    ship({ advance: true, headSha: SHA_A })
+    writeUnifiedState(dir, { premortem: requiredPremortem })
+    expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/PREMORTEM REQUIRED/)
+  })
+
+  it('#2890 AC-3: a valid premortem reference lets a required decision through the freeze', () => {
+    ship({ advance: true, headSha: SHA_A })
+    writeFileSync(
+      join(dir, 'plan.md'),
+      '---\npremortem: PREMORTEM_NOTES.md\n---\n\n# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n',
+    )
+    writeFileSync(join(dir, 'PREMORTEM_NOTES.md'), '# premortem notes\n')
+    execFileSync('git', ['add', 'plan.md', 'PREMORTEM_NOTES.md'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: add premortem reference'], { cwd: dir })
+    writeUnifiedState(dir, { premortem: requiredPremortem })
+    ship({ reviewRound: true, headSha: SHA_A })
+    expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
+  })
+
   it('#2850 D6: an evidence-only commit keeps a PASS round; a source commit re-reviews', () => {
     const git = (...args: string[]) =>
       execFileSync('git', args, { cwd: dir, encoding: 'utf-8' }).trim()
