@@ -5,6 +5,49 @@ import { dirname, join, resolve } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
 import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 
+const TASK_ID = 'completion-guard-task'
+
+function writeSidecar(
+  dir: string,
+  value: { count: number; taskId?: string; branch?: string; sha?: string },
+) {
+  const sidecarDir = join(dir, '.arbiter')
+  mkdirSync(sidecarDir, { recursive: true })
+  writeFileSync(
+    join(sidecarDir, 'agents-dispatched.json'),
+    JSON.stringify({
+      taskId: TASK_ID,
+      branch: 'task/x',
+      sha: 'deadbeef',
+      ...value,
+    }),
+  )
+}
+
+function withTreatment(dir: string, finalReviewers: number | null) {
+  const statusPath = join(dir, '.claude', '.task', 'status.json')
+  const status = JSON.parse(readFileSync(statusPath, 'utf-8'))
+  if (finalReviewers === null) {
+    delete status.treatment
+  } else {
+    status.treatment = {
+      version: 1,
+      requestedTier: 'Standard',
+      tier: 'Standard',
+      sensitive: false,
+      planDepth: 'brief',
+      finalReviewers,
+      acceptanceFitReviewers: 1,
+      reviewerVerticals: [],
+      modelCapability: 'capable',
+      qualifiedNarrow: false,
+      signalsHash: '0'.repeat(64),
+      reasons: [],
+    }
+  }
+  writeFileSync(statusPath, JSON.stringify(status, null, 2) + '\n')
+}
+
 function configFor() {
   return makeConfig('/tmp/test', {
     language: 'typescript',
@@ -35,8 +78,7 @@ function setup(phase: string, producer: (typeof PRODUCERS)[number] = 'emitted') 
       : renderTemplate('claude/hooks/guard-task-completion.mjs.ejs', configFor()),
   )
 
-  writeTaskStateFile(dir, { phase, tier: 'Standard' })
-  writeFileSync(join(dir, '.agents-dispatched'), '4\n')
+  writeTaskStateFile(dir, { phase, tier: 'Standard', taskId: TASK_ID })
 
   return { dir, hookPath }
 }
@@ -45,13 +87,13 @@ function runHook(
   hookPath: string,
   dir: string,
   assistantText: string,
-  options: { ownerPrompt?: string; stopHookActive?: boolean } = {},
+  options: { ownerPrompt?: string; stopHookActive?: boolean; sessionId?: string } = {},
 ) {
   return spawnSync('node', [hookPath], {
     cwd: dir,
     input: JSON.stringify({
       hook_event_name: 'Stop',
-      session_id: SESSION_ID,
+      session_id: options.sessionId ?? SESSION_ID,
       cwd: dir,
       prompt: options.ownerPrompt ?? 'please continue',
       last_assistant_message: assistantText,
@@ -214,12 +256,189 @@ describe('completion-guard — empirical spawn', () => {
     }
   })
 
-  it('still blocks a repeated unsupported claim when stop_hook_active is true', () => {
+  // AC-2885.1: negation/quoting must not trip the guard on a status-only message.
+  it.each(PRODUCERS)('AC-1 %s: negated claim in a status sentence is not blocked', (producer) => {
+    const { dir, hookPath } = setup('green', producer)
+    try {
+      const result = runHook(
+        hookPath,
+        dir,
+        'Current state (not complete — phase remains refactor): the writer lane stops here.',
+      )
+      expect(result.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it.each(PRODUCERS)('AC-1 %s: quoted trigger phrase is not blocked', (producer) => {
+    const { dir, hookPath } = setup('green', producer)
+    try {
+      const result = runHook(
+        hookPath,
+        dir,
+        'That phrasing ("task complete") tripped a guard; I had not claimed lifecycle completion.',
+      )
+      expect(result.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-1: adjectival "shipped diff" is not a claim', () => {
+    const { dir, hookPath } = setup('refactor', 'self')
+    try {
+      const result = runHook(hookPath, dir, 'Not a defect in the shipped diff.')
+      expect(result.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  // AC-2885.3: regression corpus — real claims stay blocked.
+  it.each([
+    'task complete, ready to merge',
+    'Task complete for this lane.',
+    'not only is the task complete but merged',
+    'the task is complete — no, really',
+    'as agreed: "task complete", so I am wrapping up',
+  ])('AC-3 still blocks: %s', (text) => {
     const { dir, hookPath } = setup('green')
     try {
-      expect(
-        runHook(hookPath, dir, 'task complete, ready to merge', { stopHookActive: true }).status,
-      ).toBe(2)
+      const result = runHook(hookPath, dir, text)
+      expect(result.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-3: claim with treatment.finalReviewers=1 and sidecar count=1 but phase=green still exits 2', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      writeSidecar(dir, { count: 1 })
+      withTreatment(dir, 1)
+      const result = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(result.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  // AC-2885.2: reviewer-count floor from persisted treatment, not a hardcoded 4.
+  it('AC-2: stderr floor line reads "agents-dispatched: 1 (minimum 1 for treatment Standard)" when treatment.finalReviewers=1', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      writeSidecar(dir, { count: 0 })
+      withTreatment(dir, 1)
+      const result = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('agents-dispatched: 0 (minimum 1 for treatment Standard)')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-2: stderr never contains "minimum 4" when a treatment is persisted', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      writeSidecar(dir, { count: 0 })
+      withTreatment(dir, 1)
+      const result = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(result.stderr).not.toContain('minimum 4')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-2: sidecar with a different taskId counts as 0', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      writeSidecar(dir, { count: 5, taskId: 'some-other-task' })
+      withTreatment(dir, 1)
+      const result = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(result.stderr).toContain('agents-dispatched: 0 (minimum 1 for treatment Standard)')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-2: no treatment persisted -> stderr says "ship treatment: not persisted" and no numeric floor', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      const result = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(result.stderr).toContain('ship treatment: not persisted')
+      expect(result.stderr).not.toMatch(/minimum \d+/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  // AC-2885.4: re-entry — rewrite of the old blanket "still blocks on re-entry" case.
+  it('AC-4: same claim, same state, stop_hook_active=true -> 0 after one block', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      const first = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(first.status).toBe(2)
+      const second = runHook(hookPath, dir, 'task complete, ready to merge', {
+        stopHookActive: true,
+      })
+      expect(second.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-4: stop_hook_active=true with NO prior marker -> 2', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      const result = runHook(hookPath, dir, 'task complete, ready to merge', {
+        stopHookActive: true,
+      })
+      expect(result.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-4: stop_hook_active=true but message changed -> 2', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      const first = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(first.status).toBe(2)
+      const second = runHook(hookPath, dir, 'task complete for real this time', {
+        stopHookActive: true,
+      })
+      expect(second.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-4: stop_hook_active=true but phase changed since marker -> 2', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      const first = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(first.status).toBe(2)
+      writeTaskStateFile(dir, { phase: 'refactor', tier: 'Standard', taskId: TASK_ID })
+      const second = runHook(hookPath, dir, 'task complete, ready to merge', {
+        stopHookActive: true,
+      })
+      expect(second.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-4: marker of another session_id is ignored -> 2', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      const first = runHook(hookPath, dir, 'task complete, ready to merge')
+      expect(first.status).toBe(2)
+      const second = runHook(hookPath, dir, 'task complete, ready to merge', {
+        stopHookActive: true,
+        sessionId: 'a-different-session',
+      })
+      expect(second.status).toBe(2)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
