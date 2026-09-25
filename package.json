@@ -108,12 +108,12 @@
     "regen": "node scripts/regen.mjs"
   },
   "dependencies": {
-    "@clack/prompts": "1.7.0",
+    "@clack/prompts": "1.8.1",
     "commander": "15.0.0",
     "ejs": "6.0.1",
-    "prettier": "3.9.6",
-    "yaml": "2.9.0",
-    "zod": "4.5.4"
+    "prettier": "3.9.8",
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
   },
   "overrides": {
     "madge": {
