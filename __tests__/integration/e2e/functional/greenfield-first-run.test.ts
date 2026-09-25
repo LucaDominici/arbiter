@@ -25,6 +25,7 @@
 // on a real violation, so this harness cannot be satisfied by a gate that always
 // exits 0 (Terraform-acceptance: green on clean AND red on a seeded violation).
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   cpSync,
   existsSync,
@@ -167,6 +168,25 @@ function runGate(
 function gateStatus(output: string, gateName: string): string | null {
   const escaped = gateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return new RegExp(`^\\[CHECK\\] ${escaped} \\.\\.\\. (\\w+)`, 'm').exec(output)?.[1] ?? null
+}
+
+// #2887: the evidence gate now requires the full signed schema (absent/partial
+// bodies FAIL closed) — sign a summary the same way evidence-collect.mjs does.
+function signSummary(body: Record<string, unknown>): Record<string, unknown> {
+  const canonicalise = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(canonicalise)
+    if (v !== null && typeof v === 'object') {
+      const out: Record<string, unknown> = {}
+      for (const k of Object.keys(v as Record<string, unknown>).sort())
+        out[k] = canonicalise((v as Record<string, unknown>)[k])
+      return out
+    }
+    return v
+  }
+  const sha = createHash('sha256')
+    .update(JSON.stringify(canonicalise(body)))
+    .digest('hex')
+  return { ...body, sha }
 }
 
 // The gate manifest (`--dry-run`) lists the gates the generator actually EMITTED
@@ -853,9 +873,18 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
         )
 
         mkdirSync(join(dir, '.evidence'), { recursive: true })
+        const signedBody = {
+          head_sha: 'a'.repeat(40),
+          head_sha_short: 'aaaaaaa',
+          obs_gate: 'PASS',
+          tests: { total: 1, passed: 1, failed: 0, skipped: 0 },
+          coverage: { line: 100, branch: 100 },
+          mutation: { score: 100, threshold: 80 },
+          security: { critical: 0, high: 0 },
+        }
         writeFileSync(
           join(dir, '.evidence', 'SUMMARY.json'),
-          JSON.stringify({ obs_gate: 'PASS' }) + '\n',
+          JSON.stringify(signSummary(signedBody)) + '\n',
         )
         const clean = runGate(dir, 'L3', 'evidence-gate')
         expect(gateStatus(clean.output, 'evidence gate (INV-33)'), clean.output.slice(-2000)).toBe(
@@ -864,7 +893,7 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
 
         writeFileSync(
           join(dir, '.evidence', 'SUMMARY.json'),
-          JSON.stringify({ obs_gate: 'FAIL' }) + '\n',
+          JSON.stringify(signSummary({ ...signedBody, obs_gate: 'FAIL' })) + '\n',
         )
         const seeded = runGate(dir, 'L3', 'evidence-gate')
         expect(
