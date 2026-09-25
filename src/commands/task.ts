@@ -1665,9 +1665,8 @@ function checkPremortemRequired(dir: string): void {
   const manifest = plan.length > 0 ? [...(readPlanManifest(dir, plan) ?? [])] : []
   const ref = plan.length > 0 ? parsePremortemRef(planBody, manifest) : null
   if (ref !== null && isValidPremortemRef(dir, ref)) return
-  throw new UserFacingError(
-    t('errors.E_PREMORTEM_REQUIRED', { rule: state.premortem.reason, plan }),
-  )
+  const rule = state.premortem.reason
+  throw new UserFacingError(t('errors.E_PREMORTEM_REQUIRED', { rule, plan }))
 }
 
 function isValidPremortemRef(dir: string, ref: string): boolean {
