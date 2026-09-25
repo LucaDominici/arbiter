@@ -843,6 +843,8 @@ describe('review rounds own the Codex seat (#2747)', () => {
       dispatch: 'external-cli',
       cli: 'codex',
       cliVersion: '1.2.3',
+      model: 'gpt-6-luna',
+      effort: 'max',
     })
   })
 
