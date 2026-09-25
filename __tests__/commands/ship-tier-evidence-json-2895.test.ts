@@ -57,3 +57,46 @@ describe('gatherTierSignals — TDD evidence JSON (#2895 follow-up)', () => {
     })
   })
 })
+
+// Review #2896 F1 (HIGH): the tdd/ exclusion regex had no trailing anchor, so it exempted
+// ANY file under .arbiter/evidence/tdd/ — including code — from graph coverage. Only the
+// exact `.gitignore` un-ignore shape (`.arbiter/evidence/tdd/<name>.json`, no subdirectory)
+// may be exempt.
+describe('gatherTierSignals — TDD evidence JSON exclusion is anchored (#2896 F1)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+    runCli.mockReset()
+    runCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0, durationMs: 0 })
+    runCliJson.mockReset()
+    runCliJson.mockReturnValue({ labels: [], milestone: null })
+    const planDir = join(dir, '.claude', 'plans')
+    mkdirSync(planDir, { recursive: true })
+    const graphDir = join(dir, 'graphify-out')
+    mkdirSync(graphDir, { recursive: true })
+    const graph = join(graphDir, 'graph.json')
+    writeFileSync(graph, JSON.stringify({ nodes: [], links: [] }), 'utf-8')
+    utimesSync(graph, new Date(Date.now() + 2_000), new Date(Date.now() + 2_000))
+  })
+  afterEach(() => cleanupTestProject(dir))
+
+  it.each([
+    ['.arbiter/evidence/tdd/backdoor.ts', 'a code file, not evidence data'],
+    ['.arbiter/evidence/tdd/sub/x.json', 'a subdirectory, not the flat evidence dir'],
+    ['.arbiter/evidence/tdd/x.json.ts', 'a code file with .json in its name, not a .json file'],
+  ])('%s (%s) is not exempt: stays out of graph coverage', (relativePath) => {
+    const planDir = join(dir, '.claude', 'plans')
+    writeFileSync(
+      join(planDir, 'task-2896.md'),
+      `---\nfiles:\n  - .claude/plans/task-2896.md\n  - ${relativePath}\n---\n\n# plan\n`,
+      'utf-8',
+    )
+    writeUnifiedState(dir, { taskId: '#2896', plan: '.claude/plans/task-2896.md' })
+    writeFile(dir, relativePath)
+
+    expect(gatherTierSignals(dir, '#2896', '.claude/plans/task-2896.md')).toMatchObject({
+      complete: false,
+    })
+  })
+})
