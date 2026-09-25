@@ -153,7 +153,7 @@ interface ShipStep {
 
 interface ShipStepContext {
   taskId?: string
-  chainIds: readonly string[]
+  chainIds?: readonly string[]
   verticals: readonly string[]
   externalModelAccess?: ExternalModelAccess
   /** #2400 — the review round this invocation opened, when it opened one. */
@@ -225,6 +225,11 @@ export function shipStepFor(
  * appended; absent ⇒ the base string, byte-identical to a companion-free ship. The self-guard lives
  * at resolution (profile.companions is empty on arbiter-self), so no leak path exists here.
  */
+// #2875 AC-2: a base merge integrates as a merge commit, never a rebase — TDD evidence pins
+// commit SHAs, and a rebase rewrites the very SHAs the evidence and review rounds are bound to.
+const MERGE_NOT_REBASE =
+  'integrate main with a merge commit, never rebase (TDD evidence pins commit SHAs)'
+
 function greenAction(profile: ShipProfile): string {
   const base = 'Implement the minimum to make the tests pass.'
   const companion = companionGreenInstruction(profile.companions)
@@ -330,8 +335,7 @@ function reviewPhaseStepBody(
   const externalCount = plan.external.length
   const scope = reviewScopeFor(reviewPlan)
   const cli = profile.isArbiterSelf ? 'node dist/cli.js' : 'arbiter'
-  const prepare =
-    'Run touched tests, formatter/linter on changed files, and `git diff --check`; commit the frozen candidate, push it and open its draft PR once so CI starts with `git push -u origin HEAD && gh pr create --draft --fill` (reuse the PR when `gh pr view` finds one), then'
+  const prepare = `Run touched tests, formatter/linter on changed files, and \`git diff --check\`; if main advanced, ${MERGE_NOT_REBASE}; commit the frozen candidate, push it and open its draft PR once so CI starts with \`git push -u origin HEAD && gh pr create --draft --fill\` (reuse the PR when \`gh pr view\` finds one), then`
   // #2862: the draft creation stays a plain command of its own — inside this chain the
   // command substitutions make it unverifiable, so the PR guard refused it.
   const reviewCommand = [
@@ -356,6 +360,15 @@ function reviewPhaseStepBody(
 }
 
 /**
+ * #2875 AC-4 — the task-scoped default (`.claude/plans/task-<N>.md`) that both the plan step and
+ * the preflight step name, unless an already-anchored plan (e.g. a root `PLAN.md`) overrides it.
+ */
+function resolvePlanPath(issue: string, plan: string | undefined): string {
+  const anchored = plan === 'unknown' ? undefined : plan?.split('#')[0]?.trim()
+  return anchored || `.claude/plans/task-${issue}.md`
+}
+
+/**
  * #2329 — batching guidance is model-side prose (the wave-drain skill), not a config knob.
  * #2724 — plan admission is mechanical; review is reserved for the frozen candidate.
  * #2850 — the step names the ANCHORED plan (D2) and the admission the red transition will run
@@ -367,8 +380,7 @@ function planStepBody(
   context: Pick<ShipStepContext, 'taskId' | 'plan'>,
 ): Omit<ShipStep, 'verticals'> {
   const issue = context.taskId?.replace(/^#/, '') ?? 'NNN'
-  const anchored = context.plan === 'unknown' ? undefined : context.plan?.split('#')[0]?.trim()
-  const plan = anchored || `.claude/plans/task-${issue}.md`
+  const plan = resolvePlanPath(issue, context.plan)
   return {
     phase: 'plan',
     action:
@@ -393,13 +405,16 @@ function shipStepBody(
   const cli = profile.isArbiterSelf ? 'node dist/cli.js' : 'arbiter'
 
   switch (phase) {
-    case 'preflight':
+    case 'preflight': {
+      const issue = context.taskId?.replace(/^#/, '') ?? 'NNN'
+      const plan = resolvePlanPath(issue, context.plan)
       return {
         phase,
         action: 'Open the worktree, read the issue, write task state.',
-        command: `${cli} lifecycle start --id <id> --tier <tier> --plan <path>`,
+        command: `${cli} lifecycle start --id '${context.taskId ?? '#NNN'}' --tier ${t} --plan ${plan}`,
         reviewAgents: 0,
       }
+    }
     case 'plan':
       return planStepBody(cli, t, context)
     case 'red':
@@ -418,8 +433,7 @@ function shipStepBody(
     case 'verification': {
       return {
         phase,
-        action:
-          'The pre-push hook already ran one local preflight plus touched tests before the draft PR; CI runs the full gate on that SHA and is the verification authority. Record its verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.',
+        action: `The pre-push hook already ran one local preflight plus touched tests before the draft PR; CI runs the full gate on that SHA and is the verification authority. If main advanced, ${MERGE_NOT_REBASE}. Record its verdict with \`node scripts/ci-receipt.mjs\` before \`advance --to close\`.`,
         command: 'node scripts/ci-receipt.mjs',
         reviewAgents: 0,
         // Self-only authoring gates run here for arbiter-self only; a consumer repo has no

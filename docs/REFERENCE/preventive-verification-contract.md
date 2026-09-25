@@ -2,7 +2,7 @@
 title: 'Preventive verification contracts'
 doc_version: '1.2.0'
 status: active
-last_review: '2026-09-24'
+last_review: '2026-09-25'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -20,6 +20,13 @@ Arbiter derives the record when `arbiter lifecycle start --plan <path>` anchors 
 plan. Admission from `plan` to `red` inspects the authority again and requires an exact match. A
 missing record, an edited manifest, a changed threshold or authority file, or missing derivation
 support blocks admission until the plan is re-anchored.
+
+When the anchored plan file itself has not changed but a derived-artifact command or threshold
+text drifted (for example, from a base-branch merge), the checker re-derives the record once and
+retries automatically — no manual `lifecycle start` needed. It compares each gate's `authority`
+hashes before and after the re-derive; if any authority actually changed, the re-derive is
+discarded and the original failure stands, since that is a real contract change and still requires
+an explicit re-anchor.
 
 ## Inspecting the authority
 

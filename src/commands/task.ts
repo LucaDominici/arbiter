@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, lstatSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { readFileTranslated, toFsError } from '../utils/fs.js'
@@ -96,6 +97,11 @@ function resumeWriter(write?: (text: string) => void): (text: string) => void {
   return write ?? writeResumeOutput
 }
 
+// #2875 AC-2: a base merge integrates as a merge commit, never a rebase — TDD evidence pins
+// commit SHAs, and a rebase rewrites the very SHAs the evidence and review rounds are bound to.
+const MERGE_NOT_REBASE =
+  'integrate main with a merge commit, never rebase (TDD evidence pins commit SHAs)'
+
 const RECOVERY_TABLE: Record<TaskPhase, string> = {
   preflight:
     'Phase: preflight\nAction: Run arbiter ship #NNN to initialize the task branch and plan.',
@@ -103,10 +109,8 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
   red: 'Phase: red\nAction: Write failing tests first. No implementation yet.\nNext: Tests written → arbiter lifecycle advance --to green.',
   green:
     'Phase: green\nAction: Make tests pass with minimal implementation.\nNext: All tests green → arbiter lifecycle advance --to refactor.',
-  refactor:
-    'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter lifecycle advance --to verification.',
-  verification:
-    'Phase: verification\nAction: The pre-push hook already ran one preflight; CI owns the full gate.\nNext: Record the exact-head CI verdict with node scripts/ci-receipt.mjs, then arbiter lifecycle advance --to close.',
+  refactor: `Phase: refactor\nAction: Clean up implementation. Tests must stay green. If main advanced, ${MERGE_NOT_REBASE}.\nNext: Refactor done → arbiter lifecycle advance --to verification.`,
+  verification: `Phase: verification\nAction: The pre-push hook already ran one preflight; CI owns the full gate. If main advanced, ${MERGE_NOT_REBASE}.\nNext: Record the exact-head CI verdict with node scripts/ci-receipt.mjs, then arbiter lifecycle advance --to close.`,
   close:
     'Phase: close\nAction: CLOSER mode active — the closer-mode guard is wired in settings. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter lifecycle advance --to complete.',
   complete:
@@ -483,6 +487,20 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   appendLog(root, taskInitLog(state))
 }
 
+/**
+ * #2875 AC-3 — sha256 of the anchored plan file's content (fragment stripped), or undefined when
+ * the plan cannot be read (missing file, plan not yet written). Shared by the anchor-time write
+ * and `checkPlanContractCurrent`'s retry-once comparison, so both sides hash the same bytes.
+ */
+function planContentHash(dir: string, plan: string): string | undefined {
+  const path = join(dir, plan.split('#')[0]?.trim() ?? plan)
+  try {
+    return createHash('sha256').update(readFileSync(path)).digest('hex')
+  } catch {
+    return undefined
+  }
+}
+
 function reanchorPlanGates(
   root: string,
   plan: string,
@@ -494,6 +512,8 @@ function reanchorPlanGates(
   const gatesChanged =
     previous?.derivedGates === undefined ||
     JSON.stringify(previous.derivedGates) !== JSON.stringify(current?.derivedGates)
+  const hash = planContentHash(root, plan)
+  if (hash !== undefined) writeUnifiedState(root, { derivedGatesPlan: hash })
   if (!gatesChanged || previous === null || ['preflight', 'plan'].includes(previous.phase)) return
   invalidateTaskReceipts(root, taskId)
   writeUnifiedState(root, { review: { rounds: 0, lastReviewedSha: null } })
@@ -1544,7 +1564,57 @@ function assertReviewSubjectFrozen(dir: string): void {
   if (dirty.length > 0) {
     throw new Error('review freeze requires a clean HEAD; commit the plan and every candidate fix')
   }
+  assertBaseCurrent(dir)
   checkBakeAfterTemplates(dir)
+}
+
+/**
+ * #2875 AC-1: refuse a review round whose HEAD hasn't merged the latest `origin/main`. A
+ * reviewer's verdict on a stale candidate is worthless — the diff it sees isn't the diff that
+ * lands. Mirrors `branchFullyMerged`'s fail-open fetch (src/worktree/validate.ts): an
+ * unreachable remote falls back to the cached ref instead of blocking; only a base that is
+ * provably stale, or cannot be resolved at all, refuses.
+ */
+/** Returns false when no origin remote is configured — nothing to compare against, same as
+ * today. A fetch failure warns and falls back to the cached ref instead of blocking. */
+function fetchOriginBaseOrWarn(dir: string, baseBranch: string): boolean {
+  try {
+    runCli('git', ['remote', 'get-url', 'origin'], { cwd: dir, timeoutMs: 5000 })
+  } catch {
+    return false
+  }
+  try {
+    runCli('git', ['fetch', '--quiet', 'origin', baseBranch], { cwd: dir, timeoutMs: 30_000 })
+  } catch (err) {
+    const fetchMsg = err instanceof Error ? err.message : String(err)
+    // FAIL-OPEN-INTENT: an unreachable remote must not block review; fall back to the cached ref.
+    process.stderr.write(
+      `Warning: git fetch failed (${fetchMsg}) — using cached refs, result may be stale\n`,
+    )
+  }
+  return true
+}
+
+function assertBaseCurrent(dir: string): void {
+  const baseBranch = 'main'
+  if (!fetchOriginBaseOrWarn(dir, baseBranch)) return
+  try {
+    runCli('git', ['merge-base', '--is-ancestor', `origin/${baseBranch}`, 'HEAD'], {
+      cwd: dir,
+      timeoutMs: 5000,
+    })
+    return
+  } catch {
+    // Either "not an ancestor" (exit 1) or an unresolved ref (exit 128, never fetched) — both
+    // mean the base cannot be proven current, so both refuse the same way.
+  }
+  const state = readUnifiedState(dir)
+  throw new Error(
+    `review round refused: HEAD has not merged origin/${baseBranch}. Run ` +
+      `\`git merge --no-edit origin/${baseBranch}\`, then re-anchor with ` +
+      `\`arbiter lifecycle start --id '${state?.taskId ?? ''}' --tier ${state?.tier ?? ''} ` +
+      `--plan ${state?.plan ?? ''}\` only if the merge changed a contract authority.`,
+  )
 }
 
 const BAKE_REGENERATE_COMMAND = 'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake'
@@ -1711,11 +1781,56 @@ function checkPlanTrackedAtHead(dir: string): void {
   throw new Error(`preventive contract requires a tracked plan present in HEAD.${recovery}`)
 }
 
+/**
+ * #2875 AC-3 — one silent re-derive, only when the plan file itself is untouched (a base merge
+ * that only shifted a derived-artifact command/threshold, not a contract authority). The plan
+ * hash pinned at the last anchor tells the two cases apart without re-running the authority's own
+ * semantics here: unchanged plan bytes ⇒ safe to recompute derivedGates and retry once; changed
+ * plan bytes ⇒ skip the retry, a real re-anchor (`lifecycle start --plan`) is required.
+ */
+/** Authorities (the files whose content the derived gates are pinned to) are the actual contract;
+ * a command/threshold text drifting is safe to silently re-derive, an authority's hash drifting
+ * is not — that's a real contract change and still requires an explicit re-anchor. */
+function derivedAuthoritiesChanged(
+  before: unknown[] | undefined,
+  after: unknown[] | undefined,
+): boolean {
+  const authoritiesOf = (gates: unknown[] | undefined): unknown =>
+    gates?.map((gate) => (gate as { authority?: unknown }).authority)
+  return JSON.stringify(authoritiesOf(before)) !== JSON.stringify(authoritiesOf(after))
+}
+
+function rederiveOnceOrThrow(dir: string, plan: string, original: unknown): void {
+  const originalError = original instanceof Error ? original : new Error(String(original))
+  const state = readUnifiedState(dir)
+  const currentHash = planContentHash(dir, plan)
+  if (currentHash === undefined || currentHash !== state?.derivedGatesPlan) throw originalError
+  const before = state.derivedGates
+  derivePlanGates(dir, plan)
+  if (
+    before === undefined ||
+    derivedAuthoritiesChanged(before, readUnifiedState(dir)?.derivedGates)
+  ) {
+    writeUnifiedState(dir, before !== undefined ? { derivedGates: before } : {})
+    throw originalError
+  }
+  try {
+    runRequiredTaskChecker(dir, 'check-acceptance.mjs', ['--plan', plan, '--check-derived-current'])
+  } catch (retryErr) {
+    writeUnifiedState(dir, { derivedGates: before })
+    throw retryErr
+  }
+}
+
 function checkPlanContractCurrent(dir: string): void {
   if (!acceptanceProfileEnabled(dir)) return
   const plan = readUnifiedState(dir)?.plan.trim() ?? ''
   if (plan.length === 0) throw new Error('preventive contract requires the anchored plan')
-  runRequiredTaskChecker(dir, 'check-acceptance.mjs', ['--plan', plan, '--check-derived-current'])
+  try {
+    runRequiredTaskChecker(dir, 'check-acceptance.mjs', ['--plan', plan, '--check-derived-current'])
+  } catch (err) {
+    rederiveOnceOrThrow(dir, plan, err)
+  }
 }
 
 function checkResumeContract(dir: string, phase: TaskPhase): void {

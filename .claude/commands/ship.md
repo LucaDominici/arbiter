@@ -104,7 +104,8 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 ## Result-first lifecycle
 
 1. **Preflight** — read the issue and current repository; seed state; verify that the state writer
-   and delivery guard agree before implementation.
+   and delivery guard agree before implementation. Defaults the plan to the task-scoped
+   `.claude/plans/task-<N>.md`; an already-anchored plan (e.g. a root `PLAN.md`) overrides it.
 2. **Plan** — freeze `AC-N` criteria and non-goals; list the complete file set. Mechanical admission
    checks replace pre-code review.
 3. **RED** — write the smallest tests that fail for the intended reason and record RED evidence.
@@ -169,6 +170,8 @@ Push the frozen candidate once; the pre-push hook runs its single local prefligh
 CI runs the full gate on that SHA and is the verification authority. Record the CI verdict with
 `node scripts/ci-receipt.mjs` before `advance --to close`. PR and pre-push paths consume the same
 receipt.
+
+If main advanced since the candidate was frozen: integrate main with a merge commit, never rebase (TDD evidence pins commit SHAs); a rebase rewrites the very SHAs the evidence and review rounds are bound to.
 
 A killed process has no verdict. Preserve these outcomes distinctly: `PRODUCT FAIL`, `TEST FAIL`,
 `ENVIRONMENT ERROR`, `TOOL UNAVAILABLE`, `TIMEOUT`, `KILLED/OOM`, and `NO DATA`.
