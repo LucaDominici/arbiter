@@ -179,7 +179,9 @@ const SRC_PATH = /^src\//
 const GRAPH_UNINDEXED_PATH = /\.md$/
 // #2895 follow-up — TDD evidence is data, not code; every task that records red evidence has
 // one of these in the diff, so this had to join the .md exclusion for XS/S to stay reachable.
-const TDD_EVIDENCE_PATH = /^\.arbiter\/evidence\/tdd\//
+// #2896 F1 — anchored to the exact shape `.gitignore` un-ignores (`!.arbiter/evidence/tdd/*.json`):
+// no subdirectory, filename ends in `.json`. A wildcard prefix here would exempt code too.
+const TDD_EVIDENCE_PATH = /^\.arbiter\/evidence\/tdd\/[^/]+\.json$/
 
 function isGraphUnindexed(file: string): boolean {
   return GRAPH_UNINDEXED_PATH.test(file) || TDD_EVIDENCE_PATH.test(file)
