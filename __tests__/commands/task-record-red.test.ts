@@ -559,6 +559,9 @@ describe('runTaskRecordRed()', () => {
       ok: false,
       reason: expect.stringMatching(/no recognised failure/i),
     })
+    expect(result.reason).toContain(
+      'Shell tests must print a line "FAIL: <label>" (leading spaces or tabs allowed, the colon is required).',
+    )
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'))).toBe(false)
   })
 
