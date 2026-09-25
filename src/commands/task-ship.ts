@@ -42,10 +42,13 @@ import {
   gatherTierSignals,
   normTier,
   resolveShipTreatment,
+  evaluatePremortem,
+  readPlanManifest,
   type ShipTreatment,
   type ShipExecutionOutcome,
   type ShipTier,
   type TierSignals,
+  type PremortemDecision,
 } from './ship-tier.js'
 
 import {
@@ -533,6 +536,8 @@ export interface TaskShipOptions {
   recordedAt?: string
   /** #2357 — external-model detection is performed at the CLI edge and injected here. */
   externalModelAccess?: ExternalModelAccess
+  /** #2890 — `--premortem`: force the plan-step decision to `required`. */
+  premortem?: true
 }
 
 export interface ShipResult {
@@ -563,6 +568,8 @@ export interface ShipResult {
   derivedGates?: unknown[]
   /** Debt metrics measured read-only at a Standard plan step (#2863). */
   debtCurrent?: Record<string, number>
+  /** #2890 AC-1 — deterministic premortem decision, computed and persisted at the plan step. */
+  premortem?: PremortemDecision
 }
 
 /**
@@ -750,6 +757,15 @@ function derivedGateLines(
   ]
 }
 
+/** #2890 AC-1 — the plan-step premortem line, printed iff a decision was computed this run. */
+function premortemStepLines(result: ShipResult): string[] {
+  if (!result.premortem) return []
+  const { decision, reason, areas, hooks, templates, workflows, sensitive, tier } = result.premortem
+  return [
+    `premortem: ${decision} reason=${reason} areas=${areas} hooks=${hooks} templates=${templates} workflows=${workflows} sensitive=${sensitive} tier=${tier}`,
+  ]
+}
+
 function gateContractLines(result: ShipResult): string[] {
   if (result.phase === 'plan') return derivedGateLines(result.derivedGates, result.debtCurrent)
   if (result.phase === 'complete' || !result.derivedGates?.length) return []
@@ -778,6 +794,7 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
   // #1291 — the resolved autonomy level travels with every step so the driver
   // (and a human reading the banner) sees which behaviors are authorized.
   lines.push(`Autonomy: ${result.profile.autonomy}`)
+  lines.push(...premortemStepLines(result))
   lines.push(...gateContractLines(result))
   if (
     result.phase === 'complete' &&
@@ -1565,6 +1582,31 @@ function persistShipTreatment(
   }
 }
 
+/**
+ * #2890 AC-1 — computed only at the `plan` step, from the manifest + already-resolved treatment
+ * (never file contents). `--premortem` forces `required` (AC-3). Persisted only when changed,
+ * mirroring `persistShipTreatment`'s byte-identical status.json invariant (#2724).
+ */
+function premortemFor(
+  root: string,
+  phase: TaskPhase,
+  state: UnifiedTaskState | null,
+  treatment: ShipTreatment,
+  opts: TaskShipOptions,
+): PremortemDecision | undefined {
+  if (phase !== 'plan') return state?.premortem
+  const manifest = readPlanManifest(root, state?.plan)
+  const decision = evaluatePremortem(
+    manifest ? [...manifest] : [],
+    treatment,
+    opts.premortem ? { force: true } : {},
+  )
+  if (JSON.stringify(state?.premortem) !== JSON.stringify(decision)) {
+    writeUnifiedState(root, { premortem: decision })
+  }
+  return decision
+}
+
 function buildActiveShipResult(input: {
   root: string
   phase: TaskPhase
@@ -1577,6 +1619,7 @@ function buildActiveShipResult(input: {
   stopMessage: string | null
   preparedChainAdd: ReturnType<typeof prepareChainAdd>
   opts: TaskShipOptions
+  premortem: PremortemDecision | undefined
 }): ShipResult {
   const {
     root,
@@ -1590,6 +1633,7 @@ function buildActiveShipResult(input: {
     stopMessage,
     preparedChainAdd,
     opts,
+    premortem,
   } = input
   const step = shipStepFor(phase, treatment, profile, state?.taskId, {
     chainIds: state?.chainIds ?? [],
@@ -1613,6 +1657,7 @@ function buildActiveShipResult(input: {
     ...(state?.derivedGates ? { derivedGates: state.derivedGates } : {}),
     ...optionalDebtCurrent(root, phase, treatment.tier),
     ...(preparedChainAdd !== null ? { trainDecision: preparedChainAdd.affinity } : {}),
+    ...(premortem !== undefined ? { premortem } : {}),
     profile,
   }
 }
@@ -1705,6 +1750,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   phase = advancedPhase.phase
   const preparedRound = explicitRound.plan ?? advancedPhase.review
   writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)
+  const premortem = premortemFor(root, phase, state, treatment, opts)
 
   return buildActiveShipResult({
     root,
@@ -1718,5 +1764,6 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
     stopMessage: advancedPhase.stopMessage,
     preparedChainAdd,
     opts,
+    premortem,
   })
 }

@@ -2279,6 +2279,11 @@ program
     'Take a review round past ship.review.maxRounds, and record that it was forced',
     false,
   )
+  .option(
+    '--premortem',
+    'Force the plan-step premortem decision to required, whatever the deterministic rules say (#2890)',
+    false,
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
@@ -2294,6 +2299,7 @@ program
         seal: boolean
         reviewRound: boolean
         forceReview: boolean
+        premortem: boolean
         pr?: number | false
         advance: boolean
         dir?: string
@@ -2319,6 +2325,7 @@ program
           ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
           ...shipAdaptiveFlags(opts),
           ...shipReviewFlags(opts),
+          ...(opts.premortem ? { premortem: true as const } : {}),
           advance: opts.advance,
           advanceOpts: {
             // #2402 — the landing gate fires on `--advance` into `complete`; without these the

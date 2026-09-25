@@ -80,7 +80,8 @@
     "E_TRAIN_SEALED": "SEALED: {reason} \u2014 {detail}. Land this train (gate, push, one PR closing every id) before starting the next one.",
     "E_REVIEW_ROUNDS_EXHAUSTED": "REVIEW ROUNDS EXHAUSTED \u2014 {detail}",
     "E_NO_PROGRESS_BLOCKED": "BLOCKED: the current implementation approach made no progress. Diagnose the constraint before another attempt.",
-    "E_PR_NOT_MERGED": "NOT MERGED \u2014 {detail} A PR is owned until it is merged."
+    "E_PR_NOT_MERGED": "NOT MERGED \u2014 {detail} A PR is owned until it is merged.",
+    "E_PREMORTEM_REQUIRED": "PREMORTEM REQUIRED ({rule}) \u2014 declare a `premortem:` reference in {plan} (frontmatter, or a PREMORTEM_* manifest path) before the review freeze, or force with --premortem."
   },
   "cli": {
     "shared": {

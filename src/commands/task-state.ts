@@ -23,7 +23,7 @@ import {
   assertWritten,
 } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
-import { isShipTreatment, type ShipTreatment } from './ship-tier.js'
+import { isShipTreatment, type ShipTreatment, type PremortemDecision } from './ship-tier.js'
 
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
 
@@ -172,6 +172,8 @@ export interface UnifiedTaskState {
    * re-reading `derivedGates` deep-equal against the plan's own semantics.
    */
   derivedGatesPlan?: string
+  /** #2890 AC-1 — deterministic premortem decision computed at the plan step. */
+  premortem?: PremortemDecision
 }
 
 /** #2400 — how many review rounds this task has spent, and what the last one was pinned to. */

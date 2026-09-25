@@ -1,8 +1,8 @@
 ---
 title: 'Plan Template — Context Block'
-doc_version: '1.0.1'
+doc_version: '1.0.2'
 status: active
-last_review: '2026-09-12'
+last_review: '2026-09-25'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -106,3 +106,22 @@ The active Markdown plan is the one shared delivery contract. Before implementat
 input fails closed; incomplete narrow-tier evidence widens treatment to Standard. There is no second
 host-specific plan or reviewer verdict before code. Independent judgment is reserved for the frozen
 candidate, where the final reviewer evaluates code and returns one acceptance decision per AC.
+
+## Premortem decision (#2890)
+
+At the plan step `arbiter ship` derives a premortem decision from the `files:` manifest and the
+resolved treatment only (never file contents), prints it as one `premortem:` line and stores it in
+`.claude/.task/status.json`:
+
+| Decision        | When                                                                                               |
+| --------------- | -------------------------------------------------------------------------------------------------- |
+| `required`      | hooks or templates touched, sensitive treatment, Standard with ≥2 areas, empty/unreadable manifest |
+| `deterministic` | `.github/workflows/**` (with the CI-infra checklist), and every other plan                         |
+| `skip-llm`      | XS/S plan with no `src`, hook, template or workflow file                                           |
+
+The first matching rule wins, in this order: `--premortem`, hooks/templates, workflows, sensitive,
+Standard multi-area, empty manifest, XS/S skip, default. `--premortem` forces `required`. A `required` decision blocks the review freeze with
+`E_PREMORTEM_REQUIRED` until the plan names the notes: a `premortem: <path>` frontmatter key, or a
+`PREMORTEM_*` path in `files:`. The path must be repo-relative (no absolute path, no `..`) and point
+at a non-empty regular file inside the repository; symlinks are refused. Once a decision is stored,
+every delivery-record line in `.claude/.task/log.md` ends with `premortem=<decision> rounds=<n>`.
