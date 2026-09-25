@@ -270,6 +270,12 @@ commit is a governed change like any other: it carries a task id and a RED of it
   pins `test_blob_sha`, the RED test's content, which a rebase preserves; the RED commit is
   re-resolved from it automatically (#2116). Evidence recorded before that pin existed cannot
   be healed — re-record it with `arbiter lifecycle record-red`.
+- GREEN refused with `E_SPEC_TEST_CONFLICT` → the pinned RED test changed after RED and its
+  original version, replayed 3 times at HEAD, fails (#2906). If the change carries a requirement
+  change, add `Test-Amend: <blob7+> <reason naming the AC>` (the first 7+ hex of the current test
+  blob, `git hash-object <test_path>`) as the LAST paragraph of a commit after RED, so git parses
+  it as a trailer; otherwise restore the original test and fix the code. A change the original
+  still passes 3/3 is accepted as structural, and the review prompt names every such change.
 - Cannot commit the failing RED test because the pre-commit gate blocks it → `--no-verify` is
   no longer the answer (#2051). While `phase=red`, a commit whose staged paths are ALL tests
   skips the L1 gate (secret scanning and lint still run). Stage source alongside and the full

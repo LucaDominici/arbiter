@@ -1414,8 +1414,8 @@ describe('frozen review prompt: pinned test changed after RED (#2906 AC-4)', () 
   const EVIDENCE = '.arbiter/evidence/tdd/#2906.json'
   const LINE =
     /^Pinned RED test t\.sh changed after RED \(([0-9a-f]{7})\.\.([0-9a-f]{7})\), class (.+)\. Rule explicitly on this hunk: does it preserve the requirement of the acceptance criteria\?$/m
-  const git = (dir: string, args: string[]): string =>
-    execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim()
+  const git = (dir: string, args: string[], input?: string): string =>
+    execFileSync('git', args, { cwd: dir, encoding: 'utf8', input }).trim()
 
   beforeEach(async () => {
     const actual = await vi.importActual<typeof import('../../src/utils/run-cli.js')>(
@@ -1523,6 +1523,35 @@ describe('frozen review prompt: pinned test changed after RED (#2906 AC-4)', () 
     expect(LINE.exec(review(dir))?.[3]).toBe(
       `unverified: Test-Amend binds ${old7}, head is ${cur7}`,
     )
+  })
+
+  it('reports class unknown when the RED commit cannot be resolved', () => {
+    const { dir } = redFixture()
+    const receipt = JSON.parse(readFileSync(join(dir, EVIDENCE), 'utf8')) as Record<string, string>
+    const lost = git(dir, ['hash-object', '--stdin'], 'never committed\n')
+    writeFileSync(
+      join(dir, EVIDENCE),
+      JSON.stringify({ ...receipt, test_commit_sha: 'a'.repeat(40), test_blob_sha: lost }),
+    )
+    git(dir, ['commit', '--quiet', '-am', 'chore: evidence without a reachable RED'])
+    expect(LINE.exec(review(dir))?.[3]).toBe('unknown (RED commit or head test unavailable)')
+  })
+
+  it('names a pinned test deleted at head', () => {
+    const { dir, redBlob } = redFixture()
+    git(dir, ['rm', '--quiet', 't.sh'])
+    git(dir, ['commit', '--quiet', '-m', 'test: delete'])
+    expect(review(dir)).toContain(
+      `Pinned RED test t.sh changed after RED (${redBlob.slice(0, 7)}..deleted), class unknown`,
+    )
+  })
+
+  it('adds no line for a receipt outside the TDD evidence schema', () => {
+    const { dir } = redFixture()
+    writeFileSync(join(dir, EVIDENCE), JSON.stringify({ test_path: 't.sh' }))
+    writeFileSync(join(dir, 't.sh'), "printf 'PASS: head\\n'\n")
+    git(dir, ['commit', '--quiet', '-am', 'chore: malformed evidence'])
+    expect(review(dir)).not.toContain('Pinned RED test')
   })
 
   it('adds no line when the pinned test is unchanged', () => {

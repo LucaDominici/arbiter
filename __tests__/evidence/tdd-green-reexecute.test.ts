@@ -282,3 +282,89 @@ describe.sequential('verifyGreenExecution real runner output', () => {
     expect(readFileSync(join(dir, 'replays'), 'utf8')).toBe('1')
   })
 })
+
+describe.sequential(
+  'verifyGreenExecution shell verdicts and original replay refusals (#2906)',
+  () => {
+    const PASSING = "#!/bin/sh\nprintf 'PASS: t\\n'\n"
+    const SHELL = { timeout: 15_000 }
+
+    function shellRepo(prefix: string): string {
+      const dir = mkdtempSync(join(tmpdir(), `arbiter-green-2906-${prefix}-`))
+      dirs.push(dir)
+      git(dir, ['init', '--quiet'])
+      git(dir, ['config', 'user.name', 'Arbiter Test'])
+      git(dir, ['config', 'user.email', 'test.invalid'])
+      return dir
+    }
+
+    function commitAll(dir: string, message: string): string {
+      git(dir, ['add', '-A'])
+      git(dir, ['commit', '--quiet', '-m', message])
+      return git(dir, ['rev-parse', 'HEAD'])
+    }
+
+    function shellEvidence(redCommit: string, redBlob: string): TddEvidence {
+      return {
+        ...fixture('t.sh', 'FAIL: red', ['sh', 't.sh'], redBlob),
+        test_commit_sha: redCommit,
+      }
+    }
+
+    it('refuses a shell run that prints FAIL: and PASS: and exits 0', SHELL, () => {
+      const dir = shellRepo('fail-pass')
+      const content = "#!/bin/sh\nprintf 'FAIL: x\\n'\nprintf 'PASS: y\\n'\n"
+      writeFileSync(join(dir, 't.sh'), content)
+      const result = verifyGreenExecution(
+        fixture('t.sh', 'FAIL: x', ['sh', 't.sh'], gitBlobSha(content)),
+        dir,
+      )
+      expect(result.ok).toBe(false)
+      expect(result.reason).toContain('emitted a failure verdict')
+    })
+
+    it('refuses the replay when the RED commit cannot be resolved', SHELL, () => {
+      const dir = shellRepo('no-red')
+      writeFileSync(join(dir, 't.sh'), PASSING)
+      commitAll(dir, 'head')
+      const result = verifyGreenExecution(
+        shellEvidence('a'.repeat(40), gitBlobSha('never committed\n')),
+        dir,
+      )
+      expect(result.ok).toBe(false)
+      expect(result.reason).toContain(
+        'could not be replayed at head: the RED commit is unresolvable',
+      )
+    })
+
+    it('refuses the replay when the RED commit holds another blob', SHELL, () => {
+      const dir = shellRepo('blob-mismatch')
+      writeFileSync(join(dir, 't.sh'), PASSING)
+      const red = commitAll(dir, 'red')
+      const result = verifyGreenExecution(shellEvidence(red, gitBlobSha('other\n')), dir)
+      expect(result.ok).toBe(false)
+      expect(result.reason).toContain('restored content does not match the RED blob')
+    })
+
+    it('refuses a replay error and removes the detached worktree', SHELL, () => {
+      const dir = shellRepo('restore-error')
+      writeFileSync(join(dir, 't.sh'), PASSING)
+      const red = commitAll(dir, 'red')
+      writeFileSync(join(dir, 't.sh'), `${PASSING}printf 'PASS: extra\\n'\n`)
+      commitAll(dir, 'head')
+      const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
+      const shim = join(dir, 'shim')
+      mkdirSync(shim)
+      writeFileSync(
+        join(shim, 'git'),
+        `#!/bin/sh\n[ "$1" = restore ] && { echo 'restore refused' >&2; exit 1; }\nexec ${realGit} "$@"\n`,
+      )
+      chmodSync(join(shim, 'git'), 0o755)
+      process.env.PATH = `${shim}:${originalPath ?? ''}`
+      const result = verifyGreenExecution(shellEvidence(red, gitBlobSha(PASSING)), dir)
+      expect(result.ok).toBe(false)
+      expect(result.reason).toMatch(/could not be replayed at head: .*git restore --source/)
+      expect(git(dir, ['worktree', 'list']).split('\n')).toHaveLength(1)
+    })
+  },
+)

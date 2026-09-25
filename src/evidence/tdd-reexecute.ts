@@ -9,10 +9,11 @@ import {
   combineTestOutput,
   extractFailureIdentities,
   extractFailureSignature,
+  FAILURE_SIGNATURES,
   repositoryRelativeLog,
   type TddEvidence,
 } from './tdd.js'
-import { blobShaInCommit, gitCwd, resolveEvidenceCommit } from './git-checks.js'
+import { blobShaInCommit, gitCwd, headSha, resolveEvidenceCommit } from './git-checks.js'
 import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
 
 function resolveRecordedTestCwd(repoDir: string, cwdRelative?: string): string | null {
@@ -25,6 +26,13 @@ function resolveRecordedTestCwd(repoDir: string, cwdRelative?: string): string |
 export interface RedExecutionResult {
   ok: boolean
   reason?: string
+  /** #2906: set only when the pinned test changed after RED and the change was accepted. */
+  testChange?: {
+    class: 'structural' | 'test-amend'
+    reason?: string
+    redBlob: string
+    headBlob: string
+  }
 }
 
 const ZERO_TEST_OUTPUT =
@@ -69,9 +77,13 @@ function tapOutputFailure(output: string): string | null {
   return passed > 0 ? null : 'recorded TAP command reported no passing tests'
 }
 
+// Shared with RED capture; a missing shell signature fails closed by matching every output.
+const SHELL_FAILURE =
+  FAILURE_SIGNATURES.find(({ framework }) => framework === 'shell')?.pattern ?? /(?:)/
+
 function shellOutputFailure(output: string): string | null {
   const plain = stripVTControlCharacters(output)
-  if (/^FAIL:[ \t]+\S.*$/m.test(plain)) return 'recorded shell command emitted a failure verdict'
+  if (SHELL_FAILURE.test(plain)) return 'recorded shell command emitted a failure verdict'
   if (countSummary(plain, 'skipped|ignored|pending|todo') > 0) {
     return 'recorded shell command contains skipped tests; no GREEN proof exists'
   }
@@ -201,22 +213,17 @@ function greenOutputFailure(
   return countedOutputFailure(framework, output)
 }
 
-function matchesRecordedTestContent(path: string, expected: string | undefined): boolean {
-  if (expected === undefined) return true
+function currentBlobSha(path: string): string | null {
   try {
     const content = readFileSync(path)
-    const actual = createHash('sha1')
-      .update(`blob ${content.byteLength}\0`)
-      .update(content)
-      .digest('hex')
-    return actual === expected
-    // FAIL-OPEN-INTENT: an unreadable current test returns false and blocks GREEN.
+    return createHash('sha1').update(`blob ${content.byteLength}\0`).update(content).digest('hex')
+    // FAIL-OPEN-INTENT: an unreadable current test returns null and blocks GREEN.
   } catch {
-    return false
+    return null
   }
 }
 
-function expectedGreenTestBlob(ev: TddEvidence, repoDir: string): string | null | undefined {
+function expectedGreenTestBlob(ev: TddEvidence, repoDir: string): string | null {
   if (ev.test_blob_sha !== undefined) return ev.test_blob_sha
   const resolved = resolveEvidenceCommit(ev, repoDir)
   if (resolved === null || 'degraded' in resolved) return null
@@ -230,19 +237,28 @@ function gradleSnapshotBefore(
   return framework === 'gradle' ? gradleXmlSnapshots(root) : new Map<string, GradleXmlSnapshot>()
 }
 
-function greenTestPathFailure(repoDir: string, ev: TddEvidence): string | null {
+interface PinnedTestBlobs {
+  redBlob: string
+  headBlob: string
+}
+
+/** The RED and current blobs of the pinned test, or the reason GREEN cannot compare them. */
+function pinnedTestBlobs(repoDir: string, ev: TddEvidence): PinnedTestBlobs | { reason: string } {
   const testPath = resolve(repoDir, ev.test_path)
   if (!testPath.startsWith(`${repoDir}${sep}`) || !existsSync(testPath)) {
-    return `recorded test_path "${ev.test_path}" is missing from the current checkout`
+    return { reason: `recorded test_path "${ev.test_path}" is missing from the current checkout` }
   }
-  const expectedBlob = expectedGreenTestBlob(ev, repoDir)
-  if (expectedBlob === null) {
-    return `recorded RED test content for "${ev.test_path}" is unavailable from the RED commit`
+  const redBlob = expectedGreenTestBlob(ev, repoDir)
+  if (redBlob === null) {
+    return {
+      reason: `recorded RED test content for "${ev.test_path}" is unavailable from the RED commit`,
+    }
   }
-  if (expectedBlob !== undefined && !matchesRecordedTestContent(testPath, expectedBlob)) {
-    return `recorded RED test content at "${ev.test_path}" differs from the current checkout`
+  const headBlob = currentBlobSha(testPath)
+  if (headBlob === null) {
+    return { reason: `recorded test_path "${ev.test_path}" is unreadable in the current checkout` }
   }
-  return null
+  return { redBlob, headBlob }
 }
 
 function greenFailureAfterRun(
@@ -357,40 +373,148 @@ export function verifyGreenExecution(
       reason: `recorded test_cwd "${ev.test_cwd ?? ''}" is not repository-relative`,
     }
   }
-  const testPathFailure = greenTestPathFailure(repoDir, ev)
-  if (testPathFailure !== null) return { ok: false, reason: testPathFailure }
+  const pinned = pinnedTestBlobs(repoDir, ev)
+  if ('reason' in pinned) return { ok: false, reason: pinned.reason }
 
+  const headFailure = greenRunFailure(ev, testCommand, replayCwd, repoDir, timeoutMs)
+  if (headFailure !== null) return { ok: false, reason: headFailure }
+  if (pinned.redBlob === pinned.headBlob) return { ok: true }
+  return replayOriginalAtHead(ev, testCommand, repoDir, pinned, timeoutMs)
+}
+
+/** Run the recorded command once in `cwd` and return its GREEN refusal, or null for a pass. */
+function greenRunFailure(
+  ev: TddEvidence,
+  testCommand: readonly string[],
+  cwd: string,
+  root: string,
+  timeoutMs: number,
+): string | null {
   const [cmd] = testCommand
-  if (cmd === undefined) return { ok: false, reason: 'evidence has no recorded test_command' }
-  const executable = replayExecutable(cmd, replayCwd, repoDir)
+  if (cmd === undefined) return 'evidence has no recorded test_command'
+  const executable = replayExecutable(cmd, cwd, root)
   if (executable === null) {
-    return {
-      ok: false,
-      reason: `recorded test executable "${cmd}" resolves outside the repository`,
-    }
+    return `recorded test executable "${cmd}" resolves outside the repository`
   }
 
   try {
     const framework = extractFailureSignature(ev.test_run_log)?.framework
-    const args = greenArgs(testCommand, framework)
-    const gradleRoot = replayCwd
-    const beforeGradleResults = gradleSnapshotBefore(framework, gradleRoot)
-    const result = runCli(executable, args, { cwd: replayCwd, timeoutMs })
-    const failure = greenFailureAfterRun(
+    const beforeGradleResults = gradleSnapshotBefore(framework, cwd)
+    const result = runCli(executable, greenArgs(testCommand, framework), { cwd, timeoutMs })
+    return greenFailureAfterRun(
       ev,
       framework,
       combineTestOutput(result.stdout, result.stderr),
-      gradleRoot,
+      cwd,
       beforeGradleResults,
     )
-    return failure === null ? { ok: true } : { ok: false, reason: failure }
     // FAIL-OPEN-INTENT: every execution error becomes a blocking verdict below.
   } catch (err) {
-    if (!(err instanceof CliError)) {
-      return { ok: false, reason: `recorded test command could not run: ${String(err)}` }
-    }
-    return { ok: false, reason: greenCliFailure(err, cmd, timeoutMs) }
+    if (!(err instanceof CliError)) return `recorded test command could not run: ${String(err)}`
+    return greenCliFailure(err, cmd, timeoutMs)
   }
+}
+
+const ORIGINAL_REPLAY_RUNS = 3
+
+/**
+ * #2906 rule [S]: the pinned test changed after RED, so the ORIGINAL (RED blob) runs 3 times at
+ * HEAD in an isolated detached worktree. Every error refuses; the worktree is always removed.
+ */
+function replayOriginalAtHead(
+  ev: TddEvidence,
+  testCommand: readonly string[],
+  repoDir: string,
+  blobs: PinnedTestBlobs,
+  timeoutMs: number,
+): RedExecutionResult {
+  const g = gitCwd(repoDir)
+  const refused = `recorded RED test ${ev.test_path}@${blobs.redBlob.slice(0, 7)} could not be replayed at head`
+  const red = resolveEvidenceCommit(ev, g)
+  if (red === null || 'degraded' in red) {
+    return { ok: false, reason: `${refused}: the RED commit is unresolvable` }
+  }
+  const head = headSha(g)
+  const worktreeDir = freeTempPath()
+  try {
+    const added = addDetachedWorktree(g, worktreeDir, head, 'HEAD')
+    if (!added.ok) return { ok: false, reason: `${refused}: ${added.reason}` }
+    runCli('git', ['restore', '--source', red.sha, '--', ev.test_path], {
+      cwd: worktreeDir,
+      timeoutMs: 30_000,
+    })
+    if (currentBlobSha(join(worktreeDir, ev.test_path)) !== blobs.redBlob) {
+      return { ok: false, reason: `${refused}: restored content does not match the RED blob` }
+    }
+    linkNodeModules(repoDir, worktreeDir, ev.test_cwd ?? '.')
+    const cwd = resolveRecordedTestCwd(worktreeDir, ev.test_cwd) ?? worktreeDir
+    let passes = 0
+    for (let run = 0; run < ORIGINAL_REPLAY_RUNS; run++) {
+      if (greenRunFailure(ev, testCommand, cwd, worktreeDir, timeoutMs) === null) passes++
+    }
+    return classifyOriginalReplay(ev, { dir: g, red: red.sha, head }, blobs, passes)
+    // FAIL-OPEN-INTENT: a replay error is a refusal, never a pass.
+  } catch (err) {
+    return { ok: false, reason: `${refused}: ${String(err)}` }
+  } finally {
+    removeDetachedWorktree(g, worktreeDir)
+  }
+}
+
+function classifyOriginalReplay(
+  ev: TddEvidence,
+  range: { dir: string; red: string; head: string },
+  blobs: PinnedTestBlobs,
+  passes: number,
+): RedExecutionResult {
+  const { redBlob, headBlob } = blobs
+  if (passes === ORIGINAL_REPLAY_RUNS) {
+    return { ok: true, testChange: { class: 'structural', redBlob, headBlob } }
+  }
+  const original = `E_SPEC_TEST_CONFLICT: original ${ev.test_path}@${redBlob.slice(0, 7)}`
+  const head7 = range.head.slice(0, 7)
+  if (passes > 0) {
+    return {
+      ok: false,
+      reason: `${original} is nondeterministic at ${head7} (${passes}/${ORIGINAL_REPLAY_RUNS} pass). Remedy: make the test deterministic.`,
+    }
+  }
+  const amend = testAmendTrailers(range.dir, range.red, range.head).find(
+    ({ prefix, reason }) => headBlob.startsWith(prefix) && reason !== '',
+  )
+  if (amend !== undefined) {
+    return {
+      ok: true,
+      testChange: { class: 'test-amend', reason: amend.reason, redBlob, headBlob },
+    }
+  }
+  const cur7 = headBlob.slice(0, 7)
+  return {
+    ok: false,
+    reason:
+      `${original} FAILS at ${head7} (${ORIGINAL_REPLAY_RUNS}/${ORIGINAL_REPLAY_RUNS}) and no Test-Amend trailer binds blob ${cur7}. ` +
+      `Remedy: add "Test-Amend: ${cur7} <reason naming the AC>" to a commit, or restore the original test and fix the code.`,
+  }
+}
+
+/**
+ * `Test-Amend: <blob prefix ≥7 hex> <reason>` trailers in `<redSha>..<headRef>`, newest first.
+ * A malformed value is dropped; a missing reason is ''.
+ */
+export function testAmendTrailers(
+  dir: string,
+  redSha: string,
+  headRef: string,
+): { prefix: string; reason: string }[] {
+  const log = runCli(
+    'git',
+    ['log', '--format=%(trailers:key=Test-Amend,valueonly)', `${redSha}..${headRef}`],
+    { cwd: gitCwd(dir), timeoutMs: 30_000 },
+  ).stdout
+  return log.split('\n').flatMap((line) => {
+    const match = /^([0-9a-f]{7,40})(?:\s+(\S.*))?$/.exec(line.trim())
+    return match?.[1] === undefined ? [] : [{ prefix: match[1], reason: match[2] ?? '' }]
+  })
 }
 
 function compareFailure(ev: TddEvidence, freshLog: string): RedExecutionResult {
@@ -436,6 +560,7 @@ function addDetachedWorktree(
   repoDir: string,
   worktreeDir: string,
   sha: string,
+  label = 'test_commit_sha',
 ): { ok: true } | { ok: false; reason: string } {
   try {
     const r = runCli('git', ['worktree', 'add', '--detach', '--force', worktreeDir, sha], {
@@ -445,7 +570,7 @@ function addDetachedWorktree(
     if (r.exitCode !== 0) {
       return {
         ok: false,
-        reason: `failed to check out test_commit_sha ${sha} in an isolated worktree: ${r.stderr.trim()}`,
+        reason: `failed to check out ${label} ${sha} in an isolated worktree: ${r.stderr.trim()}`,
       }
     }
     return { ok: true }
@@ -453,7 +578,7 @@ function addDetachedWorktree(
     const detail = err instanceof CliError ? err.stderr || err.message : String(err)
     return {
       ok: false,
-      reason: `failed to check out test_commit_sha ${sha} in an isolated worktree: ${detail}`,
+      reason: `failed to check out ${label} ${sha} in an isolated worktree: ${detail}`,
     }
   }
 }

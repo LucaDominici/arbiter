@@ -397,4 +397,20 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
         '(util-linux) and retry.',
     },
   ],
+  [
+    'E_SPEC_TEST_CONFLICT',
+    {
+      code: 'E_SPEC_TEST_CONFLICT',
+      summary: 'Pinned RED test changed after RED without proof',
+      detail:
+        'The pinned RED test differs from its recorded RED blob. Under rule [S] (#2906) the GREEN ' +
+        'gate replays the ORIGINAL test 3 times at HEAD in an isolated worktree: 3/3 passes accept ' +
+        'the change as structural; 3/3 failures need a Test-Amend trailer that binds the current ' +
+        'test blob; mixed results mean the original test is nondeterministic.',
+      recovery:
+        'Add "Test-Amend: <blob7+> <reason naming the AC>" as the last paragraph of a commit after ' +
+        'RED, or restore the original test and fix the code. For mixed results, make the test ' +
+        'deterministic.',
+    },
+  ],
 ])

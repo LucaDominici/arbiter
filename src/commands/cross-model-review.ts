@@ -13,7 +13,14 @@ import { existsSync, lstatSync, readFileSync } from 'node:fs'
 import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
-import { currentBranch, headSha } from '../evidence/git-checks.js'
+import {
+  blobShaInCommit,
+  currentBranch,
+  headSha,
+  resolveEvidenceCommit,
+} from '../evidence/git-checks.js'
+import { TddEvidenceV1 } from '../evidence/tdd.js'
+import { testAmendTrailers } from '../evidence/tdd-reexecute.js'
 
 const CODEX_REVIEWER_PROVENANCE = {
   vendor: 'openai',
@@ -500,6 +507,50 @@ function readFrozenTddEvidence(
     : '(frozen RED receipt omitted: exceeds 16 KiB)'
 }
 
+/**
+ * #2906 AC-4: one line naming a pinned RED test that changed after RED. No test runs here, so a
+ * structural class only reports that the GREEN gate replayed the original at refactor entry.
+ */
+function pinnedTestChangeLine(
+  repoRoot: string,
+  reviewHead: string,
+  receipt: string | null,
+): string | null {
+  if (receipt === null || !receipt.startsWith('{')) return null
+  const parsed = TddEvidenceV1.safeParse(JSON.parse(receipt))
+  if (!parsed.success) return null
+  const ev = parsed.data
+  const resolved = resolveEvidenceCommit(ev, repoRoot)
+  const red = resolved === null || 'degraded' in resolved ? null : resolved.sha
+  const redBlob =
+    ev.test_blob_sha ?? (red === null ? null : blobShaInCommit(red, ev.test_path, repoRoot))
+  const headBlob = blobShaInCommit(reviewHead, ev.test_path, repoRoot)
+  if (redBlob === null || redBlob === headBlob) return null
+  const change = `${redBlob.slice(0, 7)}..${headBlob?.slice(0, 7) ?? 'deleted'}`
+  return (
+    `Pinned RED test ${ev.test_path} changed after RED (${change}), ` +
+    `class ${pinnedTestChangeClass(repoRoot, red, reviewHead, headBlob)}. ` +
+    'Rule explicitly on this hunk: does it preserve the requirement of the acceptance criteria?'
+  )
+}
+
+function pinnedTestChangeClass(
+  repoRoot: string,
+  red: string | null,
+  reviewHead: string,
+  headBlob: string | null,
+): string {
+  if (red === null || headBlob === null) return 'unknown (RED commit or head test unavailable)'
+  const trailers = testAmendTrailers(repoRoot, red, reviewHead)
+  const amend = trailers.find(({ prefix, reason }) => headBlob.startsWith(prefix) && reason !== '')
+  if (amend !== undefined) return `test-amend: ${amend.reason}`
+  const [latest] = trailers
+  if (latest !== undefined) {
+    return `unverified: Test-Amend binds ${latest.prefix.slice(0, 7)}, head is ${headBlob.slice(0, 7)}`
+  }
+  return `structural (GREEN replayed the original at refactor entry; not re-run at ${reviewHead.slice(0, 7)})`
+}
+
 function resolveReviewBase(repoRoot: string, baseSha: string | null | undefined): string {
   const base =
     baseSha ??
@@ -611,13 +662,13 @@ function runShipCrossModelReview(
   const reviewHead = assertFrozenReviewHead(repoRoot, options.headSha)
   const reviewBase = resolveReviewBase(repoRoot, options.baseSha)
   const brief = readFrozenReviewBrief(repoRoot, options.planRef, reviewHead)
-  const prompt = frozenReviewPrompt(
-    options.taskId,
-    reviewBase,
-    reviewHead,
-    brief,
-    readFrozenTddEvidence(repoRoot, options.taskId, reviewHead),
-  )
+  const tddEvidence = readFrozenTddEvidence(repoRoot, options.taskId, reviewHead)
+  const pinnedTestChange = pinnedTestChangeLine(repoRoot, reviewHead, tddEvidence)
+  // #2906 AC-4: the pinned-test line follows the RED evidence, the prompt's last line.
+  const prompt = [
+    frozenReviewPrompt(options.taskId, reviewBase, reviewHead, brief, tddEvidence),
+    ...(pinnedTestChange === null ? [] : [pinnedTestChange]),
+  ].join('\n')
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined
   let preflightError: unknown
