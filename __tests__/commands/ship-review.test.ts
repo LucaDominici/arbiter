@@ -173,7 +173,10 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: dir })
     execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: dir })
     writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\n')
-    writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
+    writeFileSync(
+      join(dir, 'plan.md'),
+      '---\nfiles:\n  - review.test.ts\n---\n\n# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n',
+    )
     writeFileSync(join(dir, 'review.test.ts'), 'throw new Error("RED") // frozen candidate\n')
     writeFileSync(join(dir, 'green-output.mjs'), "process.stdout.write('1 passed\\n')\n")
     execFileSync('git', ['add', '.gitignore', 'plan.md', 'review.test.ts', 'green-output.mjs'], {
@@ -279,21 +282,21 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     expect(log()).toContain(`review → round 1 at ${SHA_A.slice(0, 7)}`)
   })
 
-  const requiredPremortem = {
-    decision: 'required' as const,
-    reason: 'R4-sensitive',
-    areas: 1,
-    hooks: false,
-    templates: false,
-    workflows: false,
-    sensitive: true,
-    tier: 'XS' as const,
-  }
-
   it('#2890 AC-3: required without a valid premortem reference refuses the review freeze', () => {
     ship({ advance: true, headSha: SHA_A })
-    writeUnifiedState(dir, { premortem: requiredPremortem })
+    // #2899: `required` comes from the real --premortem force, never an injected key.
+    ship({ premortem: true })
     expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/PREMORTEM REQUIRED/)
+  })
+
+  it('#2899 AC-1: --premortem given before the freeze still binds a later freeze without it', () => {
+    ship({ premortem: true })
+    expect(readUnifiedState(dir)?.premortem).toBeUndefined()
+    ship({ advance: true, headSha: SHA_A })
+    expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(
+      /PREMORTEM REQUIRED \(forced\)/,
+    )
+    expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
   })
 
   it('#2890 AC-3: a valid premortem reference lets a required decision through the freeze', () => {
@@ -305,7 +308,8 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     writeFileSync(join(dir, 'PREMORTEM_NOTES.md'), '# premortem notes\n')
     execFileSync('git', ['add', 'plan.md', 'PREMORTEM_NOTES.md'], { cwd: dir })
     execFileSync('git', ['commit', '-q', '-m', 'test: add premortem reference'], { cwd: dir })
-    writeUnifiedState(dir, { premortem: requiredPremortem })
+    // #2899: `required` comes from the real --premortem force, never an injected key.
+    ship({ premortem: true })
     ship({ reviewRound: true, headSha: SHA_A })
     expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
   })
@@ -324,7 +328,8 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     mkdirSync(join(dir, 'docs'))
     writeFileSync(join(dir, 'docs', 'PREMORTEM_2890.md'), '# premortem\n')
     commitPlan('files:\n  - docs/PREMORTEM_2890.md', ['docs/PREMORTEM_2890.md'])
-    writeUnifiedState(dir, { premortem: requiredPremortem })
+    // #2899: `required` comes from the real --premortem force, never an injected key.
+    ship({ premortem: true })
     ship({ reviewRound: true, headSha: SHA_A })
     expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
   })
@@ -346,7 +351,8 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     mkdirSync(join(dir, 'notes'))
     writeFileSync(join(dir, 'notes', 'n.md'), '# notes\n')
     commitPlan(`premortem: ${ref}`, ['EMPTY.md', 'REAL.md', 'LINK.md', 'notes/n.md'])
-    writeUnifiedState(dir, { premortem: requiredPremortem })
+    // #2899: `required` comes from the real --premortem force, never an injected key.
+    ship({ premortem: true })
     expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/PREMORTEM REQUIRED/)
     expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
   })
@@ -582,6 +588,10 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     writeFileSync(
       join(dir, 'plan.md'),
       [
+        '---',
+        'files:',
+        '  - review.test.ts',
+        '---',
         '# Plan',
         '## Acceptance Criteria',
         '- [ ] AC-1: first behavior',
@@ -722,7 +732,10 @@ describe('review rounds own the Codex seat (#2747)', () => {
     execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: dir })
     execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: dir })
     writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\nbin/\n')
-    writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
+    writeFileSync(
+      join(dir, 'plan.md'),
+      '---\nfiles:\n  - review.test.ts\n---\n\n# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n',
+    )
 
     for (const relativePath of [
       '.claude/hooks/lib.mjs',
@@ -794,7 +807,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   describe('non-PASS criteria (#2865)', () => {
     const markedPlan =
-      '# Plan\n\n## Acceptance Criteria\n- AC-1: [exact-main] ships on main\n- AC-2: ships\n'
+      '---\nfiles:\n  - review.test.ts\n---\n\n# Plan\n\n## Acceptance Criteria\n- AC-1: [exact-main] ships on main\n- AC-2: ships\n'
     const fitWith = (ac1: string, ac2: string): string =>
       `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[{"id":"AC-1","verdict":"${ac1}","evidence":[{"file":"plan.md","line":4}]},{"id":"AC-2","verdict":"${ac2}","evidence":[{"file":"plan.md","line":5}]}]}}`
     const acFit = (): string => join(dir, '.arbiter', 'evidence', 'ac-fit', '2747.json')
@@ -1122,6 +1135,10 @@ describe('review rounds own the Codex seat (#2747)', () => {
       ['scripts/check-cross-model-review.mjs', 'schemas/cross-model-dispatch.schema.json'],
       {
         'arbiter.json': JSON.stringify({ crossModelReview: codexConfig }),
+        // #2899: the sensitive treatment below resolves `required / R4-sensitive`.
+        'plan.md':
+          '---\nfiles:\n  - review.test.ts\n  - PREMORTEM_2747.md\n---\n\n# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n',
+        'PREMORTEM_2747.md': '# premortem\n',
       },
     )
     const seeded = readUnifiedState(dir)?.treatment

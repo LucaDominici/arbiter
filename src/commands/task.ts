@@ -42,7 +42,13 @@ import {
   type PlannedReviewRound,
   type ReviewRoundEnvelope,
 } from './ship-review.js'
-import { isShipTreatment, parsePremortemRef, readPlanManifest } from './ship-tier.js'
+import {
+  evaluatePremortem,
+  isShipTreatment,
+  parsePremortemRef,
+  readPlanManifest,
+  type PremortemDecision,
+} from './ship-tier.js'
 
 // Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
 // Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
@@ -901,8 +907,20 @@ function prGateSnapshots(
  */
 function premortemLogSuffix(dir: string): string {
   const state = readUnifiedState(dir)
-  if (!state?.premortem) return ''
-  return ` premortem=${state.premortem.decision} rounds=${reviewStateOf(state).rounds}`
+  const premortem = currentPremortem(dir, state)
+  if (state === null || premortem === null) return ''
+  return ` premortem=${premortem.decision} rounds=${reviewStateOf(state).rounds}`
+}
+
+/**
+ * #2899 — the premortem decision is computed from the current plan manifest at every read and
+ * never trusted from status.json. A task without a /ship treatment has no decision.
+ */
+function currentPremortem(dir: string, state: UnifiedTaskState | null): PremortemDecision | null {
+  if (state?.treatment === undefined) return null
+  const manifest = state.plan.length > 0 ? [...(readPlanManifest(dir, state.plan) ?? [])] : []
+  const force = state.premortemForced === true ? { force: true } : {}
+  return evaluatePremortem(manifest, state.treatment, force)
 }
 
 /**
@@ -1659,13 +1677,14 @@ function checkBakeAfterTemplates(dir: string): void {
  */
 function checkPremortemRequired(dir: string): void {
   const state = readUnifiedState(dir)
-  if (state?.premortem?.decision !== 'required') return
+  const premortem = currentPremortem(dir, state)
+  if (state === null || premortem?.decision !== 'required') return
   const plan = state.plan
   const planBody = plan.length > 0 ? readFileTranslated(join(dir, plan), 'utf-8') : ''
   const manifest = plan.length > 0 ? [...(readPlanManifest(dir, plan) ?? [])] : []
   const ref = plan.length > 0 ? parsePremortemRef(planBody, manifest) : null
   if (ref !== null && isValidPremortemRef(dir, ref)) return
-  const rule = state.premortem.reason
+  const rule = premortem.reason
   throw new UserFacingError(t('errors.E_PREMORTEM_REQUIRED', { rule, plan }))
 }
 

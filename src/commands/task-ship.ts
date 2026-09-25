@@ -1621,7 +1621,9 @@ function matchesShipTask(state: UnifiedTaskState, requestedTaskId: string | unde
 }
 
 function hasShipLifecycleMutation(opts: TaskShipOptions): boolean {
-  return Boolean(opts.advance || opts.reviewRound || opts.forceReview || opts.seal)
+  return Boolean(
+    opts.advance || opts.reviewRound || opts.forceReview || opts.seal || opts.premortem,
+  )
 }
 
 function hasShipProfileMutation(opts: TaskShipOptions): boolean {
@@ -1736,9 +1738,9 @@ function persistShipTreatment(
 }
 
 /**
- * #2890 AC-1 — computed only at the `plan` step, from the manifest + already-resolved treatment
- * (never file contents). `--premortem` forces `required` (AC-3). Persisted only when changed,
- * mirroring `persistShipTreatment`'s byte-identical status.json invariant (#2724).
+ * #2890 AC-1 — printed only at the `plan` step, from the manifest + already-resolved treatment
+ * (never file contents). `--premortem` forces `required` (AC-3). #2899: the decision is never
+ * persisted; only the sticky `premortemForced` input is, so a later freeze honours it.
  */
 function premortemFor(
   root: string,
@@ -1747,17 +1749,11 @@ function premortemFor(
   treatment: ShipTreatment,
   opts: TaskShipOptions,
 ): PremortemDecision | undefined {
-  if (phase !== 'plan') return state?.premortem
+  const forced = opts.premortem === true || state?.premortemForced === true
+  if (forced && state?.premortemForced !== true) writeUnifiedState(root, { premortemForced: true })
+  if (phase !== 'plan') return undefined
   const manifest = readPlanManifest(root, state?.plan)
-  const decision = evaluatePremortem(
-    manifest ? [...manifest] : [],
-    treatment,
-    opts.premortem ? { force: true } : {},
-  )
-  if (JSON.stringify(state?.premortem) !== JSON.stringify(decision)) {
-    writeUnifiedState(root, { premortem: decision })
-  }
-  return decision
+  return evaluatePremortem(manifest ? [...manifest] : [], treatment, forced ? { force: true } : {})
 }
 
 function buildActiveShipResult(input: {

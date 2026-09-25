@@ -124,6 +124,8 @@ describe('AC-2875.1 stale base', () => {
   const VALID_PLAN = [
     '---',
     "title: '#2875'",
+    'files:',
+    '  - plan.md',
     '---',
     '## Acceptance Criteria',
     '- [ ] AC-2875.1: behavior',

@@ -110,8 +110,10 @@ candidate, where the final reviewer evaluates code and returns one acceptance de
 ## Premortem decision (#2890)
 
 At the plan step `arbiter ship` derives a premortem decision from the `files:` manifest and the
-resolved treatment only (never file contents), prints it as one `premortem:` line and stores it in
-`.claude/.task/status.json`:
+resolved treatment only (never file contents) and prints it as one `premortem:` line. The decision
+is recomputed from the current manifest wherever it is read (the plan-step print, the review freeze,
+the delivery record) and is never stored in `.claude/.task/status.json` (#2899); a `premortem` key
+left there by an older version is ignored:
 
 | Decision        | When                                                                                               |
 | --------------- | -------------------------------------------------------------------------------------------------- |
@@ -120,8 +122,9 @@ resolved treatment only (never file contents), prints it as one `premortem:` lin
 | `skip-llm`      | XS/S plan with no `src`, hook, template or workflow file                                           |
 
 The first matching rule wins, in this order: `--premortem`, hooks/templates, workflows, sensitive,
-Standard multi-area, empty manifest, XS/S skip, default. `--premortem` forces `required`. A `required` decision blocks the review freeze with
+Standard multi-area, empty manifest, XS/S skip, default. `--premortem` forces `required`; only
+that input is stored (`premortemForced: true`) and it binds every later read. A `required` decision blocks the review freeze with
 `E_PREMORTEM_REQUIRED` until the plan names the notes: a `premortem: <path>` frontmatter key, or a
 `PREMORTEM_*` path in `files:`. The path must be repo-relative (no absolute path, no `..`) and point
-at a non-empty regular file inside the repository; symlinks are refused. Once a decision is stored,
-every delivery-record line in `.claude/.task/log.md` ends with `premortem=<decision> rounds=<n>`.
+at a non-empty regular file inside the repository; symlinks are refused. For a task with a ship
+treatment, every delivery-record line in `.claude/.task/log.md` ends with `premortem=<decision> rounds=<n>`.

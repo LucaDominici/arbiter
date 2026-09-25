@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2890 — deterministic premortem decision at `ship` plan. RED skeleton: rules over the plan
-// manifest + ship treatment, no file contents read; printed and stored in status.json.
+// manifest + ship treatment, no file contents read; printed, never stored in status.json (#2899).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -118,7 +118,7 @@ describe('evaluatePremortem — six ordered rules over manifest + treatment (#28
   })
 })
 
-describe('ship plan prints and stores the premortem decision (#2890 AC-1)', () => {
+describe('ship plan prints the premortem decision (#2890 AC-1)', () => {
   let dir: string
   beforeEach(() => {
     dir = createTestProject()
@@ -132,7 +132,7 @@ describe('ship plan prints and stores the premortem decision (#2890 AC-1)', () =
   })
   afterEach(() => cleanupTestProject(dir))
 
-  it('prints one premortem line and persists the decision in status.json', () => {
+  it('prints one premortem line and never persists the decision in status.json (#2899)', () => {
     const result = runTaskShip({
       dir,
       tier: 'Standard',
@@ -141,6 +141,6 @@ describe('ship plan prints and stores the premortem decision (#2890 AC-1)', () =
     expect(buildShipStepLines(result).join('\n')).toMatch(
       /^premortem: deterministic reason=\S+ areas=1 hooks=false templates=false workflows=false sensitive=false tier=Standard$/m,
     )
-    expect(readUnifiedState(dir)?.premortem).toMatchObject({ decision: 'deterministic' })
+    expect(readUnifiedState(dir)?.premortem).toBeUndefined()
   })
 })

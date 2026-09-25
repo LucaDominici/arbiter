@@ -15,6 +15,7 @@ import { evaluateMerged, failingCheckNames, type PrSnapshot } from '../../src/co
 import { runTaskAdvance } from '../../src/commands/task'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state'
 import { writeGatePassEvidence } from '../helpers.js'
+import { resolveShipTreatment } from '../../src/commands/ship-tier'
 
 const BRANCH = 'task/#2402-owned-until-merged'
 
@@ -527,19 +528,47 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     expect(log()).toContain('complete ← PR #7 MERGED')
   })
 
-  it('#2890 AC-5: the delivery record carries the premortem decision and the review rounds', () => {
+  // #2899: the decision is computed from the plan manifest + treatment, never an injected key.
+  const seedShipDecision = (extra: Parameters<typeof writeUnifiedState>[1] = {}): void => {
+    const files = ['src/commands/task-ship.ts', 'src/commands/ship-tier.ts']
+    mkdirSync(join(dir, '.git', 'fixture-plans'))
+    writeFileSync(
+      join(dir, '.git', 'fixture-plans', 'plan.md'),
+      `---\nfiles:\n${files.map((f) => `  - ${f}`).join('\n')}\n---\n`,
+    )
     writeUnifiedState(dir, {
+      plan: '.git/fixture-plans/plan.md',
+      treatment: resolveShipTreatment('Standard', {
+        blastRadius: 0,
+        callerCount: 0,
+        changedFiles: files,
+        complete: true,
+        labels: [],
+        milestoneBundled: false,
+      }),
+      review: { rounds: 2, lastReviewedSha: 'a'.repeat(40) },
+      ...extra,
+    })
+  }
+
+  it('#2890 AC-5: the delivery record carries the premortem decision and the review rounds', () => {
+    seedShipDecision()
+    runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })
+    expect(log()).toMatch(/^.*complete ← PR #7 MERGED premortem=deterministic rounds=2$/m)
+  })
+
+  it('#2899 AC-3: the delivery record ignores a stale persisted premortem key', () => {
+    seedShipDecision({
       premortem: {
-        decision: 'deterministic',
-        reason: 'R6-default',
-        areas: 1,
+        decision: 'required',
+        reason: 'R7-empty-manifest',
+        areas: 0,
         hooks: false,
         templates: false,
         workflows: false,
         sensitive: false,
         tier: 'Standard',
       },
-      review: { rounds: 2, lastReviewedSha: 'a'.repeat(40) },
     })
     runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })
     expect(log()).toMatch(/^.*complete ← PR #7 MERGED premortem=deterministic rounds=2$/m)

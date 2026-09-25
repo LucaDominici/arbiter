@@ -172,8 +172,13 @@ export interface UnifiedTaskState {
    * re-reading `derivedGates` deep-equal against the plan's own semantics.
    */
   derivedGatesPlan?: string
-  /** #2890 AC-1 — deterministic premortem decision computed at the plan step. */
+  /**
+   * #2890 — legacy: the premortem decision once persisted here. #2899 computes it at read time
+   * from the current plan manifest; an existing key is tolerated and never read.
+   */
   premortem?: PremortemDecision
+  /** #2899 — `ship --premortem` was given; the decision itself is never stored. */
+  premortemForced?: true
 }
 
 /** #2400 — how many review rounds this task has spent, and what the last one was pinned to. */
