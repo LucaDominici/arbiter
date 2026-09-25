@@ -310,6 +310,47 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
   })
 
+  const commitPlan = (frontMatter: string, files: string[] = []) => {
+    writeFileSync(
+      join(dir, 'plan.md'),
+      `---\n${frontMatter}\n---\n\n# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n`,
+    )
+    execFileSync('git', ['add', 'plan.md', ...files], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: premortem reference'], { cwd: dir })
+  }
+
+  it('#2890 AC-3: a PREMORTEM_* manifest path is a valid reference', () => {
+    ship({ advance: true, headSha: SHA_A })
+    mkdirSync(join(dir, 'docs'))
+    writeFileSync(join(dir, 'docs', 'PREMORTEM_2890.md'), '# premortem\n')
+    commitPlan('files:\n  - docs/PREMORTEM_2890.md', ['docs/PREMORTEM_2890.md'])
+    writeUnifiedState(dir, { premortem: requiredPremortem })
+    ship({ reviewRound: true, headSha: SHA_A })
+    expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
+  })
+
+  it.each([
+    ['a nonexistent file', 'PREMORTEM_MISSING.md'],
+    ['an empty file', 'EMPTY.md'],
+    ['a symlink to a real file', 'LINK.md'],
+    ['a directory', 'notes'],
+    ['a `..` segment, even back inside the repo', 'notes/../REAL.md'],
+    ['an absolute path, even inside the repo', '<abs>/REAL.md'],
+    ['the repo root itself', '.'],
+  ])('#2890 AC-3: a premortem reference to %s is refused', (_label, raw) => {
+    const ref = raw.replace('<abs>', dir)
+    ship({ advance: true, headSha: SHA_A })
+    writeFileSync(join(dir, 'EMPTY.md'), '')
+    writeFileSync(join(dir, 'REAL.md'), '# premortem notes\n')
+    symlinkSync('REAL.md', join(dir, 'LINK.md'))
+    mkdirSync(join(dir, 'notes'))
+    writeFileSync(join(dir, 'notes', 'n.md'), '# notes\n')
+    commitPlan(`premortem: ${ref}`, ['EMPTY.md', 'REAL.md', 'LINK.md', 'notes/n.md'])
+    writeUnifiedState(dir, { premortem: requiredPremortem })
+    expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/PREMORTEM REQUIRED/)
+    expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
+  })
+
   it('#2850 D6: an evidence-only commit keeps a PASS round; a source commit re-reviews', () => {
     const git = (...args: string[]) =>
       execFileSync('git', args, { cwd: dir, encoding: 'utf-8' }).trim()

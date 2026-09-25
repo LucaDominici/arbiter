@@ -527,6 +527,29 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     expect(log()).toContain('complete ← PR #7 MERGED')
   })
 
+  it('#2890 AC-5: the delivery record carries the premortem decision and the review rounds', () => {
+    writeUnifiedState(dir, {
+      premortem: {
+        decision: 'deterministic',
+        reason: 'R6-default',
+        areas: 1,
+        hooks: false,
+        templates: false,
+        workflows: false,
+        sensitive: false,
+        tier: 'Standard',
+      },
+      review: { rounds: 2, lastReviewedSha: 'a'.repeat(40) },
+    })
+    runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })
+    expect(log()).toMatch(/^.*complete ← PR #7 MERGED premortem=deterministic rounds=2$/m)
+  })
+
+  it('#2890 AC-5: a task with no premortem decision keeps the bare delivery record', () => {
+    runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })
+    expect(log()).toMatch(/complete ← PR #7 MERGED$/m)
+  })
+
   it('AC-2402.1: --pr names the PR the gate judges', () => {
     expect(() =>
       runTaskAdvance({
