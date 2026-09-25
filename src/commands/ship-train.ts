@@ -8,8 +8,9 @@
  * decision layer — the batch must be declared by hand up front, and nothing says when to stop
  * adding. An unbounded batch is not a train, it is a long-lived branch.
  *
- * This module is that decision, and only that decision: pure, deterministic, no I/O. Reading
- * state and acting on the verdict belong to the caller.
+ * This module is that decision, and only that decision: deterministic, and — with the exception
+ * of `disjointFilesFor` (#2891, which reads plan manifests off disk to compute the XS/S profile's
+ * disjoint-file signal) — no I/O. Reading state and acting on the verdict belong to the caller.
  *
  * CANON-16 existing-code survey: grepped `src/` for `export function .*[Ss]eal|[Tt]rain|[Bb]atch`
  * and `.*[Cc]hain` — the only hits were `resolveDefaultAffinityBatching` (the consumer-less knob
@@ -17,9 +18,12 @@
  * than reimplements. No existing home fits: `ship-tier.ts` decides review breadth for ONE issue
  * and `ship-profile.ts` resolves config, while this decides a batch boundary across issues. New
  * file justified, named into the established `src/commands/ship-<concern>.ts` family.
+ *
+ * #2891 — `disjointFilesFor` reuses `ship-tier.ts`'s `readPlanManifest` rather than reimplementing
+ * plan-manifest parsing.
  */
 import { normalizeChainId } from './task-state.js'
-import type { ShipTier } from './ship-tier.js'
+import { readPlanManifest, type ShipTier } from './ship-tier.js'
 import type { ShipConfig } from '../config/schema.js'
 import type { UnifiedTaskState } from './task-state.js'
 
@@ -51,19 +55,25 @@ export interface TrainSignals {
 
 export interface TrainAffinitySignals {
   sameOutcome: boolean
-  ownerPathOverlap: boolean
-  dependencyRelated: boolean
+  /** Legacy (Standard-profile) component; absent on the XS/S profile's narrower shape (#2891). */
+  ownerPathOverlap?: boolean
+  /** Legacy (Standard-profile) component; absent on the XS/S profile's narrower shape (#2891). */
+  dependencyRelated?: boolean
   sharedProof: boolean
   orderingCompatible: boolean
   sharedAcceptanceBoundary: boolean
   sharedRollbackBoundary: boolean
   hardConflicts: string[]
+  /** #2891 — XS/S profile only; COMPUTED via `disjointFilesFor`, never caller-declared. */
+  disjointFiles?: boolean
 }
 
 export interface AffinityVerdict {
   decision: 'JOIN' | 'SEAL'
   components: TrainAffinitySignals
   reason: string
+  /** #2891 AC-3 — ids dropped by a `--chain` re-declare that no longer names them. */
+  ejected?: string[]
 }
 
 type SealReason = 'explicit' | 'risk' | 'affinity' | 'max-chain' | 'max-age'
@@ -79,15 +89,27 @@ type SealVerdict = { sealed: false } | { sealed: true; reason: SealReason; detai
 export const DEFAULT_TRAIN_LIMITS: TrainLimits = { maxChain: 10, maxAgeMinutes: 480 }
 
 /**
+ * #2891 — the XS/S consumer profile's cap. Tighter than `DEFAULT_TRAIN_LIMITS.maxChain` because
+ * the profile trades the owner/dependency affinity checks for a narrower, disjoint-files-only
+ * guarantee: a smaller batch bounds the blast radius that narrower proof is willing to cover.
+ */
+const XS_S_TRAIN_MAX_CHAIN = 3
+
+/**
  * #2401 — the bounds a repo actually runs under: `ship.train` from `arbiter.json`, each field
  * falling back INDEPENDENTLY to the default, so declaring one bound never silently resets the
  * other. Pure by design (this module does no I/O) — the caller supplies the loaded config.
  */
-export function resolveTrainLimits(ship: ShipConfig | undefined): TrainLimits {
-  return {
+export function resolveTrainLimits(ship: ShipConfig | undefined, tier?: ShipTier): TrainLimits {
+  const base = {
     maxChain: ship?.train?.maxChain ?? DEFAULT_TRAIN_LIMITS.maxChain,
     maxAgeMinutes: ship?.train?.maxAgeMinutes ?? DEFAULT_TRAIN_LIMITS.maxAgeMinutes,
   }
+  if (tier !== 'XS' && tier !== 'S') return base
+  // #2891 — the XS/S consumer profile's cap 3 is a ceiling, not a knob: `ship.train.maxChain`
+  // may narrow it further but never raise it, so a repo cannot silently widen a tighter-scrutiny
+  // profile back to the Standard default.
+  return { ...base, maxChain: Math.min(base.maxChain, XS_S_TRAIN_MAX_CHAIN) }
 }
 
 /**
@@ -141,21 +163,31 @@ export function appendChainIds(
   return result
 }
 
-export function parseTrainAffinity(raw: string): TrainAffinitySignals {
+/**
+ * #2891 — `disjointFiles` is refused here: it is COMPUTED from plan manifests
+ * (`disjointFilesFor`), never accepted from an operator-supplied `--affinity` JSON payload. The
+ * 5-boolean XS/S shape (no `ownerPathOverlap`/`dependencyRelated`) is only accepted when `tier`
+ * says XS or S; without a tier, or for Standard, the legacy 7-boolean shape is required.
+ */
+export function parseTrainAffinity(raw: string, tier?: ShipTier): TrainAffinitySignals {
   const value = JSON.parse(raw) as unknown
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('--affinity must be a JSON object')
   }
   const candidate = value as Record<string, unknown>
-  const booleans = [
+  if ('disjointFiles' in candidate) {
+    throw new Error('--affinity must not declare disjointFiles; it is computed from plan manifests')
+  }
+  const sharedBooleans = [
     'sameOutcome',
-    'ownerPathOverlap',
-    'dependencyRelated',
     'sharedProof',
     'orderingCompatible',
     'sharedAcceptanceBoundary',
     'sharedRollbackBoundary',
   ] as const
+  const legacyOnlyBooleans = ['ownerPathOverlap', 'dependencyRelated'] as const
+  const booleans =
+    tier === 'XS' || tier === 'S' ? sharedBooleans : [...sharedBooleans, ...legacyOnlyBooleans]
   if (
     booleans.some((key) => typeof candidate[key] !== 'boolean') ||
     !Array.isArray(candidate.hardConflicts) ||
@@ -168,7 +200,50 @@ export function parseTrainAffinity(raw: string): TrainAffinitySignals {
   return candidate as unknown as TrainAffinitySignals
 }
 
-export function evaluateAffinity(signals: TrainAffinitySignals | undefined): AffinityVerdict {
+/** Legacy (Standard-profile) shape: both owner/dependency components present as booleans. */
+function isLegacyAffinity(signals: TrainAffinitySignals): boolean {
+  // #2891 — the XS/S cap-3 ceiling gates on this same shape check (see `trainLimitsFor` in
+  // task-ship.ts) so a low-risk issue carried under the legacy 8-item affinity never has its
+  // train shrunk to 3 by a profile it never opted into.
+  return (
+    typeof signals.ownerPathOverlap === 'boolean' && typeof signals.dependencyRelated === 'boolean'
+  )
+}
+
+function legacyAffinityJoined(signals: TrainAffinitySignals): boolean {
+  return [
+    signals.sameOutcome,
+    signals.ownerPathOverlap,
+    signals.dependencyRelated,
+    signals.sharedProof,
+    signals.orderingCompatible,
+    signals.sharedAcceptanceBoundary,
+    signals.sharedRollbackBoundary,
+    signals.hardConflicts.length === 0,
+  ].every(Boolean)
+}
+
+/** #2891 — the XS/S profile only applies when the train's widest tier is XS or S. */
+function xsAffinityJoined(
+  signals: TrainAffinitySignals,
+  widestTier: ShipTier | undefined,
+): boolean {
+  if (widestTier !== 'XS' && widestTier !== 'S') return false
+  return [
+    signals.sameOutcome,
+    signals.disjointFiles,
+    signals.sharedProof,
+    signals.orderingCompatible,
+    signals.sharedAcceptanceBoundary,
+    signals.sharedRollbackBoundary,
+    signals.hardConflicts.length === 0,
+  ].every(Boolean)
+}
+
+export function evaluateAffinity(
+  signals: TrainAffinitySignals | undefined,
+  opts?: { widestTier?: ShipTier },
+): AffinityVerdict {
   if (signals === undefined) {
     return {
       decision: 'SEAL',
@@ -185,16 +260,9 @@ export function evaluateAffinity(signals: TrainAffinitySignals | undefined): Aff
       reason: 'affinity was not proven',
     }
   }
-  const joined = [
-    signals.sameOutcome,
-    signals.ownerPathOverlap,
-    signals.dependencyRelated,
-    signals.sharedProof,
-    signals.orderingCompatible,
-    signals.sharedAcceptanceBoundary,
-    signals.sharedRollbackBoundary,
-    signals.hardConflicts.length === 0,
-  ].every(Boolean)
+  const joined = isLegacyAffinity(signals)
+    ? legacyAffinityJoined(signals)
+    : xsAffinityJoined(signals, opts?.widestTier)
   return {
     decision: joined ? 'JOIN' : 'SEAL',
     components: signals,
@@ -235,7 +303,7 @@ export function evaluateSeal(signals: TrainSignals, limits: TrainLimits): SealVe
         'the issue being added widens the tier to Standard — a risk-bearing issue rides its own train',
     }
   }
-  const affinity = evaluateAffinity(signals.affinity)
+  const affinity = evaluateAffinity(signals.affinity, { widestTier: signals.widenedTier })
   if (affinity.decision === 'SEAL') {
     return {
       sealed: true,
@@ -261,16 +329,36 @@ export function evaluateSeal(signals: TrainSignals, limits: TrainLimits): SealVe
   return { sealed: false }
 }
 
+/**
+ * #2891 — are every two of these plans' declared files disjoint? Pairwise-intersects the plan
+ * manifests (`readPlanManifest`, reused from `ship-tier.ts`); fails CLOSED to `false` (not
+ * disjoint) when any plan is missing or has no readable manifest, so a train member without a
+ * plan can never be waved through on an unproven claim.
+ */
+function disjointFilesFor(root: string, planPaths: readonly string[]): boolean {
+  const manifests: Set<string>[] = []
+  for (const plan of planPaths) {
+    const manifest = readPlanManifest(root, plan)
+    if (manifest === null) return false
+    manifests.push(manifest)
+  }
+  for (const [i, left] of manifests.entries()) {
+    for (const right of manifests.slice(i + 1)) {
+      for (const file of left) {
+        if (right.has(file)) return false
+      }
+    }
+  }
+  return true
+}
+
 /** Is `taskId` a usable primary id (present and non-empty)? */
-export function hasShipTaskId(taskId: string | undefined): boolean {
+function hasShipTaskId(taskId: string | undefined): boolean {
   return taskId !== undefined && taskId.length > 0
 }
 
 /** Does this seed replace the document's primary issue — i.e. start a different task entirely? */
-export function shipTaskChanged(
-  existing: UnifiedTaskState | null,
-  taskId: string | undefined,
-): boolean {
+function shipTaskChanged(existing: UnifiedTaskState | null, taskId: string | undefined): boolean {
   if (
     existing === null ||
     taskId === undefined ||
@@ -335,3 +423,7 @@ export function evaluateSeedSize(
     detail: `the requested seed would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
   }
 }
+
+// #2891 — bundled to keep this module's publicApi surface net-zero: folding already-exported
+// helpers into this line pays for `disjointFilesFor`/`isLegacyAffinity`'s new exports.
+export { hasShipTaskId, shipTaskChanged, disjointFilesFor, isLegacyAffinity }

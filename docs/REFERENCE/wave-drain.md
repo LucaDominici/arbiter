@@ -28,10 +28,13 @@ one exact-subject full gate, one PR, and one verified landing.
 2. Require explicit acceptance criteria, non-goals, and affected files/contracts. Unknown readiness
    excludes the issue from this wave.
 3. Compose a train only when every issue satisfies Ship affinity: same outcome, related ownership
-   or dependencies, compatible ordering, shared proof/acceptance/rollback boundaries, and no hard
-   conflict. Uncertainty seals the train.
+   or dependencies (disjoint files instead, on an XS/S-tier train — computed from plan manifests,
+   never declared), compatible ordering, shared proof/acceptance/rollback boundaries, and no hard
+   conflict. Uncertainty seals the train. `maxChain` is capped at 3 for an XS/S train.
 4. Invoke `arbiter ship #A #B --tier <tier> --affinity '<json>'`, then follow
-   `arbiter ship --advance`. The persisted treatment remains the only reviewer policy.
+   `arbiter ship --advance`. The persisted treatment remains the only reviewer policy. Re-declaring
+   `--chain` without a previously-joined id ejects it: the train re-freezes (review re-reads the
+   narrowed diff), and the ejected id keeps its own receipt and opens its own task/train.
 5. Optionally implement disjoint groups in isolated worktrees. One author owns each worktree;
    dependency edits, overlapping paths, main-tree edits, and tags remain serial.
    Expensive same-repository gates use `arbiter check run`; its lock releases when the gate-exec

@@ -10,7 +10,7 @@
  * is when the append decision happens.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -24,8 +24,9 @@ import {
 import type { TrainLimits } from '../../src/commands/ship-train'
 import { runTaskShip } from '../../src/commands/task-ship'
 import { runTaskInit } from '../../src/commands/task'
-import { readUnifiedState } from '../../src/commands/task-state'
+import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state'
 import type { ShipProfile } from '../../src/commands/ship-profile'
+import type { ShipTreatment } from '../../src/commands/ship-tier'
 
 const TEST_PROFILE: ShipProfile = {
   isArbiterSelf: false,
@@ -788,5 +789,261 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
       })
       expect(readUnifiedState(dir)?.chainIds).toEqual(['#101', '#102'])
     })
+  })
+})
+
+describe('XS/S train profile — cap 3, real disjointFiles, eject (#2891 sibling coverage)', () => {
+  /** The XS/S profile: no ownerPathOverlap / dependencyRelated, disjointFiles instead. */
+  const XS_AFFINITY = {
+    sameOutcome: true,
+    sharedProof: true,
+    orderingCompatible: true,
+    sharedAcceptanceBoundary: true,
+    sharedRollbackBoundary: true,
+    hardConflicts: [] as string[],
+  }
+
+  function writePlan(dir: string, id: string, files: readonly string[]): void {
+    mkdirSync(join(dir, '.claude', 'plans'), { recursive: true })
+    writeFileSync(
+      join(dir, `.claude/plans/task-${id}.md`),
+      `---\nfiles:\n${files.map((f) => `  - ${f}`).join('\n')}\n---\n\n# plan ${id}\n`,
+      'utf-8',
+    )
+  }
+
+  it('refuses a 4th id on an XS --chain seed (cap 3)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-seed-cap-'))
+    try {
+      expect(() =>
+        runTaskShip({
+          dir,
+          taskId: '#100',
+          tier: 'XS',
+          chainIds: ['#101', '#102', '#103'],
+          trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
+          profileOverride: TEST_PROFILE,
+        }),
+      ).toThrow(/SEALED: max-chain/)
+      expect(readUnifiedState(dir)).toBeNull()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses a 4th id via --chain-add on an XS train (cap 3)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-chainadd-cap-'))
+    try {
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        tier: 'XS',
+        chainIds: ['#101', '#102'],
+        trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      })
+      expect(() =>
+        runTaskShip({
+          dir,
+          taskId: '#100',
+          chainAddIds: ['#103'],
+          trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
+          profileOverride: TEST_PROFILE,
+        }),
+      ).toThrow(/SEALED: max-chain/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('ship.train.maxChain cannot raise the XS/S cap above 3', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-config-cap-'))
+    try {
+      writeFileSync(
+        join(dir, 'arbiter.json'),
+        JSON.stringify({
+          version: '0.2',
+          governanceLevel: 'L2',
+          tools: ['claude'],
+          useGitHub: false,
+          features: {
+            contractTesting: false,
+            mutationTesting: false,
+            securityScanning: false,
+            evidenceHarness: false,
+            debtGates: true,
+            suppressions: true,
+          },
+          thresholds: {
+            lineCoverage: 80,
+            branchCoverage: 70,
+            mutationScore: 80,
+            cyclomaticComplexity: 15,
+            methodLength: 65,
+            maxParams: 7,
+          },
+          ship: { train: { maxChain: 10 } },
+        }),
+      )
+      expect(() =>
+        runTaskShip({
+          dir,
+          taskId: '#100',
+          tier: 'XS',
+          chainIds: ['#101', '#102', '#103'],
+          trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
+          profileOverride: TEST_PROFILE,
+        }),
+      ).toThrow(/SEALED: max-chain/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses a swap (drop one, add a genuinely new one) even with good affinity', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-swap-'))
+    try {
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        tier: 'XS',
+        chainIds: ['#101'],
+        trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      })
+      const before = readUnifiedState(dir)
+      expect(() =>
+        runTaskShip({
+          dir,
+          taskId: '#100',
+          chainIds: ['#102'],
+          trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
+          profileOverride: TEST_PROFILE,
+        }),
+      ).toThrow(/SWAP REFUSED/)
+      expect(readUnifiedState(dir)).toEqual(before)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('computes disjointFiles from real plan manifests (no caller override): overlap seals', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-real-overlap-'))
+    try {
+      writePlan(dir, '100', ['src/a.ts', 'src/shared.ts'])
+      writePlan(dir, '101', ['src/shared.ts'])
+      expect(() =>
+        runTaskShip({
+          dir,
+          taskId: '#100',
+          tier: 'XS',
+          chainIds: ['#101'],
+          trainAffinity: XS_AFFINITY,
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
+          profileOverride: TEST_PROFILE,
+        }),
+      ).toThrow(/SEALED: affinity/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('computes disjointFiles from real plan manifests: a missing manifest seals (fail-closed)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-real-missing-'))
+    try {
+      writePlan(dir, '100', ['src/a.ts'])
+      // #101 has no plan manifest — fail-closed, never joins on an absent file list.
+      expect(() =>
+        runTaskShip({
+          dir,
+          taskId: '#100',
+          tier: 'XS',
+          chainIds: ['#101'],
+          trainAffinity: XS_AFFINITY,
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
+          profileOverride: TEST_PROFILE,
+        }),
+      ).toThrow(/SEALED: affinity/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('[XS, Standard] widest tier never uses the XS profile end-to-end — seals with reason risk', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-mixed-tier-'))
+    try {
+      expect(() =>
+        runTaskShip({
+          dir,
+          taskId: '#100',
+          tier: 'XS',
+          chainIds: ['#101'],
+          trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+          gatherTierSignals: (_root, id) =>
+            id === '#101' ? { ...LOW_RISK_SIGNALS, blastRadius: 999 } : LOW_RISK_SIGNALS,
+          profileOverride: TEST_PROFILE,
+        }),
+      ).toThrow(/SEALED: risk/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('eject clears the review freeze marker but keeps the round count, and narrows treatment', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-xs-eject-refreeze-'))
+    try {
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        tier: 'XS',
+        chainIds: ['#101', '#102'],
+        trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      })
+
+      // Seed a widened treatment + a frozen review round directly, as if a prior member had
+      // once widened the train to Standard and a review round had already pinned that diff.
+      const wideTreatment: ShipTreatment = {
+        version: 1,
+        requestedTier: 'XS',
+        tier: 'Standard',
+        sensitive: false,
+        planDepth: 'full',
+        finalReviewers: 2,
+        acceptanceFitReviewers: 1,
+        reviewerVerticals: ['domain', 'type-safety'],
+        modelCapability: 'capable',
+        qualifiedNarrow: false,
+        signalsHash: '0'.repeat(64),
+        reasons: ['seeded for #2891 eject test'],
+      }
+      writeUnifiedState(dir, {
+        treatment: wideTreatment,
+        review: { rounds: 1, lastReviewedSha: 'deadbeef' },
+      })
+
+      const result = runTaskShip({
+        dir,
+        taskId: '#100',
+        chainIds: ['#101'],
+        trainAffinity: { ...XS_AFFINITY, disjointFiles: true },
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      })
+      expect(result.trainDecision).toMatchObject({ ejected: ['#102'] })
+      const after = readUnifiedState(dir)
+      expect(after?.chainIds).toEqual(['#101'])
+      expect(after?.treatment?.tier).toBe('XS')
+      expect(after?.review).toMatchObject({ rounds: 1, lastReviewedSha: null })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

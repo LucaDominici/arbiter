@@ -65,6 +65,12 @@ namespaced acceptance criteria, RED evidence, a commit reference, and a closing 
 An issue declaring `conflicts-with:#N` shares a serial lane with `#N`; it never enters a parallel
 lane.
 
+**XS/S profile (#2891):** when the train's widest tier is XS or S, the proof drops owner-path
+overlap and dependency-relatedness in favor of `disjointFiles` — computed from each issue's plan
+manifest, never declared on `--affinity`. `ship.train.maxChain` is capped at 3 for this profile
+regardless of config; a Standard-tier member in the mix keeps the legacy 7-signal proof and the
+default cap.
+
 Record one cumulative plan with the complete file manifest, dependency proof, acceptance criteria,
 non-goals, rollback, and issue-to-proof mapping. Mechanical admission checks validate the plan and
 finish before implementation.
@@ -86,6 +92,16 @@ arbiter ship --advance
 Ship owns persisted treatment, TDD transitions, review policy, exact-subject evidence, recovery,
 PR, CI, merge, post-merge proof, issue closure, and cleanup. Never recompute its tier or reviewer
 panel from this skill.
+
+**Ejecting a member (#2891 AC-3):** re-declare `--chain` without a previously-joined id to drop
+it — `arbiter ship #A --chain #B` after seeding `#A,#B,#C` drops `#C`. Ship accepts the
+re-declare, reports the dropped id on `result.trainDecision.ejected`, and re-freezes the train
+(clears the pinned review sha, keeps the round count) so the next review round reads the narrowed
+diff, not the one the ejected member widened. The ejected id's own RED receipt and commits are
+untouched: it keeps its evidence and opens as its own task on its own train. Manually move its
+`Closes #N` out of this train's PR body into its own before landing either train. A **swap**
+(dropping one id while adding a different new one in the same call) is refused — eject alone, or
+grow with `--chain-add` alone, never both in one call.
 
 ## 4. Optional parallel implementation
 
