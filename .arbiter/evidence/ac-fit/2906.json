@@ -16,7 +16,7 @@
         },
         {
           "file": "src/evidence/tdd-reexecute.ts",
-          "line": 471
+          "line": 478
         }
       ]
     },
@@ -45,8 +45,8 @@
           "line": 170
         },
         {
-          "file": "src/evidence/tdd-reexecute.ts",
-          "line": 482
+          "file": "src/utils/error-catalog.ts",
+          "line": 401
         }
       ]
     },
@@ -63,26 +63,42 @@
           "line": 198
         },
         {
-          "file": "src/evidence/tdd-reexecute.ts",
-          "line": 453
+          "file": "__tests__/evidence/tdd-green-reexecute.test.ts",
+          "line": 364
         },
         {
           "file": "__tests__/evidence/tdd-green-reexecute.test.ts",
-          "line": 89
+          "line": 378
+        },
+        {
+          "file": "src/evidence/tdd-reexecute.ts",
+          "line": 516
         }
       ]
     },
     {
       "id": "AC-2906.4",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "evidence": [
-        {
-          "file": "src/commands/cross-model-review.ts",
-          "line": 519
-        },
         {
           "file": "__tests__/commands/cross-model-review.test.ts",
           "line": 1492
+        },
+        {
+          "file": "__tests__/commands/cross-model-review.test.ts",
+          "line": 1505
+        },
+        {
+          "file": "__tests__/commands/cross-model-review.test.ts",
+          "line": 1514
+        },
+        {
+          "file": "__tests__/commands/cross-model-review.test.ts",
+          "line": 1557
+        },
+        {
+          "file": "src/commands/cross-model-review.ts",
+          "line": 520
         }
       ]
     },
@@ -99,17 +115,17 @@
           "line": 216
         },
         {
-          "file": "__tests__/commands/cross-model-review.test.ts",
-          "line": 1492
+          "file": "__tests__/evidence/tdd-green-reexecute.test.ts",
+          "line": 163
         }
       ]
     }
   ],
   "branch": "task/#2906-test-amend",
-  "sha": "41f3adc90a924939ff54dee3d05ec175bef53e64",
+  "sha": "496e835d3673cb254da3fad0aa8bb0389f3df8cd",
   "planHash": "fa8aaa4349106f6ba83697e05dfb9de98c0e301a",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2906/domain-0.json",
-    "sha256": "0c301155d488b9093aba34571ac5136f397507c36c89a8a90aeb4f3449b8ce44"
+    "path": ".arbiter/evidence/agent-returns/_2906/domain-1.json",
+    "sha256": "4e080336e8071712006d561b11ced475e7963b90fa995cfa21876d3988fd852f"
   }
 }
