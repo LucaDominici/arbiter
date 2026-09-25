@@ -368,9 +368,9 @@ la loro autorità sorgente.
 ## 2026-09-26 — #2904: dal round 2 l'acceptance fit si giudica sulla base del task
 
 Dal secondo round il prompt congelato etichettava lo SHA del round precedente come `Base SHA` e
-inviava solo il delta, pur chiedendo l'acceptance fit su ogni criterio (Viafera #4610: NOT-TESTED al
+inviava solo il delta, pur chiedendo l'acceptance fit su ogni criterio (repo target, #4610: NOT-TESTED al
 round 2, CRITICAL falso al round 3). Ora ogni round invia il diff completo del task
-(`origin/main..HEAD`), lo etichetta `Task base SHA (acceptance fit)` e mostra il delta solo come
+(da `origin/main` alla HEAD), lo etichetta `Task base SHA (acceptance fit)` e mostra il delta solo come
 `Changed since last round (focus; …)`. Scartata l'opzione (b) dell'AC-1 (PASS riportati per hash dei
 file citati): più stato, stesso risultato. Limite noto: un diff del task oltre il cap di egress
 imposta `diffTruncated`; il delta resta nominato esplicitamente.
