@@ -1007,7 +1007,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'count=0\n' +
           'if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi\n' +
           'printf "%s" "$((count + 1))" > "$count_file"\n' +
-          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2357","criteria":[{"id":"AC-2357.1","verdict":"PASS","evidence":[{"file":"plan.md","line":4}]}]}}\\n\' > "$out"\n',
+          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2357","criteria":[{"id":"AC-2357.1","verdict":"PASS","evidence":[{"file":"plan.md","line":8}]}]}}\\n\' > "$out"\n',
       )
       chmodSync(codex, 0o755)
       mkdirSync(join(dir, '.codex'), { recursive: true })
@@ -1078,7 +1078,8 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       )
       writeFileSync(
         join(dir, 'plan.md'),
-        '# Review fixture\n\n## Acceptance Criteria\n- [ ] AC-2357.1: Reach  the `external` review seat.\n\n## Non-Goals\n- Do  not rewrite `dispatch`.\n',
+        // #2899: the premortem decision is computed from this manifest at the review freeze.
+        '---\nfiles:\n  - plan.md\n---\n# Review fixture\n\n## Acceptance Criteria\n- [ ] AC-2357.1: Reach  the `external` review seat.\n\n## Non-Goals\n- Do  not rewrite `dispatch`.\n',
       )
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })
@@ -1208,7 +1209,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         {
           id: 'AC-2357.1',
           verdict: 'PASS',
-          evidence: [{ file: 'plan.md', line: 4 }],
+          evidence: [{ file: 'plan.md', line: 8 }],
         },
       ])
       const sidecar = JSON.parse(
