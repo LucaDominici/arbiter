@@ -903,26 +903,49 @@ if (_inlineInspect('playwright rules', 'npx eslint --config eslint.config.playwr
 <% } else if(g.id === 'evidence-gate') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
-  // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  // Fails closed: absent, schema-invalid or sha-tampered SUMMARY.json all FAIL (#2887).
   const _evidenceStart = Date.now();
-  let _evidenceStatus = 'PASS';
+  let _evidenceStatus = 'FAIL'; // fail closed; only a complete, signed PASS summary flips it
   process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
   {
     const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
     if (!existsSync(_summaryPath)) {
-      console.log('WARN — .evidence/SUMMARY.json absent (run nightly pipeline first)');
+      console.log('FAIL — .evidence/SUMMARY.json absent (run: node scripts/evidence-collect.mjs)');
     } else {
       try {
         const _summary = JSON.parse(readFileSync(_summaryPath, 'utf-8'));
-        if (_summary.obs_gate === 'PASS') {
+        const _reqFields = ['head_sha', 'head_sha_short', 'obs_gate', 'tests', 'coverage', 'mutation', 'security'];
+        const _missing =
+          _summary && typeof _summary === 'object' && !Array.isArray(_summary)
+            ? _reqFields.filter((k) => _summary[k] == null)
+            : _reqFields;
+        const _obsGateValid = _summary && (_summary.obs_gate === 'PASS' || _summary.obs_gate === 'FAIL');
+        const { sha: _summarySha, ..._summaryBody } = _summary && typeof _summary === 'object' ? _summary : {};
+        const _canonicalise = (v) => {
+          if (Array.isArray(v)) return v.map(_canonicalise);
+          if (v !== null && typeof v === 'object') {
+            const out = {};
+            for (const k of Object.keys(v).sort()) out[k] = _canonicalise(v[k]);
+            return out;
+          }
+          return v;
+        };
+        const _computeSummarySha = (body) =>
+          createHash('sha256').update(JSON.stringify(_canonicalise(body))).digest('hex');
+        if (_missing.length) {
+          console.log('FAIL (SUMMARY.json missing: ' + _missing.join(', ') + ')');
+        } else if (!_obsGateValid) {
+          console.log('FAIL (obs_gate must be PASS or FAIL, got ' + _summary.obs_gate + ')');
+        } else if (_summarySha !== _computeSummarySha(_summaryBody)) {
+          console.log('FAIL (SUMMARY.json sha mismatch)');
+        } else if (_summary.obs_gate === 'PASS') {
           console.log('PASS');
+          _evidenceStatus = 'PASS';
         } else {
           console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
-          _evidenceStatus = 'FAIL';
         }
       } catch {
         console.log('FAIL (could not parse .evidence/SUMMARY.json)');
-        _evidenceStatus = 'FAIL';
       }
     }
   }
@@ -1294,26 +1317,49 @@ if (_inlineInspect('playwright rules', 'npx eslint --config eslint.config.playwr
 <% } else if(g.id === 'evidence-gate') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
-  // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  // Fails closed: absent, schema-invalid or sha-tampered SUMMARY.json all FAIL (#2887).
   const _evidenceStart = Date.now();
-  let _evidenceStatus = 'PASS';
+  let _evidenceStatus = 'FAIL'; // fail closed; only a complete, signed PASS summary flips it
   process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
   {
     const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
     if (!existsSync(_summaryPath)) {
-      console.log('WARN — .evidence/SUMMARY.json absent (run nightly pipeline first)');
+      console.log('FAIL — .evidence/SUMMARY.json absent (run: node scripts/evidence-collect.mjs)');
     } else {
       try {
         const _summary = JSON.parse(readFileSync(_summaryPath, 'utf-8'));
-        if (_summary.obs_gate === 'PASS') {
+        const _reqFields = ['head_sha', 'head_sha_short', 'obs_gate', 'tests', 'coverage', 'mutation', 'security'];
+        const _missing =
+          _summary && typeof _summary === 'object' && !Array.isArray(_summary)
+            ? _reqFields.filter((k) => _summary[k] == null)
+            : _reqFields;
+        const _obsGateValid = _summary && (_summary.obs_gate === 'PASS' || _summary.obs_gate === 'FAIL');
+        const { sha: _summarySha, ..._summaryBody } = _summary && typeof _summary === 'object' ? _summary : {};
+        const _canonicalise = (v) => {
+          if (Array.isArray(v)) return v.map(_canonicalise);
+          if (v !== null && typeof v === 'object') {
+            const out = {};
+            for (const k of Object.keys(v).sort()) out[k] = _canonicalise(v[k]);
+            return out;
+          }
+          return v;
+        };
+        const _computeSummarySha = (body) =>
+          createHash('sha256').update(JSON.stringify(_canonicalise(body))).digest('hex');
+        if (_missing.length) {
+          console.log('FAIL (SUMMARY.json missing: ' + _missing.join(', ') + ')');
+        } else if (!_obsGateValid) {
+          console.log('FAIL (obs_gate must be PASS or FAIL, got ' + _summary.obs_gate + ')');
+        } else if (_summarySha !== _computeSummarySha(_summaryBody)) {
+          console.log('FAIL (SUMMARY.json sha mismatch)');
+        } else if (_summary.obs_gate === 'PASS') {
           console.log('PASS');
+          _evidenceStatus = 'PASS';
         } else {
           console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
-          _evidenceStatus = 'FAIL';
         }
       } catch {
         console.log('FAIL (could not parse .evidence/SUMMARY.json)');
-        _evidenceStatus = 'FAIL';
       }
     }
   }
@@ -1758,26 +1804,49 @@ if (_inlineInspect('playwright rules', 'npx eslint --config eslint.config.playwr
 <% } else if(g.id === 'evidence-gate') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
-  // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  // Fails closed: absent, schema-invalid or sha-tampered SUMMARY.json all FAIL (#2887).
   const _evidenceStart = Date.now();
-  let _evidenceStatus = 'PASS';
+  let _evidenceStatus = 'FAIL'; // fail closed; only a complete, signed PASS summary flips it
   process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
   {
     const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
     if (!existsSync(_summaryPath)) {
-      console.log('WARN — .evidence/SUMMARY.json absent (run nightly pipeline first)');
+      console.log('FAIL — .evidence/SUMMARY.json absent (run: node scripts/evidence-collect.mjs)');
     } else {
       try {
         const _summary = JSON.parse(readFileSync(_summaryPath, 'utf-8'));
-        if (_summary.obs_gate === 'PASS') {
+        const _reqFields = ['head_sha', 'head_sha_short', 'obs_gate', 'tests', 'coverage', 'mutation', 'security'];
+        const _missing =
+          _summary && typeof _summary === 'object' && !Array.isArray(_summary)
+            ? _reqFields.filter((k) => _summary[k] == null)
+            : _reqFields;
+        const _obsGateValid = _summary && (_summary.obs_gate === 'PASS' || _summary.obs_gate === 'FAIL');
+        const { sha: _summarySha, ..._summaryBody } = _summary && typeof _summary === 'object' ? _summary : {};
+        const _canonicalise = (v) => {
+          if (Array.isArray(v)) return v.map(_canonicalise);
+          if (v !== null && typeof v === 'object') {
+            const out = {};
+            for (const k of Object.keys(v).sort()) out[k] = _canonicalise(v[k]);
+            return out;
+          }
+          return v;
+        };
+        const _computeSummarySha = (body) =>
+          createHash('sha256').update(JSON.stringify(_canonicalise(body))).digest('hex');
+        if (_missing.length) {
+          console.log('FAIL (SUMMARY.json missing: ' + _missing.join(', ') + ')');
+        } else if (!_obsGateValid) {
+          console.log('FAIL (obs_gate must be PASS or FAIL, got ' + _summary.obs_gate + ')');
+        } else if (_summarySha !== _computeSummarySha(_summaryBody)) {
+          console.log('FAIL (SUMMARY.json sha mismatch)');
+        } else if (_summary.obs_gate === 'PASS') {
           console.log('PASS');
+          _evidenceStatus = 'PASS';
         } else {
           console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
-          _evidenceStatus = 'FAIL';
         }
       } catch {
         console.log('FAIL (could not parse .evidence/SUMMARY.json)');
-        _evidenceStatus = 'FAIL';
       }
     }
   }

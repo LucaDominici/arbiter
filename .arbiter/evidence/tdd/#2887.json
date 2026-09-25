@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2887",
+  "test_path": "__tests__/generators/check-all.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "1286f10c9924d4ac2c9f93089bf85a1e72af29ee",
+  "test_blob_sha": "f84a6fd3cd82c0a0f0bd811f2fbf7ec154c9c815",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/generators/check-all.test.ts (117 tests | 2 failed) 3767ms\n       × evidence gate fails closed on absent / schema-invalid / tampered SUMMARY.json (A03-007, #2887) 128ms\n       × TS collector fails closed on failed tools and stale reports (A03-008, #2887) 90ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 115 passed (117)\n   Start at  06:19:22\n   Duration  4.65s (transform 784ms, setup 9ms, import 780ms, tests 3.77s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/generators/check-all.test.ts > generateCheckAll > generated observation integrity (#2887) > evidence gate fails closed on absent / schema-invalid / tampered SUMMARY.json (A03-007, #2887)\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/generators/check-all.test.ts:575:22\n    573|       expect(gate()).toBe(1) // control: explicit FAIL\n    574|       rmSync(summary)\n    575|       expect(gate()).toBe(1) // AC-2887.1: absent must FAIL, not WARN-…\n       |                      ^\n    576|       put(summary, { obs_gate: 'PASS' })\n    577|       expect(gate()).toBe(1) // AC-2887.2: schema-invalid (missing req…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/generators/check-all.test.ts > generateCheckAll > generated observation integrity (#2887) > TS collector fails closed on failed tools and stale reports (A03-008, #2887)\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/generators/check-all.test.ts:613:28\n    611|       shim(bin, 'npx', 'echo INVALID; exit 1')\n    612|       shim(bin, 'trivy', 'echo INVALID; exit 1')\n    613|       expect(run().status).toBe(1) // AC-2887.6/7: tool failure + stal…\n       |                            ^\n    614|       expect(obs()).toBe('FAIL')\n    615|       // Tool exit 0 but empty stdout must also FAIL (AC-2887.6).\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/generators/check-all.test.ts",
+  "recorded_at": "2026-09-25T04:19:26.736Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/generators/check-all.test.ts"
+  ]
+}

@@ -7,7 +7,7 @@
 // Usage: node scripts/evidence-collect.mjs
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Mirrors src/risk/sha-check.ts — inline so this script runs without a build step.
@@ -32,19 +32,39 @@ const COVERAGE_THRESHOLD = <%= coverageThreshold || 80 %>;
 mkdirSync(EVIDENCE_DIR, { recursive: true });
 
 const start = Date.now();
+const failed = []; // #2887: 'dimension:reason' entries — any entry forces obs_gate FAIL
+function toolFailed(dim, r) {
+  if (r.error || r.status !== 0) {
+    failed.push(dim + ':exit=' + (r.error ? r.error.code : r.status));
+    return true;
+  }
+  return false;
+}
+function freshJson(p, dim) {
+  // #2887: refuse report files not written by THIS run (stale-report fail-open class).
+  if (!existsSync(p) || statSync(p).mtimeMs < start) {
+    failed.push(dim + ':stale-or-missing');
+    throw new Error('stale');
+  }
+  return JSON.parse(readFileSync(p, 'utf-8'));
+}
 
 /** @returns {{ total: number, passed: number, failed: number, skipped: number }} */
 function collectTestResults() {
   const result = { total: 0, passed: 0, failed: 0, skipped: 0 };
 <% if (language === 'typescript') { %>
   const r = spawnSync('npx', ['vitest', 'run', '--reporter=json'], { encoding: 'utf-8', shell: false });
+  toolFailed('tests', r);
   try {
-    const json = JSON.parse(r.stdout || '{}');
+    const json = JSON.parse(r.stdout);
     result.total = json.numTotalTests ?? 0;
     result.passed = json.numPassedTests ?? 0;
     result.failed = json.numFailedTests ?? 0;
     result.skipped = json.numPendingTests ?? 0;
-  } catch { /* test output not JSON-parseable, leave defaults */ }
+  } catch (e) {
+    failed.push('tests:unparsable');
+    console.error('[evidence-collect] tests: unparsable output:', e.message);
+  }
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   const r = spawnSync('./gradlew', ['test', '-q'], { encoding: 'utf-8', shell: false });
   result.failed = r.status !== 0 ? 1 : 0;
@@ -88,14 +108,18 @@ function collectCoverage() {
   const r = spawnSync('npx', ['vitest', 'run', '--coverage', '--coverage.reporter=json', '--reporter=silent'], {
     encoding: 'utf-8', shell: false,
   });
+  toolFailed('coverage', r);
   try {
-    const coverageJson = JSON.parse(readFileSync('coverage/coverage-summary.json', 'utf-8'));
+    const coverageJson = freshJson('coverage/coverage-summary.json', 'coverage');
     const total = coverageJson.total;
     return {
       line: (total?.lines?.pct ?? 0) / 100,
       branch: (total?.branches?.pct ?? 0) / 100,
     };
-  } catch { return { line: 0, branch: 0 }; }
+  } catch (e) {
+    if (e.message !== 'stale') { failed.push('coverage:unparsable'); console.error('[evidence-collect] coverage: unparsable report:', e.message); }
+    return { line: 0, branch: 0 };
+  }
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   spawnSync('./gradlew', ['jacocoTestReport', '-q'], { encoding: 'utf-8', shell: false });
   return { line: 0, branch: 0 };
@@ -140,11 +164,15 @@ function collectMutationScore() {
 <% if (language === 'typescript') { %>
   if (!existsSync('stryker.conf.json')) return { score: 0 };
   const r = spawnSync('npx', ['stryker', 'run', '--reporters', 'json'], { encoding: 'utf-8', shell: false });
+  toolFailed('mutation', r);
   try {
-    const report = JSON.parse(readFileSync('reports/mutation/mutation.json', 'utf-8'));
+    const report = freshJson('reports/mutation/mutation.json', 'mutation');
     const score = report.metrics?.mutationScore ?? 0;
     return { score: score / 100 };
-  } catch { return { score: 0 }; }
+  } catch (e) {
+    if (e.message !== 'stale') { failed.push('mutation:unparsable'); console.error('[evidence-collect] mutation: unparsable report:', e.message); }
+    return { score: 0 };
+  }
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   if (!existsSync('gradle/pitest.gradle')) return { score: 0 };
   spawnSync('./gradlew', ['pitest', '-q'], { encoding: 'utf-8', shell: false });
@@ -170,18 +198,22 @@ function collectSecurityFindings() {
   const r = spawnSync('trivy', ['fs', '--format', 'json', '--severity', 'CRITICAL,HIGH', '.'], {
     encoding: 'utf-8', shell: false,
   });
+  toolFailed('security', r);
   try {
-    const report = JSON.parse(r.stdout || '{}');
+    const report = JSON.parse(r.stdout);
+    if (!Array.isArray(report.Results)) throw new Error('missing Results array');
     let critical = 0;
     let high = 0;
-    for (const result of (report.Results ?? [])) {
+    for (const result of report.Results) {
       for (const vuln of (result.Vulnerabilities ?? [])) {
         if (vuln.Severity === 'CRITICAL') critical++;
         if (vuln.Severity === 'HIGH') high++;
       }
     }
     return { critical, high };
-  } catch {
+  } catch (e) {
+    failed.push('security:unparsable');
+    console.error('[evidence-collect] security: unparsable output:', e.message);
     return { critical: 0, high: 0 };
   }
 }
@@ -203,7 +235,7 @@ const mutationOk = mutation.score >= MUTATION_THRESHOLD / 100;
 const testsOk = tests.failed === 0;
 const securityOk = security.critical === 0;
 
-const obs_gate = (coverageOk && mutationOk && testsOk && securityOk) ? 'PASS' : 'FAIL';
+const obs_gate = (failed.length === 0 && coverageOk && mutationOk && testsOk && securityOk) ? 'PASS' : 'FAIL';
 
 const summaryBody = {
   // #1316: persist the resolved stack so `arbiter check` classifies against the
@@ -213,6 +245,9 @@ const summaryBody = {
   head_sha,
   head_sha_short,
   obs_gate,
+  // #2887: names which dimension(s) forced a FAIL (tool exit, ENOENT, unparsable
+  // or stale report) — signed inside the body so it can't be dropped silently.
+  failed_dimensions: failed,
   timestamp: new Date().toISOString(),
   commit,
   duration_seconds: duration,

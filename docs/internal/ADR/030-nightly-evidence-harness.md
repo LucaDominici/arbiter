@@ -53,16 +53,25 @@ The load-test job in `nightly.yml` runs `k6 run <%= k6ScriptPath %>` against a c
 
 `obs_gate = PASS` requires: `tests.failed == 0`, `coverage.line >= threshold`, `mutation.score >= threshold`, `security.critical == 0`.
 
-The schema is intentionally minimal. Future fields (archetype, retention, environment) can be added without breaking existing consumers because `check-all.mjs` only reads `obs_gate`.
+The schema is intentionally minimal. Future fields (archetype, retention, environment) can be added without breaking existing consumers because `check-all.mjs` reads `obs_gate` plus a small required-field set for schema/sha validation (see below).
 
-### 4. Evidence gate is hard (INV-33) but warns when absent
+### 4. Evidence gate fails closed (INV-33), including on first run (#2887)
 
-`check-all.mjs` L3 block reads `.evidence/SUMMARY.json`:
+`check-all.mjs` L3/L4 block reads `.evidence/SUMMARY.json`:
 
-- **Absent** → `WARN` (first run; nightly has not yet executed)
-- **Present, `obs_gate != PASS`** → `FAIL` (hard gate)
+- **Absent** → `FAIL` (no more WARN-and-PASS; the message names the collector command to run)
+- **Not an object, or missing a required field** (`head_sha`, `head_sha_short`, `obs_gate`,
+  `tests`, `coverage`, `mutation`, `security`) → `FAIL`
+- **`obs_gate` not `PASS`/`FAIL`** → `FAIL`
+- **Signed `sha` does not match the canonicalised body** (tampered summary) → `FAIL`
+- **`obs_gate: FAIL`** → `FAIL` (hard gate)
+- **Complete, sha-consistent, `obs_gate: PASS`** → `PASS`
 
-This avoids blocking L3 bootstrapping (day-zero has no evidence) while still enforcing the gate once the nightly has run.
+First-run consumers that previously relied on the WARN-and-PASS bootstrap now see the gate
+FAIL until `evidence-collect.mjs` has produced a signed summary at least once. The collector
+itself also fails closed: any tool failure (`npx`/`trivy` nonzero exit, ENOENT, unparsable
+output) or a stale coverage/mutation report (mtime predating the run) is recorded in a signed
+`failed_dimensions` list and forces `obs_gate: FAIL`.
 
 ### 5. Change detection is advisory only
 

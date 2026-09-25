@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
+import {
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  mkdirSync,
+  existsSync,
+  chmodSync,
+  utimesSync,
+} from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -509,6 +519,104 @@ describe('generateCheckAll', () => {
         rmSync(target, { recursive: true, force: true })
       }
     }
+  })
+
+  // #2887 (A03-007/A03-008): the emitted evidence gate and TypeScript collector must
+  // fail closed on absent/invalid/stale evidence, not turn it into a silent PASS.
+  describe('generated observation integrity (#2887)', () => {
+    function canonicalise(v: unknown): unknown {
+      if (Array.isArray(v)) return v.map(canonicalise)
+      if (v !== null && typeof v === 'object') {
+        const out: Record<string, unknown> = {}
+        for (const k of Object.keys(v as Record<string, unknown>).sort())
+          out[k] = canonicalise((v as Record<string, unknown>)[k])
+        return out
+      }
+      return v
+    }
+    function sha(body: Record<string, unknown>): string {
+      return createHash('sha256')
+        .update(JSON.stringify(canonicalise(body)))
+        .digest('hex')
+    }
+    function put(path: string, value: unknown): void {
+      mkdirSync(join(path, '..'), { recursive: true })
+      writeFileSync(path, JSON.stringify(value, null, 2))
+    }
+    function shim(bin: string, name: string, body: string): void {
+      const file = join(bin, name)
+      writeFileSync(file, `#!/bin/sh\n${body}\n`)
+      chmodSync(file, 0o755)
+    }
+
+    it('evidence gate fails closed on absent / schema-invalid / tampered SUMMARY.json (A03-007, #2887)', () => {
+      generateCheckAll(makeConfig(dir, { governanceLevel: 'L4', language: 'typescript' }))
+      const summary = join(dir, '.evidence', 'SUMMARY.json')
+      const gate = (): number | null =>
+        spawnSync(
+          process.execPath,
+          [join(dir, 'scripts', 'check-all.mjs'), 'L4', '--gate', 'evidence-gate'],
+          { cwd: dir, encoding: 'utf-8', timeout: 20_000 },
+        ).status
+      const body = {
+        head_sha: 'a'.repeat(40),
+        head_sha_short: 'aaaaaaa',
+        obs_gate: 'PASS',
+        tests: { total: 1, passed: 1, failed: 0, skipped: 0 },
+        coverage: { line: 100, branch: 100 },
+        mutation: { score: 100, threshold: 80 },
+        security: { critical: 0, high: 0 },
+      }
+      put(summary, { ...body, sha: sha(body) })
+      expect(gate()).toBe(0) // control: complete, sha-consistent, PASS
+      put(summary, { ...body, obs_gate: 'FAIL', sha: sha({ ...body, obs_gate: 'FAIL' }) })
+      expect(gate()).toBe(1) // control: explicit FAIL
+      rmSync(summary)
+      expect(gate()).toBe(1) // AC-2887.1: absent must FAIL, not WARN-and-PASS
+      put(summary, { obs_gate: 'PASS' })
+      expect(gate()).toBe(1) // AC-2887.2: schema-invalid (missing required fields)
+      put(summary, { ...body, sha: '0000' })
+      expect(gate()).toBe(1) // AC-2887.3: sha tampered
+    })
+
+    it('TS collector fails closed on failed tools and stale reports (A03-008, #2887)', () => {
+      generateCheckAll(makeConfig(dir, { governanceLevel: 'L3', language: 'typescript' }))
+      const bin = join(dir, '.bin')
+      mkdirSync(bin)
+      const run = (): { status: number | null } =>
+        spawnSync(process.execPath, [join(dir, 'scripts', 'evidence-collect.mjs')], {
+          cwd: dir,
+          encoding: 'utf-8',
+          env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}` },
+        })
+      const obs = (): string =>
+        JSON.parse(readFileSync(join(dir, '.evidence', 'SUMMARY.json'), 'utf-8')).obs_gate
+      writeFileSync(join(dir, 'stryker.conf.json'), '{}')
+      const cov = join(dir, 'coverage', 'coverage-summary.json')
+      const mut = join(dir, 'reports', 'mutation', 'mutation.json')
+      // Green control: shims exit 0 AND rewrite the reports so they are fresh (mtime >= run start).
+      shim(
+        bin,
+        'npx',
+        `echo '{"numTotalTests":3,"numPassedTests":3,"numFailedTests":0,"numPendingTests":0}'; ` +
+          `mkdir -p coverage reports/mutation; echo '{"total":{"lines":{"pct":100},"branches":{"pct":100}}}' > ${cov}; ` +
+          `echo '{"metrics":{"mutationScore":100}}' > ${mut}`,
+      )
+      shim(bin, 'trivy', `echo '{"Results":[]}'`)
+      expect(run().status).toBe(0)
+      expect(obs()).toBe('PASS')
+      // Stale: reports untouched from a previous run, tools now fail.
+      utimesSync(cov, 1, 1)
+      utimesSync(mut, 1, 1)
+      shim(bin, 'npx', 'echo INVALID; exit 1')
+      shim(bin, 'trivy', 'echo INVALID; exit 1')
+      expect(run().status).toBe(1) // AC-2887.6/7: tool failure + stale reports must FAIL
+      expect(obs()).toBe('FAIL')
+      // Tool exit 0 but empty stdout must also FAIL (AC-2887.6).
+      shim(bin, 'npx', ':')
+      shim(bin, 'trivy', ':')
+      expect(run().status).toBe(1)
+    })
   })
 
   it('wires the generated docs index drift check at L2+ (#2214)', () => {
