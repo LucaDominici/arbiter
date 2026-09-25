@@ -195,7 +195,7 @@ interface PremortemDecision {
  * consumer-xs > default. AC-2 lists the consumer-xs skip as rule (1) and workflows as rule (5)
  * after sensitive as rule (3); both are evaluated earlier here on purpose (premortem brief §1):
  * `.github/workflows/**` always matches the `deployment` SENSITIVE_PATHS entry, so sensitive
- * must be checked after workflows or rule 5 is unreachable (owner-approved 2026-09-25); and
+ * must be checked after workflows or rule 5 is unreachable (the brief's recommended order); and
  * hooks/templates/workflows must be checked before the consumer-xs skip or an XS plan that only
  * touches `__snapshots__/` or `packages/kernel/hooks/` would wrongly skip the premortem.
  */
