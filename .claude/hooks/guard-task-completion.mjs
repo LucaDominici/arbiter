@@ -64,27 +64,6 @@ function readPanelTotal(root) {
   }
 }
 
-// Quoted spans (backticks, quotes, blockquote lines) never count as a claim.
-const QUOTED = /`[^`\n]*`|"[^"\n]*"|'[^'\n]*'|^[ \t]*>.*$/gm
-// A negation word earlier in the same sentence turns a match into a non-claim.
-const NEGATION =
-  /\b(not|never|no|isn'?t|aren'?t|wasn'?t|without|pending|before|until|yet|unless|cannot|can'?t|haven'?t|hasn'?t)\b/i
-
-// Sentence-level: strip quoted spans, then reject any match preceded by a negation
-// word within the same sentence. "not only" is an intensifier idiom, not a real
-// negation of what follows, so it is stripped before the negation check.
-function isCompletionClaim(text) {
-  return text
-    .replace(QUOTED, ' ')
-    .split(/(?<=[.!?])\s+|\n+/)
-    .some((sentence) => {
-      const m = COMPLETION_PATTERNS.exec(sentence)
-      if (m === null) return false
-      const prefix = sentence.slice(0, m.index).replace(/\bnot\s+only\b/gi, '')
-      return !NEGATION.test(prefix)
-    })
-}
-
 function readMarker(path) {
   if (!existsSync(path)) return null
   try {
@@ -113,7 +92,7 @@ if (claimText === null) process.exit(0)
 // Completion claim patterns
 const COMPLETION_PATTERNS =
   /\b(task (is )?(complete|completed|done|finished)|task complete|task completed|all phases complete|work is (done|complete)|implementation (is )?(complete|done|finished)|pr merged|merged to main|wrapping up|ready to (merge|close)|shipped)\b/i
-if (!isCompletionClaim(claimText)) process.exit(0)
+if (!COMPLETION_PATTERNS.test(claimText)) process.exit(0)
 
 // Completion claimed before the task reached the complete phase.
 const dispatched = readDispatched(root, taskId)

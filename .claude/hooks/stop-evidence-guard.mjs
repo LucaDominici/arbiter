@@ -31,29 +31,6 @@ try {
   evidenceBinding = null
 }
 
-// Quoted spans (backticks, quotes, blockquote lines) never count as a claim.
-const QUOTED = /`[^`\n]*`|"[^"\n]*"|'[^'\n]*'|^[ \t]*>.*$/gm
-// A negation word earlier in the same sentence turns a match into a non-claim.
-// "not only" is an intensifier idiom, not a real negation of what follows, so it
-// is stripped before the negation check.
-const NEGATION =
-  /\b(not|never|no|isn'?t|aren'?t|wasn'?t|without|pending|before|until|yet|unless|cannot|can'?t|haven'?t|hasn'?t)\b/i
-
-// Sentence-level classifier shared with guard-task-completion.mjs.ejs (#2885): strips
-// quoted spans, then rejects any match preceded by a negation word in the same
-// sentence, so this hook does not re-block a message the completion guard allows.
-function isCompletionClaim(text, pattern) {
-  return text
-    .replace(QUOTED, ' ')
-    .split(/(?<=[.!?])\s+|\n+/)
-    .some((sentence) => {
-      const m = pattern.exec(sentence)
-      if (m === null) return false
-      const prefix = sentence.slice(0, m.index).replace(/\bnot\s+only\b/gi, '')
-      return !NEGATION.test(prefix)
-    })
-}
-
 function main() {
   // --- stdin (Stop event payload) -------------------------------------------
   let input = {}
@@ -92,7 +69,7 @@ function main() {
   if (claimText === null) process.exit(0) // missing/unreadable transcript → stand down
   const COMPLETION_PATTERNS =
     /\b(task (is )?(complete|completed|done|finished)|task complete|task completed|all phases complete|work is (done|complete)|implementation (is )?(complete|done|finished)|pr merged|merged to main|wrapping up|ready to (merge|close)|shipped)\b/i
-  if (!isCompletionClaim(claimText, COMPLETION_PATTERNS)) {
+  if (!COMPLETION_PATTERNS.test(claimText)) {
     // #1402 — end-of-task reflection sweep: a non-blocking nudge to drain seen-but-unrecorded
     // findings. Only fires when undrained findings exist; never changes the exit code.
     reflectionSweep(root)
