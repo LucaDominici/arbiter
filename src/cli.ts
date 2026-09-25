@@ -2176,11 +2176,17 @@ function shipReviewFlags(opts: { reviewRound: boolean; forceReview: boolean }): 
 }
 
 function shipAdaptiveFlags(opts: {
+  tier?: string
   affinity?: string
   outcome?: import('./commands/ship-tier.js').ShipExecutionOutcome
 }): Partial<Pick<TaskShipOptions, 'trainAffinity' | 'executionOutcome'>> {
+  // #2891 — the XS/S 5-boolean affinity shape only validates when the caller's own --tier
+  // says XS/S; otherwise --affinity still expects the legacy 7-boolean shape.
+  const xsTier = opts.tier === 'XS' || opts.tier === 'S' ? opts.tier : undefined
   return {
-    ...(opts.affinity !== undefined ? { trainAffinity: parseTrainAffinity(opts.affinity) } : {}),
+    ...(opts.affinity !== undefined
+      ? { trainAffinity: parseTrainAffinity(opts.affinity, xsTier) }
+      : {}),
     ...(opts.outcome !== undefined ? { executionOutcome: opts.outcome } : {}),
   }
 }
