@@ -309,6 +309,41 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
+  // #2885 review: negation/quotation heuristics were descoped (they failed open), so
+  // a claim with unrelated negation or apostrophes around it still blocks.
+  it.each([
+    'Current state (not complete — phase remains refactor): task complete.',
+    'That phrasing ("task complete") tripped a guard.',
+    'There are no open issues; implementation complete.',
+    "I'm done; task complete; I'm signing off.",
+  ])('#2885 exits 2 on a claim despite negation or quotes (no evidence): %s', (text) => {
+    const { dir, hookPath } = setup()
+    try {
+      const t = writeTranscript(dir, [{ type: 'assistant', blocks: [{ type: 'text', text }] }])
+      const r = runHook(hookPath, dir, { transcript_path: t })
+      expect(r.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('#2885 still exits 2 on a real claim disguised with "not only" (regression)', () => {
+    const { dir, hookPath } = setup()
+    try {
+      // No evidence recorded — a real claim must still block.
+      const t = writeTranscript(dir, [
+        {
+          type: 'assistant',
+          blocks: [{ type: 'text', text: 'not only is the task complete but merged' }],
+        },
+      ])
+      const r = runHook(hookPath, dir, { transcript_path: t })
+      expect(r.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('exits 0 when the transcript has no completion claim', () => {
     const { dir, hookPath } = setup()
     try {

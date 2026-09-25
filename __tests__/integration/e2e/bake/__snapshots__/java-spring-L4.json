@@ -362,7 +362,7 @@
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/exitplanmode-banner.mjs": "2542fcd141fcfd27ffb872b7a624c9bdfc1a42bcc9ab8cf2bd16da0a32952e55",
     ".claude/hooks/guard-done-evidence.mjs": "bbfaa562859f122ed4f652a534cefdd7e224ba97b7f677f8f3a8a7515eb60972",
-    ".claude/hooks/guard-task-completion.mjs": "c4c58169ac5f0c649d3131d1977f9037595f2d433bacfc133923d77ba61ec9d0",
+    ".claude/hooks/guard-task-completion.mjs": "adbc39159176798c83338e3658f99bfb446748cf7605711ebc8a898572a82178",
     ".claude/hooks/hooks.mjs": "47ae1e6d6c923be20afe9152e3bfce29ab9c01398807c543755efc741be810f5",
     ".claude/hooks/lib.mjs": "c754d6ad8aded2bb06dbf00b556e3b35a18a84315bc9ef2bb5ca72683894ceba",
     ".claude/hooks/post-brainstorm-stop.mjs": "798cae5a78a1bc80bd2ae83cc3734f220dd19902dca475d356ba4b0fc823760b",

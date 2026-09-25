@@ -386,13 +386,13 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
     expect(out).toMatch(/wrapping up|ready to/i)
   })
 
-  it('checks .agents-dispatched counter', () => {
+  it('checks the agents-dispatched sidecar against the persisted ship treatment', () => {
     const out = renderTemplate(
       'claude/hooks/guard-task-completion.mjs.ejs',
       configFor('typescript'),
     )
     expect(out).toContain('agents-dispatched')
-    expect(out).toContain('minRequired')
+    expect(out).toContain('readPanelTotal')
   })
 
   it('only fires during red/green/refactor or verification phase', () => {
