@@ -2,7 +2,7 @@
 title: 'Cross-Model Review Config — the arbiter.json block and diff-egress consent'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-09-21'
+last_review: '2026-09-26'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -77,6 +77,25 @@ An egress question cannot default to yes. And a user is not asked to configure s
 
 **D7 — The block must have a real reader in this same PR.**
 `resolveShipProfile` (`src/commands/ship-profile.ts`) exposes it on `ShipProfile` and `arbiter status health` prints it. Without that, this PR **is** bug #2344/#2333. If for some reason the reader cannot land here, this issue must be merged with #2357.
+
+**D8 — The reviewer engine is `crossModelReview.{model,effort}`, passed explicitly (#2905).**
+
+| Key      | Default      | Accepted values                                  |
+| -------- | ------------ | ------------------------------------------------ |
+| `model`  | `gpt-6-luna` | a token matching `^[A-Za-z0-9][A-Za-z0-9._:-]*$` |
+| `effort` | `max`        | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+
+Both keys are optional. The defaults apply the owner's replay decision of 2026-09-25 (luna at max). The
+reviewer always receives `-m <model>` and `-c model_reasoning_effort="<effort>"`, even when the keys are
+absent, so the seat never falls back to the pinned CLI's default. The recorder stamps the same values
+into the envelope as `provenance.model` and `provenance.effort`. The effort set is the union that
+`~/.codex/models_cache.json` (codex-cli 0.157.0) lists for the gpt-6 models: `ultra` exists for sol
+and astra only. The CLI does not validate the effort itself, and a model/effort mismatch is rejected
+by the API at review time. There is no per-run override: editing `arbiter.json` is the one path,
+because a new CLI option would fail the ceremony gate. Arbiter's own `arbiter.json` does not enable
+the block; that needs the owner's egress consent. A luna-max review takes about 825 s, inside the
+default `timeoutMs`. A target whose baked recorder predates this change ignores the two provenance
+flags instead of failing, until it is re-aligned.
 
 ## Open questions
 

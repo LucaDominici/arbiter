@@ -55,6 +55,8 @@ const PROVENANCE_VENDOR = arg('provenance-vendor', argv)
 const PROVENANCE_CLI = arg('provenance-cli', argv)
 const PROVENANCE_CLI_VERSION = arg('provenance-cli-version', argv)
 const PROVENANCE_DISPATCH = arg('provenance-dispatch', argv)
+const PROVENANCE_MODEL = arg('provenance-model', argv)
+const PROVENANCE_EFFORT = arg('provenance-effort', argv)
 const EXPECTED_SHA = arg('expected-sha', argv)
 const REPO_ROOT = arg('repo-root', argv) ? resolve(arg('repo-root', argv)) : repoDefault
 const EVIDENCE_DIR = arg('evidence-dir', argv)
@@ -121,6 +123,8 @@ function stampAgentProvenance() {
   }
   if (PROVENANCE_CLI !== null) provenance.cli = PROVENANCE_CLI
   if (PROVENANCE_CLI_VERSION !== null) provenance.cliVersion = PROVENANCE_CLI_VERSION
+  if (PROVENANCE_MODEL !== null) provenance.model = PROVENANCE_MODEL
+  if (PROVENANCE_EFFORT !== null) provenance.effort = PROVENANCE_EFFORT
   return provenance
 }
 

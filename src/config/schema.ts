@@ -1452,6 +1452,7 @@ function validateCrossModelReview(raw: unknown, errors: string[]): void {
   validateCrossModelSlots(raw, errors)
   validateCrossModelTimeout(raw, errors)
   validateCrossModelPolicy(raw, errors)
+  validateCrossModelEngine(raw, errors)
 }
 
 function validateCrossModelBooleans(raw: Record<string, unknown>, errors: string[]): void {
@@ -1502,6 +1503,27 @@ function validateCrossModelTimeout(raw: Record<string, unknown>, errors: string[
 function validateCrossModelPolicy(raw: Record<string, unknown>, errors: string[]): void {
   if (!CROSS_MODEL_REVIEW_POLICIES.has(raw['onUnavailable'] as CrossModelReviewUnavailablePolicy)) {
     errors.push('crossModelReview.onUnavailable must be degrade or fail')
+  }
+}
+
+// #2905 — union of the efforts codex lists for the gpt-6 models (models_cache.json, CLI 0.157.0).
+const CROSS_MODEL_EFFORTS: ReadonlySet<string> = new Set([
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+  'ultra',
+])
+const MODEL_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/
+
+function validateCrossModelEngine(raw: Record<string, unknown>, errors: string[]): void {
+  const model = raw['model']
+  if (model !== undefined && (typeof model !== 'string' || !MODEL_TOKEN.test(model))) {
+    errors.push('crossModelReview.model must be a non-empty model token (letters, digits, . _ : -)')
+  }
+  if (raw['effort'] !== undefined && !CROSS_MODEL_EFFORTS.has(raw['effort'] as string)) {
+    errors.push(`crossModelReview.effort must be one of ${[...CROSS_MODEL_EFFORTS].join(', ')}`)
   }
 }
 
