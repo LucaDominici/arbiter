@@ -309,45 +309,19 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
-  // #2885: this hook must not re-block a negated/quoted status message the
-  // sibling completion guard (guard-task-completion.mjs) now allows through.
-  it('#2885 exits 0 on a negated completion phrase (no evidence, but no claim)', () => {
+  // #2885 review: negation/quotation heuristics were descoped (they failed open), so
+  // a claim with unrelated negation or apostrophes around it still blocks.
+  it.each([
+    'Current state (not complete — phase remains refactor): task complete.',
+    'That phrasing ("task complete") tripped a guard.',
+    'There are no open issues; implementation complete.',
+    "I'm done; task complete; I'm signing off.",
+  ])('#2885 exits 2 on a claim despite negation or quotes (no evidence): %s', (text) => {
     const { dir, hookPath } = setup()
     try {
-      const t = writeTranscript(dir, [
-        {
-          type: 'assistant',
-          blocks: [
-            {
-              type: 'text',
-              text: 'Current state (not complete — phase remains refactor): the writer lane stops here.',
-            },
-          ],
-        },
-      ])
+      const t = writeTranscript(dir, [{ type: 'assistant', blocks: [{ type: 'text', text }] }])
       const r = runHook(hookPath, dir, { transcript_path: t })
-      expect(r.status).toBe(0)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('#2885 exits 0 on a quoted trigger phrase (no evidence, but no claim)', () => {
-    const { dir, hookPath } = setup()
-    try {
-      const t = writeTranscript(dir, [
-        {
-          type: 'assistant',
-          blocks: [
-            {
-              type: 'text',
-              text: 'That phrasing ("task complete") tripped a guard; I had not claimed lifecycle completion.',
-            },
-          ],
-        },
-      ])
-      const r = runHook(hookPath, dir, { transcript_path: t })
-      expect(r.status).toBe(0)
+      expect(r.status).toBe(2)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

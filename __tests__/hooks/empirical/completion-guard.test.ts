@@ -256,45 +256,6 @@ describe('completion-guard — empirical spawn', () => {
     }
   })
 
-  // AC-2885.1: negation/quoting must not trip the guard on a status-only message.
-  it.each(PRODUCERS)('AC-1 %s: negated claim in a status sentence is not blocked', (producer) => {
-    const { dir, hookPath } = setup('green', producer)
-    try {
-      const result = runHook(
-        hookPath,
-        dir,
-        'Current state (not complete — phase remains refactor): the writer lane stops here.',
-      )
-      expect(result.status).toBe(0)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it.each(PRODUCERS)('AC-1 %s: quoted trigger phrase is not blocked', (producer) => {
-    const { dir, hookPath } = setup('green', producer)
-    try {
-      const result = runHook(
-        hookPath,
-        dir,
-        'That phrasing ("task complete") tripped a guard; I had not claimed lifecycle completion.',
-      )
-      expect(result.status).toBe(0)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('AC-1: adjectival "shipped diff" is not a claim', () => {
-    const { dir, hookPath } = setup('refactor', 'self')
-    try {
-      const result = runHook(hookPath, dir, 'Not a defect in the shipped diff.')
-      expect(result.status).toBe(0)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
   // AC-2885.3: regression corpus — real claims stay blocked.
   it.each([
     'task complete, ready to merge',
