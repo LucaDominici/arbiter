@@ -60,7 +60,8 @@ function setup(taskId: string, branch: string) {
   execFileSync('git', ['config', 'user.email', 'fixture.invalid'], { cwd: root })
   execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: root })
   writeFileSync(join(root, 'plan.md'), PLAN)
-  execFileSync('git', ['add', 'plan.md'], { cwd: root })
+  writeFileSync(join(root, '.gitignore'), '.claude/.task/\n')
+  execFileSync('git', ['add', 'plan.md', '.gitignore'], { cwd: root })
   execFileSync('git', ['commit', '-m', 'test: seed'], { cwd: root, stdio: 'ignore' })
   mkdirSync(join(root, '.claude', '.task'), { recursive: true })
   writeFileSync(
@@ -89,6 +90,7 @@ function reviewerEnvelope(root: string, taskId: string, branch: string) {
     ts: '2026-09-26T00:00:00.000Z',
     verdict: 'PASS',
     confidence: 1,
+    provenance: { vendor: 'anthropic', dispatch: 'subagent' },
     findings: [],
     acceptanceFit: {
       schema: 'arbiter-ac-fit-v1',
