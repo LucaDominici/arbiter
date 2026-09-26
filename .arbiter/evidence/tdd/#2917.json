@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2917",
+  "test_path": "__tests__/scripts/doc-gate-allowlist-2917.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "11bc00072429506d218cca20cc0cab49643ad267",
+  "test_blob_sha": "0430bb3dbc8817a658b87333fc6db1c7f28aad7d",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/doc-gate-allowlist-2917.test.ts (3 tests | 3 failed) 69ms\n     × check-doc-links passes 20ms\n     × check-doc-style passes 19ms\n     × check-phantom-command-scan passes 30ms\n\n Test Files  1 failed (1)\n      Tests  3 failed (3)\n   Start at  02:09:49\n   Duration  166ms (transform 7ms, setup 8ms, import 6ms, tests 69ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/doc-gate-allowlist-2917.test.ts > #2917 doc-gate allowlist entries are current > check-doc-links passes\n FAIL  |unit| __tests__/scripts/doc-gate-allowlist-2917.test.ts > #2917 doc-gate allowlist entries are current > check-doc-style passes\n FAIL  |unit| __tests__/scripts/doc-gate-allowlist-2917.test.ts > #2917 doc-gate allowlist entries are current > check-phantom-command-scan passes\nAssertionError:   doc-gate-allowlist: 2 entry/entries expired — fix the file or re-date the entry with its owner:\n    expired: src/templates/governance/qa-audit-phases.md.ejs (phantom-command, #2415)\n    expired: docs/REFERENCE/gdpr-overlay.md (phantom-command, #2415)\n\n: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/scripts/doc-gate-allowlist-2917.test.ts:11:52\n      9|     it(`check-${gate} passes`, () => {\n     10|       const r = spawnSync('node', [`scripts/check-${gate}.mjs`], { enc…\n     11|       expect(r.status, `${r.stdout}\\n${r.stderr}`).toBe(0)\n       |                                                    ^\n     12|     }, 120_000)\n     13|   }\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/doc-gate-allowlist-2917.test.ts",
+  "recorded_at": "2026-09-26T00:09:49.954Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/doc-gate-allowlist-2917.test.ts"
+  ]
+}

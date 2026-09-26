@@ -5,16 +5,16 @@
     {
       "path": "src/templates/governance/qa-audit-phases.md.ejs",
       "rule": "phantom-command",
-      "reason": "The emitted governance playbook documents `arbiter audit run` and says so explicitly (\"planned, not yet shipped\"). Excusing the file also keeps `audit` out of the emitted-surface ledger, which would otherwise demand a row for a command that deliberately does not exist.",
-      "issue": "#2415",
-      "expires": "2026-09-25"
+      "reason": "Open decision (#2917): ship the `arbiter audit run` subcommand, or drop it from the emitted governance playbook. Until then the playbook documents it as \"planned, not yet shipped\", and excusing the file keeps `audit` out of the emitted-surface ledger, which would otherwise demand a row for a command that does not exist.",
+      "issue": "#2917",
+      "expires": "2026-10-10"
     },
     {
       "path": "docs/REFERENCE/gdpr-overlay.md",
       "rule": "phantom-command",
-      "reason": "Cites `node scripts/check-gdpr-controls.mjs`, which is an overlay-conditional gate emitted into the CONSUMER's tree — correctly absent from arbiter's own scripts/. Do not create the file; the fix is resolving emitted-doc citations against the emitted tree.",
-      "issue": "#2415",
-      "expires": "2026-09-25"
+      "reason": "Open decision (#2917): make the scanner resolve emitted-doc citations against the emitted tree, or stop citing the path literally in this doc. It cites `node scripts/check-gdpr-controls.mjs`, an overlay-conditional gate emitted into the CONSUMER tree only and correctly absent from arbiter scripts/. Do not create the file.",
+      "issue": "#2917",
+      "expires": "2026-10-10"
     }
   ]
 }
