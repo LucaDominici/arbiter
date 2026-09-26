@@ -85,8 +85,8 @@ export function invalidateTaskReceipts(root: string, taskId: string): void {
 function legacyDispatchTaskId(path: string): unknown {
   try {
     return (JSON.parse(readFileTranslated(path, 'utf8')) as { taskId?: unknown } | null)?.taskId
-  } catch {
     // FAIL-OPEN-INTENT: an absent or unreadable legacy sidecar is not provably this task's, so it is kept.
+  } catch {
     return undefined
   }
 }
