@@ -1,0 +1,59 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2899",
+  "criteria": [
+    {
+      "id": "AC-2899.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/ship-premortem-read-time-2899.test.ts",
+          "line": 110
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 919
+        }
+      ]
+    },
+    {
+      "id": "AC-2899.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/ship-premortem-read-time-2899.test.ts",
+          "line": 128
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1687
+        }
+      ]
+    },
+    {
+      "id": "AC-2899.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/ship-premortem-read-time-2899.test.ts",
+          "line": 153
+        },
+        {
+          "file": "__tests__/commands/pr-merged.test.ts",
+          "line": 560
+        },
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 1756
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2899-premortem-read-time",
+  "sha": "2a1a642c75195aa815cd0e8fe04c48bed07ea6d2",
+  "planHash": "4d7d82e14179c63145e7400066770e6105c8a645",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2899/domain-0.json",
+    "sha256": "9a576c7af684605105c5f03f8f7a25daf77fa6b80dc82332a6e30309c2bbd77f"
+  }
+}
