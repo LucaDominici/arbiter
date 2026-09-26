@@ -16,6 +16,10 @@ interface CrossModelReviewConfig {
   }
   timeoutMs: number
   onUnavailable: CrossModelReviewUnavailablePolicy
+  /** #2905 — reviewer model; absent → gpt-6-luna. */
+  model?: string
+  /** #2905 — codex model_reasoning_effort; absent → max. */
+  effort?: string
 }
 
 export type { CrossModelReviewProvider, CrossModelReviewUnavailablePolicy, CrossModelReviewConfig }

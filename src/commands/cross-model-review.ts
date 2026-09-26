@@ -557,12 +557,19 @@ function pinnedTestChangeClass(
   return `structural (GREEN replayed the original at refactor entry; not re-run at ${reviewHead.slice(0, 7)})`
 }
 
-function resolveReviewBase(repoRoot: string, baseSha: string | null | undefined): string {
-  const base =
-    baseSha ??
-    runCli('git', ['rev-parse', 'origin/main'], { cwd: repoRoot, timeoutMs: 5000 }).stdout.trim()
+/** #2904: every round judges acceptance fit against the task base, never the previous round. */
+function resolveTaskBase(repoRoot: string): string {
+  const base = runCli('git', ['rev-parse', 'origin/main'], {
+    cwd: repoRoot,
+    timeoutMs: 5000,
+  }).stdout.trim()
   if (base.length === 0) throw new Error('review base SHA is unavailable')
   return base
+}
+
+function previousReviewedSha(baseSha: string | null | undefined): string | null {
+  if (baseSha === '') throw new Error('previous review base SHA is unavailable')
+  return baseSha ?? null
 }
 
 function assertFrozenReviewHead(repoRoot: string, reviewHead: string | null): string {
@@ -578,21 +585,31 @@ function assertFrozenReviewHead(repoRoot: string, reviewHead: string | null): st
   return reviewHead
 }
 
+interface FrozenReviewRange {
+  baseSha: string
+  headSha: string
+  previousSha: string | null
+}
+
 function frozenReviewPrompt(
   taskId: string,
-  baseSha: string,
-  headSha: string,
+  { baseSha, headSha, previousSha }: FrozenReviewRange,
   brief: FrozenReviewBrief,
   tddEvidence: string | null,
 ): string {
   return [
     'Review this frozen candidate for bugs, type safety, security, data integrity, silent failures, and acceptance fit.',
-    'Review scope is the frozen diff. Do not block on unavailable local command execution, pending CI, merge state, or other post-review delivery evidence; separate gates own those checks.',
+    'Review scope is the frozen task diff; weigh the changed-since-last-round range first, but judge acceptanceFit on the whole task diff. Do not block on unavailable local command execution, pending CI, merge state, or other post-review delivery evidence; separate gates own those checks.',
     'Every blocking finding must cite a concrete candidate defect with a file and line. Do not turn inability to verify into a defect.',
     `Task: ${taskId}`,
-    `Base SHA: ${baseSha}`,
+    `Task base SHA (acceptance fit): ${baseSha}`,
     `Head SHA: ${headSha}`,
-    `Diff: ${baseSha}..${headSha}`,
+    `Task diff: ${baseSha}..${headSha}`,
+    ...(previousSha === null
+      ? []
+      : [
+          `Changed since last round (focus; previous reviewed candidate, not the task base): ${previousSha}..${headSha}`,
+        ]),
     `Acceptance criteria hash: ${brief.acHash}`,
     'Return acceptanceFit using schema arbiter-ac-fit-v1 with one verdict and candidate-file citation list for every criterion below; preserve the criterion IDs and order exactly.',
     'Acceptance criteria (ordered, verbatim):',
@@ -666,13 +683,22 @@ function runShipCrossModelReview(
 ): ReturnType<typeof invokeExternalReview> {
   const repoRoot = resolve(options.dir)
   const reviewHead = assertFrozenReviewHead(repoRoot, options.headSha)
-  const reviewBase = resolveReviewBase(repoRoot, options.baseSha)
+  const reviewBase = resolveTaskBase(repoRoot)
   const brief = readFrozenReviewBrief(repoRoot, options.planRef, reviewHead)
   const tddEvidence = readFrozenTddEvidence(repoRoot, options.taskId, reviewHead)
   const pinnedTestChange = pinnedTestChangeLine(repoRoot, reviewHead, tddEvidence)
   // #2906 AC-4: the pinned-test line follows the RED evidence, the prompt's last line.
   const prompt = [
-    frozenReviewPrompt(options.taskId, reviewBase, reviewHead, brief, tddEvidence),
+    frozenReviewPrompt(
+      options.taskId,
+      {
+        baseSha: reviewBase,
+        headSha: reviewHead,
+        previousSha: previousReviewedSha(options.baseSha),
+      },
+      brief,
+      tddEvidence,
+    ),
     ...(pinnedTestChange === null ? [] : [pinnedTestChange]),
   ].join('\n')
   let diff = ''

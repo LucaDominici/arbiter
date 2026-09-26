@@ -331,7 +331,16 @@ function resultFor(
   }
 }
 
+const DEFAULT_REVIEW_MODEL = 'gpt-6-luna'
+const DEFAULT_REVIEW_EFFORT = 'max'
+
+// #2905 — the one source of the requested engine: it feeds both the codex argv and the provenance.
+function reviewEngine(cfg: CrossModelReviewConfig): { model: string; effort: string } {
+  return { model: cfg.model ?? DEFAULT_REVIEW_MODEL, effort: cfg.effort ?? DEFAULT_REVIEW_EFFORT }
+}
+
 function recorderArgs(request: ExternalReviewRequest, access: ExternalModelAccess): string[] {
+  const engine = reviewEngine(request.cfg)
   const script = join(request.repoRoot, 'scripts', 'record-agent-return.mjs')
   return [
     script,
@@ -349,6 +358,10 @@ function recorderArgs(request: ExternalReviewRequest, access: ExternalModelAcces
     ...(access.version !== null ? ['--provenance-cli-version', access.version] : []),
     '--provenance-dispatch',
     'external-cli',
+    '--provenance-model',
+    engine.model,
+    '--provenance-effort',
+    engine.effort,
   ]
 }
 
@@ -402,6 +415,7 @@ function invokeCodex(
   schemaPath: string,
 ): RunCliResult {
   const sandboxRoot = dirname(outputPath)
+  const engine = reviewEngine(request.cfg)
   const sourceEnv = request.env ?? process.env
   const env = Object.fromEntries(
     CODEX_ENV_KEYS.flatMap((key) => {
@@ -416,6 +430,10 @@ function invokeCodex(
       '--strict-config',
       '--ephemeral',
       '--ignore-user-config',
+      '-m',
+      engine.model,
+      '-c',
+      `model_reasoning_effort="${engine.effort}"`,
       '-c',
       'shell_environment_policy.inherit="none"',
       '-c',
