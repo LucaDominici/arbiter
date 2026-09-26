@@ -1268,6 +1268,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     const { retry, marker } = retryWithFailingCodex(sha, originalPath)
 
     expect(retry).toThrow(/Codex reviewer returned no data \(invocation-failed\)/)
+    expect(retry).toThrow(/fall back to an independent verifier/)
     expect(existsSync(marker)).toBe(true)
   })
 

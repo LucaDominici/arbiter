@@ -1434,7 +1434,7 @@ function spoolLowFindings(root: string, findings: readonly Record<string, unknow
 function noReviewData(plan: PlannedReviewRound, detail: string): FatalError {
   return new FatalError(
     'E_REVIEW_NO_DATA',
-    `review round ${plan.rounds}: Codex reviewer returned no data (${detail}); no envelope was written and the round remains open`,
+    `review round ${plan.rounds}: Codex reviewer returned no data (${detail}); no envelope was written and the round remains open; fall back to an independent verifier`,
   )
 }
 
