@@ -1,0 +1,59 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2912",
+  "criteria": [
+    {
+      "id": "AC-2912.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-state.ts",
+          "line": 82
+        },
+        {
+          "file": "__tests__/commands/task-advance-gates.test.ts",
+          "line": 563
+        },
+        {
+          "file": "__tests__/commands/review-sidecar-per-task-2912.test.ts",
+          "line": 153
+        }
+      ]
+    },
+    {
+      "id": "AC-2912.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-review-completion.mjs",
+          "line": 816
+        },
+        {
+          "file": "__tests__/commands/review-sidecar-per-task-2912.test.ts",
+          "line": 191
+        },
+        {
+          "file": "__tests__/commands/review-sidecar-per-task-2912-green.test.ts",
+          "line": 132
+        }
+      ]
+    },
+    {
+      "id": "AC-2912.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/task-advance-gates.test.ts",
+          "line": 563
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2912-sidecar-per-task",
+  "sha": "5a3eee28015d32fb0d0b411bb547cf17e2ef0b63",
+  "planHash": "5f087e5a3abc4fc7eb136d62099fc79e214659eb",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2912/domain-0.json",
+    "sha256": "6e56132ec3224c16fdc82b65cde404ca22fc9d11b9223ecdcadf99e36e6aaa19"
+  }
+}
