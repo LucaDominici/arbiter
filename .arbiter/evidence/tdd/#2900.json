@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2900",
+  "test_path": "__tests__/scripts/refutation-verdict-type-2900.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "cc2c27e887912fe89572832f592704e27140bece",
+  "test_blob_sha": "f1f779eecbcfc9b4a7651a8faa807dbc6459c1d2",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/refutation-verdict-type-2900.test.ts (4 tests | 1 failed) 369ms\n     × AC-1: array verdict x3 is rejected, not coerced — quorum unmet, exit 1 103ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 3 passed (4)\n   Start at  07:26:26\n   Duration  945ms (transform 27ms, setup 17ms, import 44ms, tests 369ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/refutation-verdict-type-2900.test.ts > check-refutation-verdicts.mjs — #2900 non-string verdict > AC-1: array verdict x3 is rejected, not coerced — quorum unmet, exit 1\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/refutation-verdict-type-2900.test.ts:67:24\n     65|     for (let i = 1; i <= 3; i++) writeSkeptic(`skeptic-${i}.json`, ['U…\n     66|     const r = run(evidenceDir)\n     67|     expect(r.exitCode).toBe(1)\n       |                        ^\n     68|     expect(r.stdout).toMatch(/F-300/)\n     69|     expect(r.stdout).toMatch(/0 skeptic verdict\\(s\\), need >= 3/)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/refutation-verdict-type-2900.test.ts",
+  "recorded_at": "2026-09-26T05:26:27.957Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/refutation-verdict-type-2900.test.ts"
+  ]
+}
