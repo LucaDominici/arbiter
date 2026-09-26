@@ -27,7 +27,7 @@ import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
 import { ArbiterError, UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
-import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
+import { loadTddEvidence, extractFailureSignature, tddEvidencePath } from '../evidence/tdd.js'
 import { verifyGreenExecution } from '../evidence/tdd-reexecute.js'
 import {
   pathExistsInCommit,
@@ -972,6 +972,12 @@ function premortemLogSuffix(dir: string): string {
   return ` premortem=${premortem.decision} rounds=${reviewStateOf(state).rounds}`
 }
 
+/** #2908 AC-2 — the SHA of the last GREEN pass, in the delivery record. Never read to decide. */
+function greenExecutionLogSuffix(dir: string): string {
+  const sha = readUnifiedState(dir)?.greenVerifiedSha
+  return sha === undefined ? '' : ` green=${sha.slice(0, 7)}`
+}
+
 /**
  * #2899 — the premortem decision is computed from the current plan manifest at every read and
  * never trusted from status.json. A task without a /ship treatment has no decision.
@@ -1054,7 +1060,10 @@ function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?:
       : evaluateHarnessCompletion(dir, snapshots, candidateSha, opts)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   checkExactMainCi(dir, opts, snapshots, verdict.number)
-  appendLog(dir, `complete ← PR #${verdict.number} MERGED${premortemLogSuffix(dir)}`)
+  appendLog(
+    dir,
+    `complete ← PR #${verdict.number} MERGED${premortemLogSuffix(dir)}${greenExecutionLogSuffix(dir)}`,
+  )
 }
 
 /** #2865 — the plan's `[exact-main]` criterion ids, from the emitted checker (fail-closed). */
@@ -1664,6 +1673,7 @@ function assertReviewSubjectFrozen(dir: string): void {
   assertBaseCurrent(dir)
   checkBakeAfterTemplates(dir)
   checkPremortemRequired(dir)
+  checkGreenExecutionAtHead(dir)
 }
 
 /**
@@ -1773,7 +1783,8 @@ function isValidPremortemRef(dir: string, ref: string): boolean {
 
 function appendReviewLog(dir: string, plan: PlannedReviewRound): void {
   const at = plan.head === null ? 'an unknown sha' : plan.head.slice(0, 7)
-  appendLog(dir, `review → round ${plan.rounds} at ${at}${plan.forced ? ' (forced)' : ''}`)
+  const forced = plan.forced ? ' (forced)' : ''
+  appendLog(dir, `review → round ${plan.rounds} at ${at}${forced}${greenExecutionLogSuffix(dir)}`)
 }
 
 export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedReviewRound | null {
@@ -1873,6 +1884,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
       // the very gate this phase's ship.md row promises, so it is refused here.
       checkTaskSeededGate(dir)
       checkGreenExecutionGate(dir)
+      recordGreenVerifiedHead(dir)
     },
     verification: () => {
       checkPlanContractCurrent(dir)
@@ -1887,6 +1899,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
     complete: () => {
       // Marker first: it is the cheap local check, and the pre-existing gate-level contract must
       // keep failing before the network-touching PR verification runs.
+      checkGreenExecutionAtHead(dir)
       const candidateSha = checkCompletionEvidence(dir)
       checkPrMergedGate(dir, opts, candidateSha)
     },
@@ -2084,6 +2097,23 @@ function checkGreenExecutionGate(dir: string): void {
   if (!result.ok) {
     throw new Error(`GREEN execution gate: ${result.reason ?? 'recorded RED test did not pass'}`)
   }
+}
+
+/**
+ * #2908 AC-1 — the review freeze and `complete` re-run GREEN at the real HEAD, always, whenever
+ * committed TDD evidence exists. The guard is the evidence file, never the stored SHA.
+ */
+function checkGreenExecutionAtHead(dir: string): void {
+  const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
+  if (!existsSync(tddEvidencePath(taskId, dir))) return
+  checkGreenExecutionGate(dir)
+  recordGreenVerifiedHead(dir)
+}
+
+/** #2908 AC-2 — record-only; an unreadable HEAD skips the record, never the GREEN verdict. */
+function recordGreenVerifiedHead(dir: string): void {
+  const sha = reviewHead(dir, undefined)
+  if (sha !== null) writeUnifiedState(dir, { greenVerifiedSha: sha })
 }
 
 /**
