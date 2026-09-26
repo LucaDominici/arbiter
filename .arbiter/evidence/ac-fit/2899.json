@@ -12,7 +12,7 @@
         },
         {
           "file": "src/commands/task.ts",
-          "line": 919
+          "line": 1678
         }
       ]
     },
@@ -50,10 +50,10 @@
     }
   ],
   "branch": "task/#2899-premortem-read-time",
-  "sha": "2a1a642c75195aa815cd0e8fe04c48bed07ea6d2",
+  "sha": "2c942ae4bb59fa760c462c7c00c4b3b79bc6894d",
   "planHash": "4d7d82e14179c63145e7400066770e6105c8a645",
   "sourceEnvelope": {
     "path": ".arbiter/evidence/agent-returns/_2899/domain-0.json",
-    "sha256": "9a576c7af684605105c5f03f8f7a25daf77fa6b80dc82332a6e30309c2bbd77f"
+    "sha256": "ae0e708d8d3aa9fc55721462f92eecdb40e04865223123c8d6215e268a32db43"
   }
 }
