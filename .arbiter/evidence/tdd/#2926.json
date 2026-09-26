@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2926",
+  "test_path": "__tests__/commands/review-source-binding-2926.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "0f97a319c983de62fb1bda6de4de043c153994ff",
+  "test_blob_sha": "183ddf4f8db8e5014171529aaeebfca0f30c995b",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/review-source-binding-2926.test.ts (2 tests | 2 failed) 548ms\n     × AC-2: merging main after a PASS round changes neither verdict 282ms\n     × AC-3: #2908 sequence (test-only commit, then merge main) is changed for both sides 265ms\n\n Test Files  1 failed (1)\n      Tests  2 failed (2)\n   Start at  11:01:06\n   Duration  1.14s (transform 429ms, setup 7ms, import 493ms, tests 548ms, environment 0ms)\n\n\nstderr | __tests__/commands/review-source-binding-2926.test.ts > #2926 one reviewed-source verdict for the opener and the completion binding > AC-2: merging main after a PASS round changes neither verdict\n\n\nstderr | __tests__/commands/review-source-binding-2926.test.ts > #2926 one reviewed-source verdict for the opener and the completion binding > AC-3: #2908 sequence (test-only commit, then merge main) is changed for both sides\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/review-source-binding-2926.test.ts > #2926 one reviewed-source verdict for the opener and the completion binding > AC-2: merging main after a PASS round changes neither verdict\nAssertionError: expected undefined to be false // Object.is equality\n\n- Expected:\nfalse\n\n+ Received:\nundefined\n\n ❯ __tests__/commands/review-source-binding-2926.test.ts:167:46\n    165|     const reviewed = passRound()\n    166|     const merged = mergeMain()\n    167|     expect(query(reviewed)['sourceChanged']).toBe(false)\n       |                                              ^\n    168|     expect(completion()).not.toMatch(/source changed since/)\n    169|     const step = ship({ reviewRound: true, headSha: merged })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/commands/review-source-binding-2926.test.ts > #2926 one reviewed-source verdict for the opener and the completion binding > AC-3: #2908 sequence (test-only commit, then merge main) is changed for both sides\nAssertionError: expected undefined to be true // Object.is equality\n\n- Expected:\ntrue\n\n+ Received:\nundefined\n\n ❯ __tests__/commands/review-source-binding-2926.test.ts:178:46\n    176|     commit('review.test.ts', 'throw new Error(\"RED\") // non-vacuous as…\n    177|     const merged = mergeMain()\n    178|     expect(query(reviewed)['sourceChanged']).toBe(true)\n       |                                              ^\n    179|     expect(completion()).toMatch(/review sidecar source changed since/)\n    180|     ship({ reviewRound: true, headSha: merged })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/review-source-binding-2926.test.ts",
+  "recorded_at": "2026-09-26T09:01:07.801Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/review-source-binding-2926.test.ts"
+  ]
+}
