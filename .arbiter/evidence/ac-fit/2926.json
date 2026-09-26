@@ -1,0 +1,55 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2926",
+  "criteria": [
+    {
+      "id": "AC-2926.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-review-completion.mjs",
+          "line": 862
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1509
+        },
+        {
+          "file": "__tests__/commands/review-source-binding-2926.test.ts",
+          "line": 164
+        }
+      ]
+    },
+    {
+      "id": "AC-2926.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/evidence-binding.mjs",
+          "line": 132
+        },
+        {
+          "file": "__tests__/commands/review-source-binding-2926.test.ts",
+          "line": 164
+        }
+      ]
+    },
+    {
+      "id": "AC-2926.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/review-source-binding-2926.test.ts",
+          "line": 174
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2926-shared-source-binding",
+  "sha": "9104ec2d4ea39db1e82c948f5c54ee132c93707b",
+  "planHash": "73fe77028b522abe09f9389efad2feab49fdef89",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2926/domain-0.json",
+    "sha256": "3866a351f45a11b006bf01c0e2300648562b91b99a25429e6ba65cf9577a2174"
+  }
+}

@@ -1,0 +1,1 @@
+{"count":1,"agents":["domain"],"auditors":["domain"],"treatmentHash":"8ed7bb483a30465a63b4262bd64be7a1da7174990e3e393cee15bd4f2e94d1a5","expectedProvenance":{"domain":{"vendor":"anthropic","dispatch":"subagent"}},"branch":"task/#2926-shared-source-binding","sha":"9104ec2d4ea39db1e82c948f5c54ee132c93707b","taskId":"#2926"}
