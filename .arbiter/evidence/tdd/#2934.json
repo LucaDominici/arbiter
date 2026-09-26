@@ -1,0 +1,18 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2934",
+  "test_path": "__tests__/scripts/no-tree-writes-2934.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "e947ad99cb06a28d3cb784ba5fb56aca1de7dcdd",
+  "test_blob_sha": "22fc1fb2f2810c3a512620f72e70101f59fb12db",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/no-tree-writes-2934.test.ts (1 test | 1 failed) 28ms\n     × no __tests__/**/*.test.ts file mutates the tree via its ROOT/r() helper without a tmp root 27ms\n ❯ |unit| __tests__/scripts/guard-flip-host-task-2935.test.ts (1 test | 1 failed) 40ms\n     × rejects the planted BAD fixture even when the host declares a task 39ms\n\n Test Files  2 failed (2)\n      Tests  2 failed (2)\n   Start at  21:38:59\n   Duration  171ms (transform 39ms, setup 9ms, import 50ms, tests 68ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/guard-flip-host-task-2935.test.ts > #2935 refutation-verdicts fixture ignores the host task context > rejects the planted BAD fixture even when the host declares a task\nAssertionError: expected [ Array(1) ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   \"accepted a planted BAD fixture (exit 0, expected 1) — VACUOUS\",\n+ ]\n\n ❯ __tests__/scripts/guard-flip-host-task-2935.test.ts:36:22\n     34|       FLIP_REGISTRY['refutation-verdicts'],\n     35|     )\n     36|     expect(failures).toEqual([])\n       |                      ^\n     37|   })\n     38| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/scripts/no-tree-writes-2934.test.ts > #2934 — no test writes into tracked repo directories > no __tests__/**/*.test.ts file mutates the tree via its ROOT/r() helper without a tmp root\nAssertionError: expected [ Array(1) ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   \"__tests__/docs/wiki-migrate-1244.test.ts\",\n+ ]\n\n ❯ __tests__/scripts/no-tree-writes-2934.test.ts:54:25\n     52| describe('#2934 — no test writes into tracked repo directories', () =>…\n     53|   it('no __tests__/**/*.test.ts file mutates the tree via its ROOT/r()…\n     54|     expect(offenders()).toEqual([])\n       |                         ^\n     55|   })\n     56| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/guard-flip-host-task-2935.test.ts",
+  "recorded_at": "2026-09-26T19:38:59.216Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/no-tree-writes-2934.test.ts",
+    "__tests__/scripts/guard-flip-host-task-2935.test.ts"
+  ]
+}
