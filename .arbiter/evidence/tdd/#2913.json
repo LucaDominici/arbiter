@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2913",
+  "test_path": "__tests__/hooks/plan-anchor-scope-2913.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "b4ee9404f2f6ec38e6b0089a7d782484802c60ba",
+  "test_blob_sha": "afa4b04812a9815584e1987ab29bec3c0c0a17b4",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/hooks/plan-anchor-scope-2913.test.ts (4 tests | 2 failed) 514ms\n     × an edit to an absolute path outside the repo is not refused, even with no plan pointer 106ms\n     × check-acceptance --plan accepts the plan, and the hook allows an in-repo edit under it 215ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 2 passed (4)\n   Start at  09:47:31\n   Duration  3.60s (transform 2.52s, setup 95ms, import 2.56s, tests 514ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/hooks/plan-anchor-scope-2913.test.ts > #2913 AC-1: the hook only guards paths inside the repository > an edit to an absolute path outside the repo is not refused, even with no plan pointer\nAssertionError: expected '[arbiter] PLAN ANCHOR: red phase requ…' to be '' // Object.is equality\n\n- Expected\n+ Received\n\n+ [arbiter] PLAN ANCHOR: red phase requires a plan pointer to an existing plan file. status=/tmp/plan-anchor-scope-2913-c2mEBo/.claude/.task/status.json task=#2913 plan=unknown recordedBranch=task/#2913-plan-anchor-scope currentBranch=task/#2913-plan-anchor-scope.\n+ Set via: node dist/cli.js lifecycle start --plan <path> (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n+ [arbiter] Run `arbiter explain CANON-16` for details.\n+\n\n ❯ __tests__/hooks/plan-anchor-scope-2913.test.ts:68:22\n     66|     writeFileSync(outside, 'scratch\\n')\n     67|     const r = runHook(taskRepo(null), outside)\n     68|     expect(r.stderr).toBe('')\n       |                      ^\n     69|     expect(r.status).toBe(0)\n     70|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/hooks/plan-anchor-scope-2913.test.ts > #2913 AC-2: a plan admission accepts is not refused for a missing Context Block key > check-acceptance --plan accepts the plan, and the hook allows an in-repo edit under it\nAssertionError: expected '[arbiter] PLAN ANCHOR: plan is missin…' not to match /Context Block|\"context:\"/\n\n- Expected:\n/Context Block|\"context:\"/\n\n+ Received:\n\"[arbiter] PLAN ANCHOR: plan is missing a Context Block (YAML front-matter).\nEvery plan must begin with a \\\"---\\\" front-matter block containing a \\\"context:\\\" key.\nSee docs/REFERENCE/plan-template.md for the required format.\nUse ARBITER_PLAN_BYPASS=1 for emergency edits or mark plan as:\n  # [legacy -- pre-Context-Block]\n\"\n\n ❯ __tests__/hooks/plan-anchor-scope-2913.test.ts:82:26\n     80|     expect(adm.status).toBe(0)\n     81|     const r = runHook(dir, IN_REPO_FILE)\n     82|     expect(r.stderr).not.toMatch(/Context Block|\"context:\"/)\n       |                          ^\n     83|     expect(r.status).toBe(0)\n     84|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/hooks/plan-anchor-scope-2913.test.ts",
+  "recorded_at": "2026-09-26T07:47:34.868Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/hooks/plan-anchor-scope-2913.test.ts"
+  ]
+}
