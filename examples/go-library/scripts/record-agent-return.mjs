@@ -306,13 +306,18 @@ function loadActiveTask() {
   return state
 }
 
-function assertModeIdentity(parsed, state) {
-  const stamped = currentIdentity()
-  const actual = [parsed?.taskId, parsed?.branch, parsed?.sha, state.branch]
-  const expected = [TASK_ID, stamped.branch, stamped.sha, stamped.branch]
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) return null
-  const binding = state.hostBinding
-  if (!binding) return stamped
+// #2911: name the one stale check, in fixed order task → branch → sha → binding.
+function staleIdentityCause(parsed, state, stamped) {
+  const { taskId, branch, sha } = parsed ?? {}
+  if (taskId !== TASK_ID) return { stale: `task (${taskId} ≠ ${TASK_ID})` }
+  if (branch !== stamped.branch || state.branch !== stamped.branch)
+    return { stale: `branch (${branch}, task ${state.branch} ≠ ${stamped.branch})` }
+  if (sha !== stamped.sha) return { stale: `sha (${sha} ≠ ${stamped.sha})` }
+  return staleBindingCause(state.hostBinding)
+}
+
+function staleBindingCause(binding) {
+  if (!binding) return null
   const bindingError = nativeHostBindingError(
     {
       cwd: process.cwd(),
@@ -321,8 +326,19 @@ function assertModeIdentity(parsed, state) {
     },
     REPO_ROOT,
   )
-  if (bindingError) return null
-  return stamped
+  return bindingError ? { stale: bindingError, binding: true } : null
+}
+
+function assertModeIdentity(parsed, state) {
+  const stamped = currentIdentity()
+  return staleIdentityCause(parsed, state, stamped) === null ? stamped : null
+}
+
+function staleIdentityError(cause) {
+  const remedy = cause.binding
+    ? `; run arbiter lifecycle preflight --id '${TASK_ID}' --worktree "${REPO_ROOT}"`
+    : ''
+  return `stale ${cause.stale}${remedy}`
 }
 
 function modeContext(parsed) {
@@ -330,8 +346,9 @@ function modeContext(parsed) {
     return { error: 'qualified modes write only canonical evidence paths' }
   try {
     const state = loadActiveTask()
-    const stamped = assertModeIdentity(parsed, state)
-    if (stamped === null) return { error: 'task, branch, sha, or native host binding is stale' }
+    const stamped = currentIdentity()
+    const cause = staleIdentityCause(parsed, state, stamped)
+    if (cause !== null) return { error: staleIdentityError(cause) }
     return { state, stamped }
     // FAIL-OPEN-INTENT: the returned internal error is surfaced by each mode as exit 2.
   } catch (err) {

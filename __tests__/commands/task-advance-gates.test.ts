@@ -19,6 +19,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -385,7 +386,9 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
 
   it('AC-2 refuses missing or hand-written gate state and passes a fresh derivation', () => {
     const missing = acceptanceRepo(VALID_PLAN)
-    expect(() => runTaskAdvance({ to: 'red', dir: missing })).toThrow(/derived gates/i)
+    expect(() => runTaskAdvance({ to: 'red', dir: missing })).toThrow(
+      /derived gates are missing or stale \(never anchored\)/i,
+    )
     expect(readUnifiedState(missing)?.phase).toBe('plan')
 
     const wrong = acceptanceRepo(VALID_PLAN)
@@ -408,7 +411,26 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     const authority = join(dir, 'scripts', 'check-all.mjs')
     writeFileSync(authority, `${readFileSync(authority, 'utf-8')}\n// changed authority\n`)
 
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/derived gates/i)
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(
+      /verification authority scripts\/check-all\.mjs changed/i,
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('plan')
+  })
+
+  it('#2911 names plan bytes, then the manifest, as the stale derived input', () => {
+    const dir = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(dir, deriveFixtureGates(dir, FILES))
+    writeFileSync(join(dir, 'plan.md'), VALID_PLAN.replace(FILES[0], 'README.md'), 'utf-8')
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(
+      /derived gates are missing or stale \(manifest-derived gate set changed\)/i,
+    )
+
+    writeUnifiedState(dir, {
+      derivedGatesPlan: createHash('sha256').update(VALID_PLAN).digest('hex'),
+    })
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(
+      /derived gates are missing or stale \(plan bytes changed\)/i,
+    )
     expect(readUnifiedState(dir)?.phase).toBe('plan')
   })
 

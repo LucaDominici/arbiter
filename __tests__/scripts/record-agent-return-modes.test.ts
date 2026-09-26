@@ -181,7 +181,8 @@ describe('record-agent-return evidence modes (#2687)', () => {
     const stale = record(envelope('deadbeef'))
 
     expect(stale.status).toBe(1)
-    expect(stale.stdout + stale.stderr).toMatch(/sha|stale/i)
+    expect(stale.stdout + stale.stderr).toMatch(/stale sha \(deadbeef ≠ [0-9a-f]+\)/)
+    expect(stale.stdout + stale.stderr).not.toMatch(/lifecycle preflight/)
     expect(readFileSync(path, 'utf8')).toBe(before)
   })
 

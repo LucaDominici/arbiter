@@ -24,7 +24,7 @@
 // CATALOG: rejected fold-in into check-evidence-bundle.mjs because evidence bundles are per-task artifact BUNDLES under .evidence/ with their own JSON schema file, whereas ac-fit is a single per-criterion verdict artifact coupled to plan parsing (scripts/lib/acceptance-criteria.mjs) that bundle validation knows nothing about.
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, lstatSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
@@ -264,21 +264,95 @@ function checkPlanDerivedGates(root, planBody, forceCurrent = false) {
   )
   if (!verdict.ok) {
     fail(
-      'derived gates are missing or stale; re-anchor the plan with `arbiter lifecycle start --plan <path>`',
+      `derived gates are missing or stale (${staleGatesCause(loaded.state, planBody, contract)}); ` +
+        're-anchor the plan with `arbiter lifecycle start --plan <path>`',
     )
     return 1
   }
   return 0
 }
 
+// #2911: name the derived input that no longer matches, from the stored anchor inputs.
+function staleGatesCause(state, planBody, contract) {
+  const stored = state.derivedGates
+  if (!Array.isArray(stored)) return 'never anchored'
+  const planHash = createHash('sha256').update(planBody).digest('hex')
+  if (typeof state.derivedGatesPlan === 'string' && state.derivedGatesPlan !== planHash)
+    return 'plan bytes changed'
+  return authorityDrift(stored, contract) ?? 'manifest-derived gate set changed'
+}
+
+function authorityDrift(stored, contract) {
+  const key = (entry) => `${entry?.path}@${entry?.sha256}`
+  const before = new Set((stored.find((gate) => gate?.authority)?.authority ?? []).map(key))
+  const after = contract?.authority ?? []
+  const changed = after.filter((entry) => !before.has(key(entry))).map((entry) => entry.path)
+  if (changed.length === 0 && before.size === after.length) return null
+  const paths = changed.length > 0 ? changed.join(', ') : 'set'
+  return `verification authority ${paths} changed`
+}
+
 // --ac-fit <path>: validate a named artifact against the plan's criteria (all-PASS).
+// #2911: the recorder writes no ac-fit when the reviewer returned NOT-TESTED; say which ids and how to proceed.
+function notTestedRemedy(root, planIds) {
+  const exactMain = new Set(planIds.exactMainIds ?? [])
+  const pending = notTestedCriteria(root).filter((id) => !exactMain.has(id))
+  if (pending.length === 0) return ''
+  return (
+    `; the reviewer returned NOT-TESTED for ${pending.join(', ')}. Remedy: mark a CI-only criterion ` +
+    '[exact-main] in the plan, or record an independent verifier envelope ' +
+    '(record-agent-return --mode ac-fit)'
+  )
+}
+
+function notTestedCriteria(root) {
+  if (!existsSync(join(root, '.claude', '.task', 'status.json'))) return []
+  const loaded = loadTaskState(root)
+  const taskId = loaded.state?.taskId
+  if (typeof taskId !== 'string') return []
+  const envelope = latestFitEnvelope(root, taskId)
+  const criteria = envelope?.acceptanceFit?.criteria
+  if (!Array.isArray(criteria)) return []
+  const ids = criteria.filter((c) => c?.verdict === 'NOT-TESTED').map((c) => String(c.id))
+  return [...new Set(ids)].sort()
+}
+
+// Same directory rule as record-agent-return (#42 → _42).
+function latestFitEnvelope(root, taskId) {
+  const dir = join(
+    root,
+    '.arbiter',
+    'evidence',
+    'agent-returns',
+    taskId.replace(/[^0-9A-Za-z-]/g, '_'),
+  )
+  let latest = null
+  for (const name of existsSync(dir) ? readdirSync(dir) : []) {
+    const envelope = readFitEnvelope(join(dir, name), taskId)
+    if (envelope && (latest === null || envelope.mtime > latest.mtime)) latest = envelope
+  }
+  return latest?.env ?? null
+}
+
+function readFitEnvelope(path, taskId) {
+  if (!path.endsWith('.json')) return null
+  try {
+    const env = JSON.parse(readRegularFileSync(path, 'utf-8'))
+    if (env?.taskId !== taskId || !env.acceptanceFit) return null
+    return { env, mtime: statSync(path).mtimeMs }
+    // FAIL-OPEN-INTENT: an unreadable envelope only drops the optional remedy hint; the refusal and exit 2 stand.
+  } catch {
+    return null
+  }
+}
+
 function checkExplicitFitArg(root, args, planIds) {
   const fitIdx = args.indexOf('--ac-fit')
   if (fitIdx === -1) return 0
   const fitArg = args[fitIdx + 1]
   const fitAbs = fitArg && (fitArg.startsWith('/') ? fitArg : join(root, fitArg))
   if (!fitAbs || !existsSync(fitAbs)) {
-    fail(`--ac-fit artifact not found: ${fitArg}`)
+    fail(`--ac-fit artifact not found: ${fitArg}${notTestedRemedy(root, planIds)}`)
     return 2
   }
   const errors = explicitFitErrors(root, fitAbs, planIds)
