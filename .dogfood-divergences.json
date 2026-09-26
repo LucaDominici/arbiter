@@ -72,8 +72,8 @@
   },
   {
     "path": "hooks/pre-edit-plan-anchor.mjs",
-    "reason": "Arbiter self-dogfood: CANON-16 Survey gate (#458) is implemented in both arbiter's materialized hook and the EJS template; the logic is identical. Cosmetic divergence only: Prettier formats the materialized hook with double quotes and the EJS template with single quotes. Functionally equivalent.",
-    "diffHash": "e2b8f85256a85e002de5d114dd620050bb4513840a621115c5cf8b290cede56c"
+    "reason": "Self-only (#2913 re-pin): remedy commands say `node dist/cli.js lifecycle start` (template: `arbiter lifecycle start`); explain id CANON-16 (template: CANON-14); try/catch fail-closed refusal on an unreadable plan file; CANON-16 gate uses `!!targetRaw` plus inline comments (template: `if (targetRaw)`), same logic; comments. The repo-scope guard is shared; the #689 Context Block check is removed from both.",
+    "diffHash": "235082da73e556011d7be421fdd2b90dbbdfda781598685d7254aa4d7b1f23d2"
   },
   {
     "path": "hooks/hooks.mjs",
