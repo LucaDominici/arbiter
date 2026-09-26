@@ -72,26 +72,6 @@ Bundle size within budget, p95 latency on smoke benchmark within baseline, no me
 
 Public APIs documented (JSDoc/TSDoc coverage), changelog up-to-date, ADR index complete (no orphan ADRs), README install steps still work. Monthly cadence.
 
-## Rerun command
-
-```sh
-arbiter audit run [--phase NN] [--all] [--json]
-```
-
-- `--phase 03` reruns one phase
-- `--all` reruns every defined phase in order
-- `--json` emits machine-readable output instead of the rendered MD
-
-Each rerun:
-
-1. Loads the phase JSON
-2. Runs each `checks[].command`, captures exit code + stdout + stderr
-3. Compares against `severity_thresholds`
-4. Writes the rendered MD report to `output_path`
-5. Exits 0 on PASS, 1 on threshold breach, 2 on schema error
-
-The rendered MD is meant to be committed (so historical reports are findable). The schema JSON is the source of truth — when audit logic changes, edit the schema, not the rendered MD.
-
 ## Cadence enforcement
 
 A separate CI job (cron schedule) reruns each phase at its declared cadence. If the latest output MD is older than the cadence window, the cadence job fails. This catches the failure mode where audits are defined but never rerun.
@@ -115,7 +95,6 @@ Suggested cron mapping:
 ## What this template does NOT include
 
 - **CI cron job templates per cadence.** Generated per stack in the corresponding `.github/workflows/qa-audit-*.yml` files. Wired by the (forthcoming) `src/generators/qa-audit.ts` generator.
-- **The arbiter audit run CLI command itself (planned, not yet shipped).** Stubbed in this PR's audit doc; full implementation tracked as a follow-up.
 - **Default phase content beyond the 6 scaffolds above.** Project-specific phases live in your project's `.arbiter/qa-audit/phase-NN.json` files.
 
 ## Source

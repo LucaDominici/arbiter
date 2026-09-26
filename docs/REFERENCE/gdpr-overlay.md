@@ -48,8 +48,8 @@ All files use `skipIfExists: true` — brownfield re-init never overwrites user 
 
 ## Controls → Gates
 
-The gate `<project>/scripts/check-gdpr-controls.mjs` maps each GDPR control to a required evidence
-artifact and fails (exit 1, blocking an L4 release) when any is missing or empty:
+The gate `check-gdpr-controls.mjs` (emitted into the project's `scripts/`) maps each GDPR control
+to a required evidence artifact and fails (exit 1, blocking an L4 release) when any is missing or empty:
 
 | Control | GDPR article | Statement                                      | Evidence artifact                                 |
 | ------- | ------------ | ---------------------------------------------- | ------------------------------------------------- |
@@ -66,7 +66,6 @@ The gate is wired into the generated project's L2 quality gate (`check-all.mjs`)
 script, so non-GDPR projects are unaffected:
 
 ```bash
-node scripts/check-gdpr-controls.mjs   # exit 0 = all controls have evidence; exit 1 = blocking gap
 node scripts/check-all.mjs --level L2  # runs the GDPR gate as part of L2
 ```
 
