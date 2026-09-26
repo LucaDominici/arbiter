@@ -397,7 +397,7 @@ export const FLIP_REGISTRY = {
   },
   'refutation-verdicts': {
     kind: 'file-scan',
-    argv: (d) => ['--evidence-dir', join(d, 'returns')],
+    argv: (d) => ['--evidence-dir', join(d, 'returns'), '--repo-root', d],
     // acted-on finding majority-REFUTED (1 UPHELD vs 2 REFUTED) → must fail adjudication.
     plantBad: (d) => plantRefutation(d, ['UPHELD', 'REFUTED', 'REFUTED']),
     plantClean: (d) => plantRefutation(d, ['UPHELD', 'UPHELD', 'REFUTED']),
