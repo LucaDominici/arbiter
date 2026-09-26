@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2919",
+  "test_path": "__tests__/scripts/gate-mutex-hermetic-2919.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "40d18a9547d082a988213b6b9bb83b7d72e9f400",
+  "test_blob_sha": "5bc9fe1503e946bc5db8e1d8643c54d3e297f449",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/gate-mutex-hermetic-2919.test.ts (1 test | 1 failed) 533ms\n     × a hostile parent core.hooksPath never runs inside the fixture repo 532ms\n\n Test Files  1 failed (1)\n      Tests  1 failed (1)\n   Start at  06:49:19\n   Duration  642ms (transform 9ms, setup 7ms, import 8ms, tests 533ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/gate-mutex-hermetic-2919.test.ts > #2919 gate-mutex fixture git is hermetic > a hostile parent core.hooksPath never runs inside the fixture repo\nAssertionError: expected true to be false // Object.is equality\n\n- Expected\n+ Received\n\n- false\n+ true\n\n ❯ __tests__/scripts/gate-mutex-hermetic-2919.test.ts:46:32\n     44|     )\n     45|     expect(r.status, r.stdout + r.stderr).toBe(0)\n     46|     expect(existsSync(marker)).toBe(false)\n       |                                ^\n     47|   })\n     48| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/gate-mutex-hermetic-2919.test.ts",
+  "recorded_at": "2026-09-26T04:49:20.396Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/gate-mutex-hermetic-2919.test.ts"
+  ]
+}
