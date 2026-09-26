@@ -1,0 +1,79 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2904",
+  "criteria": [
+    {
+      "id": "AC-2904.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/cross-model-review.ts",
+          "line": 561
+        },
+        {
+          "file": "src/commands/cross-model-review.ts",
+          "line": 605
+        },
+        {
+          "file": "src/commands/cross-model-review.ts",
+          "line": 611
+        },
+        {
+          "file": "src/commands/cross-model-review.ts",
+          "line": 726
+        },
+        {
+          "file": "__tests__/commands/cross-model-review-task-base-2904.test.ts",
+          "line": 70
+        },
+        {
+          "file": "__tests__/commands/cross-model-review-task-base-2904.test.ts",
+          "line": 81
+        }
+      ]
+    },
+    {
+      "id": "AC-2904.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/cross-model-review.ts",
+          "line": 605
+        },
+        {
+          "file": "src/commands/ship-review.ts",
+          "line": 130
+        },
+        {
+          "file": "__tests__/commands/cross-model-review-task-base-2904.test.ts",
+          "line": 88
+        },
+        {
+          "file": "__tests__/commands/cross-model-review-task-base-2904.test.ts",
+          "line": 108
+        }
+      ]
+    },
+    {
+      "id": "AC-2904.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/cross-model-review-task-base-2904.test.ts",
+          "line": 94
+        },
+        {
+          "file": "__tests__/commands/cross-model-review-task-base-2904.test.ts",
+          "line": 102
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2904-review-task-base",
+  "sha": "d096e2e91812fd39d36000f0f0dfc8329b0f6d90",
+  "planHash": "d873febbe35fcb9aa90163d50e6b45f75e8374df",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2904/domain-0.json",
+    "sha256": "07368ae76142c58ece7c471ba1f7c84eae345fdf6228af0df168bf41641969d2"
+  }
+}
