@@ -106,11 +106,6 @@ describe('governance template rendering (#166, #712)', () => {
       expect(out).toMatch(/"severity_thresholds":/)
     })
 
-    it('contains arbiter audit run CLI signature', () => {
-      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
-      expect(out).toMatch(/arbiter audit run/)
-    })
-
     it('contains cadence cron mapping', () => {
       const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
       expect(out).toMatch(/Cron schedule/)

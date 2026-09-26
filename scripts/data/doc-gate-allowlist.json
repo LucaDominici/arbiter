@@ -1,20 +1,5 @@
 {
   "$schemaVersion": 1,
   "description": "#2408: dated per-file excuses for the three doc gates (check-doc-links, check-doc-style, check-phantom-command-scan). An entry is only legitimate when the real fix is a prose or product decision owned by another issue — a path/link/frontmatter one-liner gets fixed, never listed. Every entry expires; the gate goes RED the day after, so the debt cannot rot silently. Rules: doc-links | doc-style | phantom-command.",
-  "entries": [
-    {
-      "path": "src/templates/governance/qa-audit-phases.md.ejs",
-      "rule": "phantom-command",
-      "reason": "Open decision (#2917): ship the `arbiter audit run` subcommand, or drop it from the emitted governance playbook. Until then the playbook documents it as \"planned, not yet shipped\", and excusing the file keeps `audit` out of the emitted-surface ledger, which would otherwise demand a row for a command that does not exist.",
-      "issue": "#2917",
-      "expires": "2026-10-10"
-    },
-    {
-      "path": "docs/REFERENCE/gdpr-overlay.md",
-      "rule": "phantom-command",
-      "reason": "Open decision (#2917): make the scanner resolve emitted-doc citations against the emitted tree, or stop citing the path literally in this doc. It cites `node scripts/check-gdpr-controls.mjs`, an overlay-conditional gate emitted into the CONSUMER tree only and correctly absent from arbiter scripts/. Do not create the file.",
-      "issue": "#2917",
-      "expires": "2026-10-10"
-    }
-  ]
+  "entries": []
 }
