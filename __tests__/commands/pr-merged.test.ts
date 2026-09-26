@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { evaluateMerged, failingCheckNames, type PrSnapshot } from '../../src/commands/pr-merged'
 import { runTaskAdvance } from '../../src/commands/task'
+import { ArbiterError } from '../../src/utils/errors'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state'
 import { writeGatePassEvidence } from '../helpers.js'
 import { resolveShipTreatment } from '../../src/commands/ship-tier'
@@ -206,6 +207,18 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
       }),
     ).toThrow(/NOT MERGED.*PR #7.*CI/s)
     expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('#2910 AC-2/AC-5: the complete refusal carries a stable code, never an unexpected error', () => {
+    let thrown: unknown
+    try {
+      runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'OPEN' }] })
+    } catch (err) {
+      thrown = err
+    }
+    expect(thrown).toBeInstanceOf(ArbiterError)
+    expect((thrown as ArbiterError).code).toBe('E_PR_NOT_MERGED')
+    expect((thrown as ArbiterError).message).toMatch(/^NOT MERGED/)
   })
 
   it('AC-2402.1: refuses when the branch has no PR', () => {

@@ -556,6 +556,8 @@ export interface ShipResult {
   reviewDispatched?: boolean
   /** Summary emitted after a runtime-owned external seat completes. */
   reviewSummary?: string
+  /** #2910 — printed first when the round opened with no reviewer seat (nothing dispatched). */
+  reviewNote?: string
   /** Frozen reviewer-panel identity printed only for the round this invocation opened. */
   reviewSubject?: {
     taskId: string
@@ -780,6 +782,8 @@ function gateContractLines(result: ShipResult): string[] {
 
 function phaseActionLines(result: ShipResult): string[] {
   return [
+    // #2910 AC-4 — a no-seat round says nobody was dispatched before anything else.
+    ...(result.reviewNote !== undefined ? [result.reviewNote] : []),
     `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
     `Action: ${result.done ? 'Delivery complete. Clean up the worktree.' : result.step.action}`,
   ]
@@ -1358,6 +1362,7 @@ function applyPreparedChainAdd(root: string, prepared: PreparedChainAdd | null):
 interface ExplicitReviewRoundResult {
   plan: PlannedReviewRound | null
   summary?: string
+  note?: string
 }
 
 function reviewCompletionExitCode(root: string, taskId: string): number {
@@ -1577,6 +1582,10 @@ function reviewVertical(
   return slotPlan.external[0] ?? treatment.reviewerVerticals[0] ?? 'bugs'
 }
 
+// #2910 AC-4 — with no seat the runtime dispatches nobody; say so before the panel template.
+const REVIEW_ROUND_NO_SEAT =
+  'review round: no reviewer dispatched — no reviewer seat is configured; the round waits for an independent reviewer envelope'
+
 const REVIEW_ROUND_NOT_OPENED =
   'review round: not opened — the latest review already covers this source (no blocking findings, no source change since)'
 
@@ -1592,7 +1601,7 @@ function openExplicitReviewRound(
   const plan = runTaskReviewRound(reviewRoundOptions(root, opts, hasCodexSeat))
   // #2850 — say so when no round opens; a silent no-op reads as a completed review.
   if (plan === null) return { plan, summary: REVIEW_ROUND_NOT_OPENED }
-  if (!hasCodexSeat && slotPlan.external.length === 0) return { plan }
+  if (!hasCodexSeat && slotPlan.external.length === 0) return { plan, note: REVIEW_ROUND_NO_SEAT }
   return {
     plan,
     summary: executeCodexReviewRound({
@@ -1756,6 +1765,16 @@ function premortemFor(
   return evaluatePremortem(manifest ? [...manifest] : [], treatment, forced ? { force: true } : {})
 }
 
+function optionalReviewText(
+  reviewSummary: string | undefined,
+  reviewNote: string | undefined,
+): Pick<ShipResult, 'reviewSummary' | 'reviewNote'> {
+  return {
+    ...(reviewSummary !== undefined ? { reviewSummary } : {}),
+    ...(reviewNote !== undefined ? { reviewNote } : {}),
+  }
+}
+
 function buildActiveShipResult(input: {
   root: string
   phase: TaskPhase
@@ -1765,6 +1784,7 @@ function buildActiveShipResult(input: {
   advanced: boolean
   preparedRound: PlannedReviewRound | null
   reviewSummary: string | undefined
+  reviewNote: string | undefined
   stopMessage: string | null
   preparedChainAdd: ReturnType<typeof prepareChainAdd>
   opts: TaskShipOptions
@@ -1779,6 +1799,7 @@ function buildActiveShipResult(input: {
     advanced,
     preparedRound,
     reviewSummary,
+    reviewNote,
     stopMessage,
     preparedChainAdd,
     opts,
@@ -1798,7 +1819,7 @@ function buildActiveShipResult(input: {
     step: stopMessage === null ? step : { ...step, action: stopMessage },
     advanced,
     reviewDispatched: preparedRound !== null,
-    ...(reviewSummary !== undefined ? { reviewSummary } : {}),
+    ...optionalReviewText(reviewSummary, reviewNote),
     ...(reviewSubject !== undefined ? { reviewSubject } : {}),
     done: phase === 'complete',
     tier: treatment.tier,
@@ -1910,6 +1931,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
     advanced: advancedPhase.advanced,
     preparedRound,
     reviewSummary: explicitRound.summary,
+    reviewNote: explicitRound.note,
     stopMessage: advancedPhase.stopMessage,
     preparedChainAdd,
     opts,

@@ -413,4 +413,34 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
         'deterministic.',
     },
   ],
+  [
+    'E_STALE_HOST_BINDING',
+    {
+      code: 'E_STALE_HOST_BINDING',
+      summary: 'Native host binding is stale',
+      detail:
+        'The lifecycle CLI re-checks the native host binding written by `lifecycle preflight` ' +
+        'against the live session and checkout. The message names the field that no longer ' +
+        'matches: session (a different Claude session or transcript), worktree, branch, or task ' +
+        '(the worktree-open binding id changed).',
+      recovery:
+        "Run the command in the message: `arbiter lifecycle preflight --id '<task>' --worktree " +
+        '"<worktree>"` from the task worktree, then retry.',
+    },
+  ],
+  [
+    'E_PR_NOT_MERGED',
+    {
+      code: 'E_PR_NOT_MERGED',
+      summary: 'The complete gate found no qualifying merged PR',
+      detail:
+        '`lifecycle advance --to complete` requires a merged PR for the qualified candidate with ' +
+        'green CI. Under the exact-pr completion policy (merge mode pr-ff) main must equal the PR ' +
+        'head, so a merge-commit merge cannot satisfy completion: the refusal names the PR head ' +
+        'and the merge commit SHAs.',
+      recovery:
+        'Merge the PR and wait for green CI. For pr-ff, land with a fast-forward ' +
+        '(`scripts/pr-merge-watch.mjs <owner/repo> <pr>`), not a merge commit.',
+    },
+  ],
 ])

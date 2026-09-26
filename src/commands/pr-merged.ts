@@ -200,7 +200,7 @@ function qualificationPrerequisiteFailure(
   if (!options.mergeReachableFromMain)
     return 'Merged PR commit is not reachable from current origin/main.'
   if (policy === 'exact-pr' && candidate.mergeCommit.oid !== candidate.headRefOid)
-    return 'Merged PR head/merge refs do not match the qualified candidate SHA.'
+    return `Merged PR head ${candidate.headRefOid} ≠ merge commit ${candidate.mergeCommit.oid}: a merge-commit merge cannot satisfy pr-ff completion; land with a fast-forward (scripts/pr-merge-watch.mjs).`
   return undefined
 }
 

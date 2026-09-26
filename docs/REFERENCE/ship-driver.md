@@ -43,6 +43,23 @@ universal).
 - **`.claude/commands/ship.md`** — already emitted by the claude commands generator;
   unchanged by this generator (skipIfExists).
 
+## Coded delivery-path refusals
+
+The lifecycle refusals a driver hits most print `Error [CODE]: …` followed by
+`arbiter explain CODE`, never `Unexpected error:` (#2910):
+
+- **`E_STALE_HOST_BINDING`** — the native host binding no longer matches the live
+  `session`, `worktree`, `branch` or `task`; the message names the field and the exact
+  `arbiter lifecycle preflight --id '<task>' --worktree "<worktree>"` remedy.
+- **`E_PR_NOT_MERGED`** — `complete` found no qualifying merged PR. Under `pr-ff`
+  (`exact-pr` completion) it names the PR head and merge commit SHAs: a merge-commit
+  merge cannot satisfy completion; land with `scripts/pr-merge-watch.mjs <owner/repo> <pr>`,
+  which the `close` step names for `trunk-solo` + `pr-ff`.
+
+`ship --review-round` with no configured reviewer seat dispatches nobody: its first line
+says so and that the round waits for an independent reviewer envelope, then the reviewer
+panel template follows.
+
 ## Trust boundary
 
 `TICK_PROMPT.md` is trusted input executed by an autonomous agent every tick — treat

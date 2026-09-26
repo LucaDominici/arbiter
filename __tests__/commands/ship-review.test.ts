@@ -31,7 +31,7 @@ import {
   planReviewRound,
   resolveReviewMaxRounds,
 } from '../../src/commands/ship-review'
-import { runTaskShip, buildShipStepLines } from '../../src/commands/task-ship'
+import { runTaskShip, buildShipStepLines, shipStepFor } from '../../src/commands/task-ship'
 import { readUnifiedState, writeUnifiedState, reviewStateOf } from '../../src/commands/task-state'
 import type { ShipProfile } from '../../src/commands/ship-profile'
 import { enforceAcFitCitations, validateSchema } from '../../scripts/lib/agent-return-validate.mjs'
@@ -621,6 +621,9 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
       'Reviewer panel template: replace <ISO-8601 timestamp>, <PASS|WARN|FAIL>, <PASS|FAIL|NOT-TESTED>, and <repo-relative-path>; set numeric confidence and evidence line values.'
     const command =
       "node scripts/record-agent-return.mjs --mode reviewer-panel --task '#100' <<'JSON'"
+    // #2910 AC-4: no seat → the first line says nobody was dispatched; the template follows it.
+    expect(lines[0]).toMatch(/no reviewer dispatched.*independent reviewer envelope/)
+    expect(lines.indexOf(instruction)).toBeGreaterThan(0)
     const start = lines.indexOf(command)
     const end = lines.indexOf('JSON', start + 1)
 
@@ -1284,5 +1287,18 @@ describe('review rounds own the Codex seat (#2747)', () => {
     expect(result.reviewDispatched).toBe(true)
     expect(buildShipStepLines(result).some((line) => line.startsWith('review round '))).toBe(false)
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(false)
+  })
+})
+
+describe('close names the configured lander (#2910 AC-3)', () => {
+  const lander = 'node scripts/pr-merge-watch.mjs <owner/repo> <pr>'
+
+  it('trunk-solo + pr-ff names the fast-forward lander', () => {
+    const profile: ShipProfile = { ...TEST_PROFILE, collaborationMode: 'trunk-solo' }
+    expect(shipStepFor('close', 'Standard', profile).action).toContain(lander)
+  })
+
+  it('peer-review lands by a normal PR merge, so the exact-pr lander is not named', () => {
+    expect(shipStepFor('close', 'Standard', TEST_PROFILE).action).not.toContain(lander)
   })
 })

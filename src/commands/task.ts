@@ -25,7 +25,7 @@ import { getLogger } from '../utils/logger.js'
 import { CliError, runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
-import { UserFacingError } from '../utils/errors.js'
+import { ArbiterError, UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { verifyGreenExecution } from '../evidence/tdd-reexecute.js'
@@ -342,9 +342,26 @@ function requestedTaskMatches(requestedTaskId: string | undefined, boundTaskId: 
   return normalizeChainId(requestedTaskId) === boundTaskId
 }
 
-/** #2862 — the stale-binding error names the exact recovery command. */
-function staleBindingMessage(taskId: string, worktree: string): string {
-  return `native host binding is stale — run arbiter lifecycle preflight --id '${taskId}' --worktree "${worktree}"`
+/** #2862/#2910 — a coded refusal naming the stale field and the exact recovery command. */
+function staleBindingError(
+  taskId: string,
+  worktree: string,
+  field: 'session' | 'worktree' | 'branch' | 'task',
+): ArbiterError {
+  return ArbiterError.fromKey('E_STALE_HOST_BINDING', 'errors.E_STALE_HOST_BINDING', {
+    field,
+    taskId,
+    worktree,
+  })
+}
+
+function staleBindingField(
+  bound: NativeHostBinding,
+  live: NativeHostBinding,
+): 'worktree' | 'branch' | 'task' | undefined {
+  if (live.worktreePath !== bound.worktreePath) return 'worktree'
+  if (live.branch !== bound.branch) return 'branch'
+  return live.bindingId === bound.bindingId ? undefined : 'task'
 }
 
 function assertNativeCheckoutIdentity(
@@ -361,13 +378,8 @@ function assertNativeCheckoutIdentity(
     throw new Error('task id does not match the native host binding')
   }
   const live = resolveNativeCheckoutBinding(state.taskId, binding.worktreePath, host)
-  if (
-    live.bindingId !== binding.bindingId ||
-    live.worktreePath !== binding.worktreePath ||
-    live.branch !== binding.branch
-  ) {
-    throw new Error(staleBindingMessage(state.taskId, binding.worktreePath))
-  }
+  const field = staleBindingField(binding, live)
+  if (field !== undefined) throw staleBindingError(state.taskId, binding.worktreePath, field)
 }
 
 function assertNativeTranscriptAttestation(
@@ -384,7 +396,7 @@ function assertNativeTranscriptAttestation(
     requireTranscript(binding.worktreePath, sessionId, host.homeDir ?? homedir()) !==
       binding.transcriptPath
   ) {
-    throw new Error(staleBindingMessage(taskId, binding.worktreePath))
+    throw staleBindingError(taskId, binding.worktreePath, 'session')
   }
 }
 
@@ -852,7 +864,7 @@ function readCommitCi(sha: string, dir: string): NonNullable<PrSnapshot['statusC
 
 /** The unverifiable / unmerged refusal, as one user-facing error. */
 function prGateRefusal(detail: string): UserFacingError {
-  return new UserFacingError(t('errors.E_PR_NOT_MERGED', { detail }))
+  return ArbiterError.fromKey('E_PR_NOT_MERGED', 'errors.E_PR_NOT_MERGED', { detail })
 }
 
 /**
