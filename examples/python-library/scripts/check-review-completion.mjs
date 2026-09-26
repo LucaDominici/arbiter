@@ -858,7 +858,9 @@ function resolveTaskContext(sidecar) {
  */
 function reportCorrelated(envelopes, panel) {
   const seats = Object.fromEntries(panel.map(({ agent, shards }) => [agent, shards]))
-  process.stdout.write(`${JSON.stringify({ envelopes, seats })}\n`)
+  // #2926 — the one source-change verdict: the round opener reads it instead of its own diff.
+  const sourceChanged = evidenceStaleness(repoRoot, correlatedSha) !== null
+  process.stdout.write(`${JSON.stringify({ envelopes, seats, sourceChanged })}\n`)
   return { exitCode: 0 }
 }
 
@@ -868,8 +870,8 @@ function reportCorrelated(envelopes, panel) {
  * carries each dispatched agent's correlated returns by the same per-agent rule, so an already
  * answered seat of an incomplete panel is reused instead of dispatched again. The
  * checkout binding is deliberately not applied here: the query reads the verdict of a past SHA,
- * the branch leg is already enforced by loadSidecarForCheck, and a moved HEAD is the task's
- * reviewedSourceChanged decision (a new round), not an uncovered one.
+ * the branch leg is already enforced by loadSidecarForCheck, and a moved HEAD is reported as
+ * `sourceChanged` (#2926: the completion binding's own predicate), not as an uncovered round.
  * @param {DispatchSidecar} sidecar
  * @param {string} task
  * @param {string[]} files

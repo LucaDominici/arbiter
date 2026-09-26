@@ -101,11 +101,13 @@ function branchMismatch(root, branch) {
  * @returns {string | null}
  */
 function sourceChange(root, sha, excludes) {
+  const reviewed = reviewedTree(root, sha)
+  if (reviewed === null) return `cannot compare the tree against ${short(sha)}`
   // `git diff --quiet` is a trichotomy: 0 unchanged, 1 changed, >=2 error.
   const diff = git(root, [
     'diff',
     '--quiet',
-    sha,
+    reviewed,
     'HEAD',
     '--',
     '.',
@@ -114,6 +116,27 @@ function sourceChange(root, sha, excludes) {
   if (diff.status === 1) return `source changed since ${short(sha)}`
   if (diff.status !== 0) return `cannot compare the tree against ${short(sha)}`
   return null
+}
+
+/**
+ * #2926 — `sha` merged with the base content HEAD already carries, so only changes authored on
+ * the branch count: `merge-base(HEAD, origin/main)` is merged into `sha` with `merge-tree`. No
+ * origin/main, or a base `sha` already contains, compares `sha` itself. Conflict markers
+ * (exit 1) stay in the tree, so a conflicted path counts as changed; any other failure is null
+ * (cannot compare, fails closed).
+ *
+ * @param {string} root repository root
+ * @param {string} sha reviewed commit
+ * @returns {string | null} tree-ish to compare HEAD with
+ */
+function reviewedTree(root, sha) {
+  const base = git(root, ['merge-base', 'HEAD', 'origin/main'])
+  if (base.status !== 0) return sha
+  const baseSha = String(base.stdout).trim()
+  if (git(root, ['merge-base', '--is-ancestor', baseSha, sha]).status === 0) return sha
+  const merged = git(root, ['merge-tree', '--write-tree', sha, baseSha])
+  if (merged.status !== 0 && merged.status !== 1) return null
+  return String(merged.stdout).split('\n')[0].trim()
 }
 
 /**
