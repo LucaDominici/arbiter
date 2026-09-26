@@ -329,11 +329,6 @@ function staleBindingCause(binding) {
   return bindingError ? { stale: bindingError, binding: true } : null
 }
 
-function assertModeIdentity(parsed, state) {
-  const stamped = currentIdentity()
-  return staleIdentityCause(parsed, state, stamped) === null ? stamped : null
-}
-
 function staleIdentityError(cause) {
   const remedy = cause.binding
     ? `; run arbiter lifecycle preflight --id '${TASK_ID}' --worktree "${REPO_ROOT}"`
@@ -574,9 +569,11 @@ function validatePanel(envelopes, state, schema, requirement) {
 
 function validatedReviewers(envelopes, state, schema) {
   const validated = []
+  const stamped = currentIdentity()
   for (const candidate of envelopes) {
-    if (assertModeIdentity(candidate, state) === null) {
-      process.stdout.write('[record-agent-return] FAIL: reviewer envelope subject is stale\n')
+    const cause = staleIdentityCause(candidate, state, stamped)
+    if (cause !== null) {
+      process.stdout.write(`[record-agent-return] FAIL: ${staleIdentityError(cause)}\n`)
       return null
     }
     const envelope = stampAndValidate(candidate, schema)
