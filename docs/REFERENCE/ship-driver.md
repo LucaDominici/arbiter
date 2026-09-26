@@ -55,6 +55,11 @@ The lifecycle refusals a driver hits most print `Error [CODE]: …` followed by
   (`exact-pr` completion) it names the PR head and merge commit SHAs: a merge-commit
   merge cannot satisfy completion; land with `scripts/pr-merge-watch.mjs <owner/repo> <pr>`,
   which the `close` step names for `trunk-solo` + `pr-ff`.
+- **`E_GATE_REFUSED`** — a delivery gate refused and the message names its remedy (#2932):
+  a required checker that exits 1 with a `FAIL` line (stale derived gates, a malformed
+  acceptance anchor; a `FAIL` line printed on stdout is carried too), a review round on a
+  base that has not merged `origin/main`, or a `src/templates` commit newer than the bake
+  snapshots. A checker that cannot run (missing, spawn error, timeout, exit 2) stays a fault.
 
 `ship --review-round` with no configured reviewer seat dispatches nobody: its first line
 says so and that the round waits for an independent reviewer envelope, then the reviewer
