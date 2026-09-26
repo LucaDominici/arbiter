@@ -1660,14 +1660,26 @@ function correlatedReviewEnvelopes(
   return envelopes
 }
 
-function assertReviewSubjectFrozen(dir: string): void {
-  checkPlanTrackedAtHead(dir)
-  checkPlanContractCurrent(dir)
-  const dirty = runCli('git', ['status', '--porcelain'], {
+function gitStatusPorcelain(dir: string, extra: readonly string[]): string {
+  return runCli('git', ['status', '--porcelain', ...extra], {
     cwd: dir,
     timeoutMs: 5000,
   }).stdout.trim()
-  if (dirty.length > 0) {
+}
+
+/** #2908 F1 — true only when git proves every tracked file matches HEAD; unreadable git is dirty. */
+function trackedTreeClean(dir: string): boolean {
+  try {
+    return gitStatusPorcelain(dir, ['--untracked-files=no']).length === 0
+  } catch {
+    return false
+  }
+}
+
+function assertReviewSubjectFrozen(dir: string): void {
+  checkPlanTrackedAtHead(dir)
+  checkPlanContractCurrent(dir)
+  if (gitStatusPorcelain(dir, []).length > 0) {
     throw new Error('review freeze requires a clean HEAD; commit the plan and every candidate fix')
   }
   assertBaseCurrent(dir)
@@ -1864,6 +1876,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   assertPhaseTransition(current, to, opts.reverse)
 
   // Each transition enforces only the proof due at this point in the lifecycle.
+  let logNote = ''
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
     plan: () => {
       checkTaskSeededGate(dir)
@@ -1884,7 +1897,9 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
       // the very gate this phase's ship.md row promises, so it is refused here.
       checkTaskSeededGate(dir)
       checkGreenExecutionGate(dir)
-      recordGreenVerifiedHead(dir)
+      if (!recordGreenVerifiedHead(dir)) {
+        logNote = ' (GREEN ran on uncommitted changes; no green sha recorded)'
+      }
     },
     verification: () => {
       checkPlanContractCurrent(dir)
@@ -1897,8 +1912,8 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
       checkGatePassMarkerGate(dir, 'L1')
     },
     complete: () => {
-      // Marker first: it is the cheap local check, and the pre-existing gate-level contract must
-      // keep failing before the network-touching PR verification runs.
+      // GREEN at HEAD first (refused on a dirty tree), then the local completion evidence, and
+      // only then the network-touching PR verification.
       checkGreenExecutionAtHead(dir)
       const candidateSha = checkCompletionEvidence(dir)
       checkPrMergedGate(dir, opts, candidateSha)
@@ -1907,7 +1922,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   phaseGates[to]?.()
   // Phase entry never spends a review round. Only an explicit reviewer dispatch does.
   writeUnifiedState(dir, { phase: to })
-  appendLog(dir, `${current} → ${to}`)
+  appendLog(dir, `${current} → ${to}${logNote}`)
   return null
 }
 
@@ -2106,14 +2121,26 @@ function checkGreenExecutionGate(dir: string): void {
 function checkGreenExecutionAtHead(dir: string): void {
   const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
   if (!existsSync(tddEvidencePath(taskId, dir))) return
+  if (!trackedTreeClean(dir)) {
+    throw new ArbiterError(
+      'E_GREEN_DIRTY_TREE',
+      'GREEN execution gate: tracked files differ from HEAD, so GREEN would not verify HEAD.',
+      { hint: 'commit or stash, then retry' },
+    )
+  }
   checkGreenExecutionGate(dir)
   recordGreenVerifiedHead(dir)
 }
 
-/** #2908 AC-2 — record-only; an unreadable HEAD skips the record, never the GREEN verdict. */
-function recordGreenVerifiedHead(dir: string): void {
+/**
+ * #2908 AC-2 — record-only; an unreadable HEAD skips the record, never the GREEN verdict. GREEN
+ * runs in the working tree, so the SHA is recorded only when tracked files match it (F1).
+ */
+function recordGreenVerifiedHead(dir: string): boolean {
+  if (!trackedTreeClean(dir)) return false
   const sha = reviewHead(dir, undefined)
   if (sha !== null) writeUnifiedState(dir, { greenVerifiedSha: sha })
+  return true
 }
 
 /**
