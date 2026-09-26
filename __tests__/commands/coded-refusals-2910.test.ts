@@ -7,7 +7,7 @@
  * only takes that branch for errors that are not instanceof ArbiterError/UserFacingError).
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -129,9 +129,25 @@ describe('AC-4 ship --review-round with no reviewer seat (#2910)', () => {
     )
     writeFileSync(join(dir, 'review.test.ts'), 'throw new Error("RED") // frozen candidate\n')
     writeFileSync(join(dir, 'green-output.mjs'), "process.stdout.write('1 passed\\n')\n")
-    execFileSync('git', ['add', '.gitignore', 'plan.md', 'review.test.ts', 'green-output.mjs'], {
-      cwd: dir,
-    })
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    copyFileSync(
+      resolve(import.meta.dirname, '../../scripts/lib/acceptance-criteria.mjs'),
+      join(dir, 'scripts', 'lib', 'acceptance-criteria.mjs'),
+    )
+    execFileSync(
+      'git',
+      [
+        'add',
+        '.gitignore',
+        'plan.md',
+        'review.test.ts',
+        'green-output.mjs',
+        'scripts/lib/acceptance-criteria.mjs',
+      ],
+      {
+        cwd: dir,
+      },
+    )
     execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir })
     const redSha = execFileSync('git', ['rev-parse', 'HEAD'], {
       cwd: dir,
