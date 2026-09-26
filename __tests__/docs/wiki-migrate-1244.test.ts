@@ -13,34 +13,35 @@
 //   5. wiki-before-delete: each deleted doc has a wiki/ counterpart (no content loss)
 //   6. over-delete guard: FLAG-set + KEEP-GENERATED contracts still exist
 //   7. INV-108 core-set surface ≤ 20 (DoD)
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, it, expect } from 'vitest'
 import { selectSsotDocs } from '../../scripts/gen-ssot-core.mjs'
 
 const ROOT = resolve(__dirname, '..', '..')
 const r = (p: string) => join(ROOT, p)
-const trackedExists = (p: string) => {
+const trackedExists = (p: string, cwd = ROOT) => {
   try {
-    execFileSync('git', ['ls-files', '--error-unmatch', '--', p], { cwd: ROOT, stdio: 'ignore' })
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', p], { cwd, stdio: 'ignore' })
     return true
   } catch {
     return false
   }
 }
 
-const RESIDUE_PATH = r('docs/METHOD/KNOWLEDGE_MAP.md')
+// #2643 residue: an untracked file at a retired path must not count as tracked. Planted in a
+// tmp repo, never in the real tree (#2934).
+const RESIDUE_REPO = mkdtempSync(join(tmpdir(), 'wiki-1244-residue-'))
 
 beforeAll(() => {
-  mkdirSync(r('docs/METHOD'), { recursive: true })
-  writeFileSync(RESIDUE_PATH, 'workspace residue')
+  execFileSync('git', ['init', '-q'], { cwd: RESIDUE_REPO })
+  mkdirSync(join(RESIDUE_REPO, 'docs/METHOD'), { recursive: true })
+  writeFileSync(join(RESIDUE_REPO, 'docs/METHOD/KNOWLEDGE_MAP.md'), 'workspace residue')
 })
 
-afterAll(() => {
-  rmSync(RESIDUE_PATH)
-  rmSync(r('docs/METHOD'), { recursive: true })
-})
+afterAll(() => rmSync(RESIDUE_REPO, { recursive: true, force: true }))
 
 // ── DELETE list: register §WIKI hand docs (64), confirmed wiki-covered ───────────
 const DELETE_LIST = [
@@ -149,6 +150,7 @@ function wikiNameFor(docPath: string): string {
 describe('#1244 — bespoke knowledge-map retired', () => {
   it('docs/METHOD/KNOWLEDGE_MAP.md is deleted', () => {
     expect(trackedExists('docs/METHOD/KNOWLEDGE_MAP.md')).toBe(false)
+    expect(trackedExists('docs/METHOD/KNOWLEDGE_MAP.md', RESIDUE_REPO)).toBe(false)
   })
   it('knowledge-map scripts are deleted', () => {
     expect(trackedExists('scripts/check-knowledge-map.mjs')).toBe(false)
