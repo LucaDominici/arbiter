@@ -49,10 +49,10 @@ afterEach(() => {
  * #2919: fixture git must not inherit the parent's GIT_* or config — under the
  * Full Gate that runs the real repo's hooks inside the throwaway repo.
  */
-function hermeticGit(dir: string, args: string[]): void {
+function hermeticGit(dir: string, args: string[]): string {
   const env: NodeJS.ProcessEnv = {}
   for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('GIT_')) env[k] = v
-  execFileSync('git', ['-C', dir, '-c', 'core.hooksPath=/dev/null', ...args], {
+  return execFileSync('git', ['-C', dir, '-c', 'core.hooksPath=/dev/null', ...args], {
     env: {
       ...env,
       GIT_CONFIG_NOSYSTEM: '1',
@@ -62,6 +62,7 @@ function hermeticGit(dir: string, args: string[]): void {
       GIT_COMMITTER_NAME: 'T',
       GIT_COMMITTER_EMAIL: 't@t.dev',
     },
+    encoding: 'utf-8',
   })
 }
 
@@ -107,11 +108,16 @@ describe('#2427 AC-2 — the gate mutex is gate-exec s mutex, not a second one',
     expect(gateLockPathFor(dir)).toBe(gateLockPath(deriveGateKey(dir)))
   })
 
-  it('every worktree of one repo converges on ONE lock path', () => {
+  // #2919: 80 loaded runs (4 parallel vitest over __tests__/scripts x 20): p99 314 ms, max 330 ms; 10 s = ~30x headroom.
+  it('every worktree of one repo converges on ONE lock path', { timeout: 10_000 }, () => {
     const dir = makeRepo()
     const sub = join(dir, 'nested')
     hermeticGit(dir, ['commit', '-q', '--allow-empty', '-m', 'init'])
     hermeticGit(dir, ['worktree', 'add', '-q', '-b', 'wt', sub])
+    // non-vacuity: both sides must resolve the fixture's own common dir, not an inherited one
+    expect(
+      realpathSync(resolve(sub, hermeticGit(sub, ['rev-parse', '--git-common-dir']).trim())),
+    ).toBe(join(dir, '.git'))
     expect(gateLockPathFor(sub)).toBe(gateLockPathFor(dir))
   })
 
