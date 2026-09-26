@@ -12,7 +12,7 @@
         },
         {
           "file": "scripts/record-agent-return.mjs",
-          "line": 337
+          "line": 332
         },
         {
           "file": "__tests__/scripts/coded-script-refusals-2911.test.ts",
@@ -30,15 +30,15 @@
       "evidence": [
         {
           "file": "scripts/check-acceptance.mjs",
-          "line": 298
+          "line": 309
         },
         {
           "file": "scripts/check-acceptance.mjs",
-          "line": 356
+          "line": 365
         },
         {
           "file": "__tests__/scripts/coded-script-refusals-2911.test.ts",
-          "line": 159
+          "line": 161
         }
       ]
     },
@@ -52,15 +52,15 @@
         },
         {
           "file": "scripts/check-acceptance.mjs",
-          "line": 285
+          "line": 296
+        },
+        {
+          "file": "__tests__/scripts/coded-script-refusals-2911.test.ts",
+          "line": 234
         },
         {
           "file": "__tests__/commands/task-advance-gates.test.ts",
-          "line": 390
-        },
-        {
-          "file": "__tests__/commands/task-advance-gates.test.ts",
-          "line": 434
+          "line": 422
         }
       ]
     },
@@ -77,17 +77,17 @@
           "line": 276
         },
         {
-          "file": "__tests__/scripts/coded-script-refusals-2911.test.ts",
-          "line": 32
+          "file": "examples/ts-library/scripts/check-acceptance.mjs",
+          "line": 276
         }
       ]
     }
   ],
   "branch": "task/#2911-script-refusals",
-  "sha": "95e53643a8c4cdaae32b6d1cde8df31a9f984865",
+  "sha": "0311101b4607b8fef418779202e01f5526a9ece3",
   "planHash": "96178defcab7e59e85e363e11bb181815904e4a9",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2911/domain-0.json",
-    "sha256": "b695410535be0341c152b8f0ee88d82f5eb0ba3d800a497effabf4fd8359a21b"
+    "path": ".arbiter/evidence/agent-returns/_2911/domain-1.json",
+    "sha256": "ced4f343ec7ccb5929a55684241fdb2a75ef1127917f6a637bd9b9ca2287ab56"
   }
 }
