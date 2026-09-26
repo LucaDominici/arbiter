@@ -222,7 +222,9 @@ describe('AC-2875.1 stale base', () => {
     git('update-ref', 'refs/remotes/origin/main', 'HEAD')
     seedRefactor(dir)
     const result = ship(dir, { headSha: SHA_A })
-    expect(result.reviewDispatched).toBe(true)
+    // #2910 F4 — the no-seat round opens (rounds: 1) but dispatches nobody.
+    expect(result.reviewDispatched).toBe(false)
+    expect(result.reviewNote).toMatch(/no reviewer dispatched/)
     expect(reviewStateOf(readUnifiedState(dir))).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
   })
 
@@ -234,7 +236,9 @@ describe('AC-2875.1 stale base', () => {
     const headSha = git('rev-parse', 'HEAD')
     seedRefactor(dir)
     const result = ship(dir, { headSha })
-    expect(result.reviewDispatched).toBe(true)
+    // #2910 F4 — the no-seat round opens (rounds: 1) but dispatches nobody.
+    expect(result.reviewDispatched).toBe(false)
+    expect(result.reviewNote).toMatch(/no reviewer dispatched/)
     expect(reviewStateOf(readUnifiedState(dir))).toEqual({ rounds: 1, lastReviewedSha: headSha })
   })
 })

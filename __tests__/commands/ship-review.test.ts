@@ -427,7 +427,9 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     git('commit', '-q', '-m', 'fix: address review')
     const fixed = git('rev-parse', 'HEAD')
     const rereview = ship({ reviewRound: true, headSha: fixed })
-    expect(rereview.reviewDispatched).toBe(true)
+    // #2910 F4 — the no-seat re-review opens a round but dispatches nobody.
+    expect(rereview.reviewDispatched).toBe(false)
+    expect(rereview.reviewNote).toMatch(/no reviewer dispatched/)
     expect(review()).toEqual({ rounds: 2, lastReviewedSha: fixed })
   })
 
@@ -1284,7 +1286,9 @@ describe('review rounds own the Codex seat (#2747)', () => {
       externalModelAccess: codexAccess,
     })
 
-    expect(result.reviewDispatched).toBe(true)
+    // #2910 F4 — plan-only: the round opens with no seat, so nobody is dispatched.
+    expect(result.reviewDispatched).toBe(false)
+    expect(result.reviewNote).toMatch(/no reviewer dispatched/)
     expect(buildShipStepLines(result).some((line) => line.startsWith('review round '))).toBe(false)
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(false)
   })

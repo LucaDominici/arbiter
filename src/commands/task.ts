@@ -271,19 +271,29 @@ function requireTranscript(worktreePath: string, sessionId: string, homeDir: str
   return transcriptPath
 }
 
+function resolveNativeCheckout(
+  requestedWorktree: string,
+  context: NativeHostContext,
+): { worktreePath: string; branch: string } {
+  const worktreePath = realpathSync(requestedWorktree)
+  const cwd = realpathSync(context.cwd ?? process.cwd())
+  if (cwd !== worktreePath)
+    throw new Error(`native host root ${cwd} does not match worktree ${worktreePath}`)
+  return { worktreePath, branch: git(worktreePath, ['branch', '--show-current']) }
+}
+
+function canonicalTaskId(taskId: string): string {
+  return taskId.startsWith('#') ? taskId : `#${taskId}`
+}
+
 function resolveNativeCheckoutBinding(
   taskId: string,
   requestedWorktree: string,
   context: NativeHostContext = {},
 ): NativeHostBinding {
-  const worktreePath = realpathSync(requestedWorktree)
-  const cwd = realpathSync(context.cwd ?? process.cwd())
-  if (cwd !== worktreePath)
-    throw new Error(`native host root ${cwd} does not match worktree ${worktreePath}`)
-  const branch = git(worktreePath, ['branch', '--show-current'])
+  const { worktreePath, branch } = resolveNativeCheckout(requestedWorktree, context)
   if (branch.length === 0) throw new Error('native checkout must have an explicit branch')
-  const canonicalTask = taskId.startsWith('#') ? taskId : `#${taskId}`
-  const bindingId = openLogBindingId(canonicalTask, worktreePath, branch)
+  const bindingId = openLogBindingId(canonicalTaskId(taskId), worktreePath, branch)
   return { bindingId, worktreePath, branch }
 }
 
@@ -342,26 +352,41 @@ function requestedTaskMatches(requestedTaskId: string | undefined, boundTaskId: 
   return normalizeChainId(requestedTaskId) === boundTaskId
 }
 
+type StaleBindingField =
+  'session' | 'worktree' | 'branch' | 'task' | 'open-log binding' | 'transcript'
+
 /** #2862/#2910 — a coded refusal naming the stale field and the exact recovery command. */
 function staleBindingError(
   taskId: string,
   worktree: string,
-  field: 'session' | 'worktree' | 'branch' | 'task',
+  field: StaleBindingField,
+  reason?: string,
 ): ArbiterError {
-  return ArbiterError.fromKey('E_STALE_HOST_BINDING', 'errors.E_STALE_HOST_BINDING', {
-    field,
-    taskId,
-    worktree,
-  })
+  return ArbiterError.fromKey(
+    'E_STALE_HOST_BINDING',
+    'errors.E_STALE_HOST_BINDING',
+    { field, taskId, worktree },
+    reason === undefined ? undefined : { hint: reason },
+  )
 }
 
-function staleBindingField(
-  bound: NativeHostBinding,
-  live: NativeHostBinding,
-): 'worktree' | 'branch' | 'task' | undefined {
-  if (live.worktreePath !== bound.worktreePath) return 'worktree'
-  if (live.branch !== bound.branch) return 'branch'
-  return live.bindingId === bound.bindingId ? undefined : 'task'
+/** #2910 — a failed re-read of the binding is a stale binding, never an uncoded error. */
+function readOrStale<T>(
+  read: () => T,
+  taskId: string,
+  worktree: string,
+  field: StaleBindingField,
+): T {
+  try {
+    return read()
+  } catch (err) {
+    throw staleBindingError(
+      taskId,
+      worktree,
+      field,
+      err instanceof Error ? err.message : String(err),
+    )
+  }
 }
 
 function assertNativeCheckoutIdentity(
@@ -372,14 +397,22 @@ function assertNativeCheckoutIdentity(
   host: NativeHostContext,
 ): void {
   if (realpathSync(root) !== binding.worktreePath) {
-    throw new Error('task write root does not match the native host binding')
+    throw staleBindingError(state.taskId, binding.worktreePath, 'worktree')
   }
   if (!requestedTaskMatches(requestedTaskId, state.taskId)) {
     throw new Error('task id does not match the native host binding')
   }
-  const live = resolveNativeCheckoutBinding(state.taskId, binding.worktreePath, host)
-  const field = staleBindingField(binding, live)
-  if (field !== undefined) throw staleBindingError(state.taskId, binding.worktreePath, field)
+  const live = resolveNativeCheckout(binding.worktreePath, host)
+  if (live.branch !== binding.branch)
+    throw staleBindingError(state.taskId, binding.worktreePath, 'branch')
+  const bindingId = readOrStale(
+    () => openLogBindingId(canonicalTaskId(state.taskId), live.worktreePath, live.branch),
+    state.taskId,
+    binding.worktreePath,
+    'open-log binding',
+  )
+  if (bindingId !== binding.bindingId)
+    throw staleBindingError(state.taskId, binding.worktreePath, 'task')
 }
 
 function assertNativeTranscriptAttestation(
@@ -388,16 +421,31 @@ function assertNativeTranscriptAttestation(
   host: NativeHostContext,
 ): void {
   const env = host.env ?? process.env
-  assertClaudeProjectDir(binding.worktreePath, env['CLAUDE_PROJECT_DIR'])
+  readOrStale(
+    () => {
+      assertClaudeProjectDir(binding.worktreePath, env['CLAUDE_PROJECT_DIR'])
+    },
+    taskId,
+    binding.worktreePath,
+    'worktree',
+  )
   if (binding.sessionId === undefined) return
-  const sessionId = optionalSessionId(env)
-  if (
-    sessionId !== binding.sessionId ||
-    requireTranscript(binding.worktreePath, sessionId, host.homeDir ?? homedir()) !==
-      binding.transcriptPath
-  ) {
+  const sessionId = readOrStale(
+    () => optionalSessionId(env),
+    taskId,
+    binding.worktreePath,
+    'session',
+  )
+  if (sessionId !== binding.sessionId)
     throw staleBindingError(taskId, binding.worktreePath, 'session')
-  }
+  const transcriptPath = readOrStale(
+    () => requireTranscript(binding.worktreePath, sessionId, host.homeDir ?? homedir()),
+    taskId,
+    binding.worktreePath,
+    'transcript',
+  )
+  if (transcriptPath !== binding.transcriptPath)
+    throw staleBindingError(taskId, binding.worktreePath, 'transcript')
 }
 
 function assertBoundNativeHost(

@@ -1818,7 +1818,8 @@ function buildActiveShipResult(input: {
     phase,
     step: stopMessage === null ? step : { ...step, action: stopMessage },
     advanced,
-    reviewDispatched: preparedRound !== null,
+    // #2910 — a no-seat round (reviewNote set) dispatched nobody.
+    reviewDispatched: preparedRound !== null && reviewNote === undefined,
     ...optionalReviewText(reviewSummary, reviewNote),
     ...(reviewSubject !== undefined ? { reviewSubject } : {}),
     done: phase === 'complete',

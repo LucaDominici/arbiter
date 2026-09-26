@@ -221,6 +221,45 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     expect((thrown as ArbiterError).message).toMatch(/^NOT MERGED/)
   })
 
+  it('#2910 AC-2: a pr-ff merge-commit merge refuses naming both SHAs through runTaskAdvance', () => {
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+    config.features.evidenceHarness = true
+    config.collaborationMode = 'trunk-solo'
+    config.solo = { mergeMode: 'pr-ff' }
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'src/main.ts'), 'export const value = 1\n')
+    writeGatePassEvidence(dir, { taskId: '#2402', level: 'L3' })
+    execFileSync('node', [join(process.cwd(), 'scripts/done-evidence.mjs')], { cwd: dir })
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    const mergeSha = 'b'.repeat(40)
+    let thrown: unknown
+    try {
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        isMergeReachable: () => true,
+        readPrs: () => [
+          {
+            number: 7,
+            state: 'MERGED',
+            baseRefName: 'main',
+            headRefOid: sha,
+            mergeCommit: { oid: mergeSha },
+            mergedAt: '2026-09-09T18:36:22Z',
+          },
+        ],
+      })
+    } catch (err) {
+      thrown = err
+    }
+    expect((thrown as ArbiterError).code).toBe('E_PR_NOT_MERGED')
+    expect((thrown as ArbiterError).message).toContain(
+      `Merged PR head ${sha} ≠ merge commit ${mergeSha}: a merge-commit merge cannot satisfy pr-ff`,
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
   it('AC-2402.1: refuses when the branch has no PR', () => {
     expect(() => runTaskAdvance({ to: 'complete', dir, readPrs: () => [] })).toThrow(/no PR exists/)
   })
