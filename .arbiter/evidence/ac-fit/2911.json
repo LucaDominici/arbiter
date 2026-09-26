@@ -1,0 +1,93 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2911",
+  "criteria": [
+    {
+      "id": "AC-2911.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/record-agent-return.mjs",
+          "line": 310
+        },
+        {
+          "file": "scripts/record-agent-return.mjs",
+          "line": 337
+        },
+        {
+          "file": "__tests__/scripts/coded-script-refusals-2911.test.ts",
+          "line": 89
+        },
+        {
+          "file": "__tests__/scripts/record-agent-return-modes.test.ts",
+          "line": 184
+        }
+      ]
+    },
+    {
+      "id": "AC-2911.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 298
+        },
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 356
+        },
+        {
+          "file": "__tests__/scripts/coded-script-refusals-2911.test.ts",
+          "line": 159
+        }
+      ]
+    },
+    {
+      "id": "AC-2911.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 276
+        },
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 285
+        },
+        {
+          "file": "__tests__/commands/task-advance-gates.test.ts",
+          "line": 390
+        },
+        {
+          "file": "__tests__/commands/task-advance-gates.test.ts",
+          "line": 434
+        }
+      ]
+    },
+    {
+      "id": "AC-2911.4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/record-agent-return.mjs.ejs",
+          "line": 310
+        },
+        {
+          "file": "src/templates/scripts/check-acceptance.mjs.ejs",
+          "line": 276
+        },
+        {
+          "file": "__tests__/scripts/coded-script-refusals-2911.test.ts",
+          "line": 32
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2911-script-refusals",
+  "sha": "95e53643a8c4cdaae32b6d1cde8df31a9f984865",
+  "planHash": "96178defcab7e59e85e363e11bb181815904e4a9",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2911/domain-0.json",
+    "sha256": "b695410535be0341c152b8f0ee88d82f5eb0ba3d800a497effabf4fd8359a21b"
+  }
+}
