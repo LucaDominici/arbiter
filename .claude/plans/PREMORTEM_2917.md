@@ -1,0 +1,1 @@
+# Premortem — #2917. Brief: /home/luca/work/repos/arbiter-assessment/reconciliation/current/step1-allowlist/PROMPT.md. Risk: re-dating hides a real residual; mitigated because #2917 owns both real fixes and the gate goes red again on 2026-10-11.
