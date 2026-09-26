@@ -482,7 +482,7 @@ describe('runCrossModelReview (#2357)', () => {
         }),
       ).toThrow(/HEAD.*frozen|drift/i)
       expect(mockedInvoke).toHaveBeenCalledTimes(1)
-      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched', '_2747.json'))).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -605,7 +605,7 @@ describe('runCrossModelReview (#2357)', () => {
         prompt: 'Review.',
         diff: 'diff',
       })
-      const sidecarPath = join(dir, '.arbiter', 'agents-dispatched.json')
+      const sidecarPath = join(dir, '.arbiter', 'agents-dispatched', '_2357.json')
       expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toEqual({
         count: 2,
         agents: ['anthropic-reviewer', 'codex-reviewer'],
@@ -707,7 +707,7 @@ describe('runCrossModelReview (#2357)', () => {
       })
 
       expect(
-        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched', '_2747.json'), 'utf8')),
       ).toMatchObject({
         count: 3,
         agents: ['anthropic-reviewer', 'anthropic-reviewer-2', 'codex-reviewer'],
@@ -731,9 +731,9 @@ describe('runCrossModelReview (#2357)', () => {
   ])('rejects a malformed existing sidecar: %s', (_label, malformed) => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-invalid-sidecar-'))
     try {
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
       writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_2357.json'),
         JSON.stringify(
           Array.isArray(malformed)
             ? malformed
@@ -752,10 +752,10 @@ describe('runCrossModelReview (#2357)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-sidecar-link-'))
     const outside = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-sidecar-outside-'))
     try {
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
       symlinkSync(
         join(outside, 'agents-dispatched.json'),
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_2357.json'),
       )
       expect(() =>
         runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' }),
@@ -769,7 +769,7 @@ describe('runCrossModelReview (#2357)', () => {
   it('rejects a sidecar path that is not a regular file', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-sidecar-directory-'))
     try {
-      mkdirSync(join(dir, '.arbiter', 'agents-dispatched.json'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched', '_2357.json'), { recursive: true })
       expect(() =>
         runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' }),
       ).toThrow(/regular file/i)
@@ -818,7 +818,7 @@ describe('runCrossModelReview (#2357)', () => {
         }),
       )
       expect(mockedInvoke.mock.calls.at(-1)?.[0]).not.toHaveProperty('access')
-      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(true)
+      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched', '_2357.json'))).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -841,9 +841,9 @@ describe('runCrossModelReview (#2357)', () => {
         cwd: dir,
         encoding: 'utf8',
       }).trim()
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
       writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_2357.json'),
         `${JSON.stringify({
           count: 1,
           agents: ['codex-reviewer'],
@@ -905,9 +905,9 @@ describe('runCrossModelReview (#2357)', () => {
       const branch = 'task/#2357-dirty-cache'
       const sha = 'a'.repeat(40)
       mkdirSync(join(dir, '.git'))
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
       writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_2357.json'),
         `${JSON.stringify({
           count: 1,
           agents: ['codex-reviewer'],
@@ -986,7 +986,7 @@ describe('runCrossModelReview (#2357)', () => {
         recorded: false,
       })
       runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' })
-      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched', '_2357.json'))).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -1130,9 +1130,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         cwd: dir,
         encoding: 'utf8',
       }).trim()
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
       writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_2357.json'),
         JSON.stringify({
           count: 2,
           agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
@@ -1220,7 +1220,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         },
       ])
       const sidecar = JSON.parse(
-        readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
+        readFileSync(join(dir, '.arbiter', 'agents-dispatched', '_2357.json'), 'utf8'),
       ) as {
         count: number
         agents: string[]
@@ -1299,9 +1299,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
   it('treats a sidecar without taskId as stale instead of reusing its panel', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-task-required-'))
     try {
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
       writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_2357.json'),
         JSON.stringify({
           count: 2,
           agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
@@ -1325,7 +1325,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       })
 
       expect(
-        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched', '_2357.json'), 'utf8')),
       ).toEqual({
         count: 2,
         agents: ['anthropic-reviewer', 'codex-reviewer'],
@@ -1345,10 +1345,10 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-native-binding-'))
     try {
       mockedRunCli.mockReturnValue({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
       const native = { vendor: 'anthropic', dispatch: 'subagent' }
       writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_2357.json'),
         JSON.stringify({
           count: 3,
           agents: ['domain', 'security', 'codex-reviewer'],
@@ -1379,7 +1379,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       })
 
       expect(
-        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'))
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched', '_2357.json'), 'utf8'))
           .expectedProvenance,
       ).toEqual({
         domain: native,
@@ -1410,7 +1410,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         collaborationMode: 'trunk-solo',
       })
       expect(
-        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched', '_2357.json'), 'utf8')),
       ).toMatchObject({ count: 1, agents: ['codex-reviewer'] })
     } finally {
       rmSync(dir, { recursive: true, force: true })

@@ -319,7 +319,7 @@ union-only, so specialist evidence may widen a panel but never remove a required
 ### 6.3 Completion is fail-closed on correlated evidence (INV-114)
 
 Before any completion claim, applicable correlated evidence must match the current task, branch and
-candidate. `.arbiter/agents-dispatched.json` proves the persisted independent final-review panel;
+candidate. The per-task `.arbiter/agents-dispatched/<task>.json` proves the persisted independent final-review panel;
 the acceptance-fit artifact covers every frozen AC; `.arbiter/gate-pass.json` binds the exact source
 tree, checkout, toolchain, gate level and TTL. A source change invalidates all three.
 

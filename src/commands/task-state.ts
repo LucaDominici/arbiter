@@ -70,11 +70,24 @@ export function invalidateTaskReceipts(root: string, taskId: string): void {
   for (const path of [
     join(root, '.arbiter', 'gate-pass.json'),
     join(root, '.arbiter', 'ci-pass.json'),
-    join(root, '.arbiter', 'agents-dispatched.json'),
+    join(root, '.arbiter', 'agents-dispatched', `${sanitizeTaskId(taskId)}.json`),
     join(root, '.arbiter', 'evidence', 'ac-fit', `${evidenceId}.json`),
     join(root, '.arbiter', 'evidence', 'agent-returns', `_${evidenceId}`),
   ]) {
     rmTranslated(path, { recursive: true, force: true })
+  }
+  // #2912 — the legacy shared sidecar is removed only when it names this task: a task's
+  // lifecycle event never deletes another task's committed review evidence.
+  const legacy = join(root, '.arbiter', 'agents-dispatched.json')
+  if (legacyDispatchTaskId(legacy) === taskId) rmTranslated(legacy, { force: true })
+}
+
+function legacyDispatchTaskId(path: string): unknown {
+  try {
+    return (JSON.parse(readFileTranslated(path, 'utf8')) as { taskId?: unknown } | null)?.taskId
+  } catch {
+    // FAIL-OPEN-INTENT: an absent or unreadable legacy sidecar is not provably this task's, so it is kept.
+    return undefined
   }
 }
 

@@ -23,7 +23,7 @@ describe('ship is one adaptive delivery narrative', () => {
     expect(content).toContain('ShipTreatment')
     expect(content).toContain('.claude/.task/status.json')
     expect(content).not.toContain('.arbiter/evidence/redteam/')
-    expect(content).toContain('.arbiter/agents-dispatched.json')
+    expect(content).toContain('.arbiter/agents-dispatched/<task>.json')
     expect(content).toContain('check-review-completion.mjs')
     expect(content).toContain('MED/HIGH/CRITICAL')
     expect(content).not.toContain('<%')

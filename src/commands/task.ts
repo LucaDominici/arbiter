@@ -704,7 +704,7 @@ function recordedRecovery(state: UnifiedTaskState | null, taskId: string): strin
       `Candidate: ${state.review?.lastReviewedSha ?? 'not frozen'} · review round: ${state.review?.rounds ?? 0}`,
       `Observed: ${state.cursor.lastAction || 'NO DATA'}`,
       `Next: ${state.cursor.nextAction || RECOVERY_TABLE[state.phase]}`,
-      'Evidence: .arbiter/agents-dispatched.json; .arbiter/gate-pass.json (verify subject before reuse)',
+      `Evidence: .arbiter/agents-dispatched/${sanitizeTaskId(taskId)}.json; .arbiter/gate-pass.json (verify subject before reuse)`,
     ].join('\n') + '\n'
   )
 }
@@ -1568,6 +1568,16 @@ function reviewerFindings(raw: unknown): ReviewRoundEnvelope['findings'] | null 
   return severities.map((severity) => ({ severity }))
 }
 
+function sidecarExists(sidecar: string): boolean {
+  try {
+    lstatSync(sidecar)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw toFsError(error, sidecar)
+  }
+}
+
 /**
  * #2858 — a reviewer return counts for the round only when check-review-completion admits the
  * dispatched panel: one rule for this lookup and the completion gate. Only an absent dispatch
@@ -1580,13 +1590,12 @@ function latestReviewerEnvelopeFor(
   frozenSha: string | null,
 ): ReviewRoundEnvelope | undefined {
   if (taskId === undefined || frozenSha === null) return undefined
-  const sidecar = join(dir, '.arbiter', 'agents-dispatched.json')
-  try {
-    lstatSync(sidecar)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
-    throw toFsError(error, sidecar)
-  }
+  // #2912 — the task's own sidecar, else the legacy shared file (the checker judges its task).
+  const sidecars = [
+    join(dir, '.arbiter', 'agents-dispatched', `${sanitizeTaskId(taskId)}.json`),
+    join(dir, '.arbiter', 'agents-dispatched.json'),
+  ]
+  if (!sidecars.some(sidecarExists)) return undefined
   const envelopes = correlatedReviewEnvelopes(dir, taskId, frozenSha)
   const findings: { severity: string }[] = []
   for (const envelope of envelopes) {

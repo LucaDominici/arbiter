@@ -48,7 +48,7 @@
   {
     "path": "hooks/guard-task-completion.mjs",
     "reason": "Arbiter self-dogfood: inlines getRepoRoot() and readTaskState() instead of importing from lib.mjs, making it self-contained for the arbiter repo's own task-lifecycle enforcement. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "86252a63f5c47294ef864e4a0e5e6f87a8fb9cab996fe844de87144efa5ea4d1"
+    "diffHash": "a5a69598475aae0fa79d5d59d830d2bce089ac1bdd9fbb8a24f15c3dbda016d4"
   },
   {
     "path": "hooks/lib.mjs",

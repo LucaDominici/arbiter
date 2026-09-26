@@ -27,6 +27,8 @@
 // Consumed by scripts/check-cross-model-review.mjs, scripts/check-review-completion.mjs,
 // scripts/check-agent-return.mjs and .claude/hooks/stop-evidence-guard.mjs.
 import { spawnSync } from 'node:child_process'
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 /** Paths that hold evidence itself — a commit touching only these is not a source change. */
 const DEFAULT_EXCLUDES = Object.freeze(['.arbiter', '.agents'])
@@ -116,25 +118,90 @@ function sourceChange(root, sha, excludes) {
 
 /**
  * True when a dispatch sidecar was recorded for a DIFFERENT task than the active one.
+ * A foreign sidecar is treated as ABSENT by the readers, not as a mismatch error.
  *
- * `.arbiter/agents-dispatched.json` is tracked and shared by every branch, so a
- * sidecar left behind by task X otherwise fails every other branch's gate. A
- * foreign sidecar is treated as ABSENT by the readers, not as a mismatch error.
- *
- * Conservative on both sides: a sidecar that declares no task, or an unknown
- * active task, is NOT provably foreign — voiding those would turn every legacy
- * sidecar into a silent hard failure.
+ * An unknown active task is NOT provably foreign. A sidecar that declares no task is
+ * foreign only when `strict` — the legacy shared file (#2912), which counts for a task
+ * only when it names exactly that task.
  *
  * @param {unknown} sidecar parsed sidecar object
  * @param {unknown} activeTaskId task id of the current task, when known
+ * @param {boolean} [strict] treat a sidecar that declares no task as foreign
  * @returns {boolean}
  */
-export function isForeignSidecar(sidecar, activeTaskId) {
-  if (typeof sidecar !== 'object' || sidecar === null) return false
+export function isForeignSidecar(sidecar, activeTaskId, strict = false) {
+  if (typeof sidecar !== 'object' || sidecar === null) return strict
   if (typeof activeTaskId !== 'string' || activeTaskId === '') return false
   const declared = [sidecar.taskId, sidecar.task].filter(
     (value) => typeof value === 'string' && value !== '',
   )
-  if (declared.length === 0) return false
+  if (declared.length === 0) return strict
   return declared.every((value) => value !== activeTaskId)
+}
+
+/** #2912 — the review-dispatch sidecar is one file per task under this directory. */
+export const DISPATCH_SIDECAR_DIR = Object.freeze(['.arbiter', 'agents-dispatched'])
+/** The pre-#2912 single file shared by every branch: read on an exact task match, never written. */
+export const LEGACY_DISPATCH_SIDECAR = join('.arbiter', 'agents-dispatched.json')
+
+/**
+ * Same rule as `sanitizeTaskId` (src/utils/task-id.ts, scripts/lib/gate-evidence.mjs), kept
+ * local so this library stays import-free for consumers that ship it alone.
+ * @param {string} taskId
+ * @returns {string} the task's sidecar file name, e.g. `_2912.json`
+ */
+export function dispatchSidecarName(taskId) {
+  const cleaned = String(taskId)
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 64)
+  return `${cleaned.length > 0 ? cleaned : 'unknown'}.json`
+}
+
+/** @param {string} root @param {string} taskId @returns {string} */
+export function dispatchSidecarPath(root, taskId) {
+  return join(root, ...DISPATCH_SIDECAR_DIR, dispatchSidecarName(taskId))
+}
+
+function branchSidecars(root, branch) {
+  const dir = join(root, ...DISPATCH_SIDECAR_DIR)
+  if (branch === null || !existsSync(dir)) return []
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => join(dir, name))
+    .filter((path) => JSON.parse(readFileSync(path, 'utf-8'))?.branch === branch)
+}
+
+/**
+ * The dispatch sidecar this checkout's readers consult (#2912).
+ *
+ * Known task: its own per-task file, else the legacy file (`legacy: true`, which readers
+ * judge with `isForeignSidecar(…, strict)`). Unknown task (CI runs without `--task` or
+ * task state): the per-task file recorded on the current branch; none → the legacy file
+ * under the readers' existing branch check; more than one → an error, never a guess.
+ *
+ * @param {string} root repository root
+ * @param {unknown} task active task id, when known
+ * @returns {{ path: string, legacy: boolean } | { error: string }}
+ */
+export function locateDispatchSidecar(root, task) {
+  const legacy = { path: join(root, LEGACY_DISPATCH_SIDECAR), legacy: true }
+  if (typeof task === 'string' && task !== '') {
+    const own = dispatchSidecarPath(root, task)
+    // lstat, not exists: a dangling symlink is the task's file, refused by the reader.
+    return lstatSync(own, { throwIfNoEntry: false }) ? { path: own, legacy: false } : legacy
+  }
+  const head = git(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
+  const branch = head.status === 0 ? String(head.stdout).trim() : null
+  let matches
+  try {
+    matches = branchSidecars(root, branch)
+  } catch (err) {
+    return { error: `cannot scan dispatch sidecars: ${err instanceof Error ? err.message : err}` }
+  }
+  if (matches.length > 1) {
+    return {
+      error: `${matches.length} dispatch sidecars name branch ${branch}: ${matches.join(', ')}`,
+    }
+  }
+  return matches.length === 1 ? { path: matches[0], legacy: false } : legacy
 }

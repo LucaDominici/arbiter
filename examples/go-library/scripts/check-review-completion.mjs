@@ -36,7 +36,11 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
-import { evidenceStaleness, isForeignSidecar } from './lib/evidence-binding.mjs'
+import {
+  evidenceStaleness,
+  isForeignSidecar,
+  locateDispatchSidecar,
+} from './lib/evidence-binding.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
@@ -51,9 +55,6 @@ if (argv.includes('--help') || argv.includes('-h')) {
 
 const requestedTask = arg('task', argv)
 const repoRoot = arg('repo-root', argv) ? resolve(arg('repo-root', argv)) : repoDefault
-const sidecarPath = arg('sidecar', argv)
-  ? resolve(arg('sidecar', argv))
-  : join(repoRoot, '.arbiter', 'agents-dispatched.json')
 const evidenceDir = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
   : join(repoRoot, '.arbiter', 'evidence', 'agent-returns')
@@ -84,6 +85,11 @@ function activeTaskId() {
   }
 }
 const activeTask = activeTaskId()
+// #2912 — one sidecar per task; `--sidecar=` still names the file explicitly.
+const located = arg('sidecar', argv)
+  ? { path: resolve(arg('sidecar', argv)), legacy: false }
+  : locateDispatchSidecar(repoRoot, activeTask)
+const sidecarPath = 'path' in located ? located.path : ''
 
 /**
  * @typedef {{ vendor: string, dispatch: string, cli: string }} ExpectedProvenance
@@ -768,7 +774,7 @@ function dirtyCheckoutError(sha) {
 }
 
 /**
- * #2399 — a sidecar recorded for another task is ABSENT, not a mismatch: the tracked
+ * #2399 — a sidecar recorded for another task is ABSENT, not a mismatch: the legacy
  * `.arbiter/agents-dispatched.json` is shared by every branch, so one task's sidecar
  * otherwise fails every other branch's gate.
  *
@@ -776,7 +782,7 @@ function dirtyCheckoutError(sha) {
  * @returns {{ exitCode: number }}
  */
 function sidecarAbsent(reason) {
-  if (correlatedSha) return reportCorrelated([])
+  if (correlatedSha) return reportCorrelated([], [])
   if (requestedTask) {
     process.stderr.write(
       `[check-review-completion] FAIL: dispatch sidecar is required for task ${requestedTask} (${reason})\n`,
@@ -788,6 +794,10 @@ function sidecarAbsent(reason) {
 }
 
 function loadSidecarForCheck() {
+  if ('error' in located) {
+    process.stderr.write(`[check-review-completion] ERROR: ${located.error}\n`)
+    return { exitCode: 2 }
+  }
   const sidecarState = inspectFilePath(sidecarPath)
   if ('error' in sidecarState) {
     process.stderr.write(
@@ -803,9 +813,9 @@ function loadSidecarForCheck() {
     )
     return { exitCode: 2 }
   }
-  if (isForeignSidecar(sidecarResult.sidecar, activeTask)) {
+  if (isForeignSidecar(sidecarResult.sidecar, activeTask, located.legacy)) {
     return sidecarAbsent(
-      `dispatch sidecar belongs to task ${sidecarTask(sidecarResult.sidecar)}, not ${activeTask}`,
+      `dispatch sidecar belongs to task ${sidecarTask(sidecarResult.sidecar) ?? 'none'}, not ${activeTask}`,
     )
   }
   // #2399 — in CI there is no `.claude/.task/status.json` (it is local-only) and the gate

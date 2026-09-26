@@ -2012,7 +2012,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'On a task/ or ship/ branch whose phase is not yet complete, an agent may not end its ' +
       'turn claiming completion (task complete / ready to merge / pr merged …) unless the ' +
       'applicable delivery evidence exists AND correlates to the current branch and HEAD sha: ' +
-      'the agents-dispatched sidecar (.arbiter/agents-dispatched.json) proves independent final ' +
+      'the per-task agents-dispatched sidecar (.arbiter/agents-dispatched/<task>.json) proves independent final ' +
       'review, and the gate-pass marker (.arbiter/gate-pass.json) ' +
       'still BINDS this tree — schema arbiter-gate-pass-v2, head_sha equal to HEAD, matching ' +
       'branch and task id, plus the #2328 identity axes: working-tree content hash, checkout ' +

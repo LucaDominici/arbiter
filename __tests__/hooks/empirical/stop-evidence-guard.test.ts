@@ -121,11 +121,11 @@ function writeCorrelatedEvidence(
   opts: EvidenceOpts = {},
 ) {
   const b = opts.branch ?? branch
-  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
 
   if (opts.omit !== 'dispatch') {
     writeFileSync(
-      join(dir, '.arbiter', 'agents-dispatched.json'),
+      join(dir, '.arbiter', 'agents-dispatched', '_1212.json'),
       JSON.stringify({ count: 4, branch: b, sha: opts.dispatchSha ?? sha }),
     )
   }
@@ -266,7 +266,7 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
       writeCorrelatedEvidence(dir, branch, sha)
       // Overwrite dispatch sidecar with a foreign branch.
       writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched', '_1212.json'),
         JSON.stringify({ count: 4, branch: 'task/other', sha }),
       )
       const t = claimTranscript(dir)
@@ -278,11 +278,11 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
-  // #2399 — the sidecar is tracked and shared by every branch.
+  // #2399/#2912 — the legacy single sidecar is shared by every branch; another task's is absent.
   it('exits 2 when the agents-dispatched sidecar was recorded for another task', () => {
     const { dir, hookPath, branch, sha } = setup()
     try {
-      writeCorrelatedEvidence(dir, branch, sha)
+      writeCorrelatedEvidence(dir, branch, sha, { omit: 'dispatch' })
       writeFileSync(
         join(dir, '.arbiter', 'agents-dispatched.json'),
         JSON.stringify({ count: 4, branch, sha, taskId: '#9999' }),

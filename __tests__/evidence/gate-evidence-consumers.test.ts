@@ -226,8 +226,9 @@ describe('#2328 consumer: stop-evidence-guard hook', () => {
       join(prDir, 'latest.json'),
       JSON.stringify({ verdict: 'PASS', branch: BRANCH, sha, tier: 'Standard' }),
     )
+    mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
     writeFileSync(
-      join(dir, '.arbiter', 'agents-dispatched.json'),
+      join(dir, '.arbiter', 'agents-dispatched', '_2328.json'),
       JSON.stringify({ count: 4, branch: BRANCH, sha }),
     )
   }

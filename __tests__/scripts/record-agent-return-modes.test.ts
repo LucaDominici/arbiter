@@ -301,7 +301,7 @@ describe('record-agent-return evidence modes (#2687)', () => {
 
     expect(result.status, result.stdout + result.stderr).toBe(0)
     expect(
-      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched', '_42.json'), 'utf8')),
     ).toMatchObject({
       count: 1,
       agents: ['domain'],
@@ -318,7 +318,7 @@ describe('record-agent-return evidence modes (#2687)', () => {
 
     expect(result.status, result.stdout + result.stderr).toBe(0)
     expect(
-      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8'))
+      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched', '_42.json'), 'utf8'))
         .expectedProvenance,
     ).toEqual({ domain: { vendor: 'anthropic', dispatch: 'subagent' } })
   })
@@ -342,7 +342,7 @@ describe('record-agent-return evidence modes (#2687)', () => {
 
     expect(result.status).toBe(1)
     expect(result.stdout + result.stderr).toMatch(/citation|does not resolve/i)
-    expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+    expect(existsSync(join(root, '.arbiter', 'agents-dispatched', '_42.json'))).toBe(false)
     expect(existsSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'))).toBe(false)
   })
 

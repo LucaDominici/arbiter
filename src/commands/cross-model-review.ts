@@ -12,6 +12,7 @@ import type { TaskPhase } from './task-state.js'
 import { existsSync, lstatSync, readFileSync } from 'node:fs'
 import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
+import { sanitizeTaskId } from '../utils/task-id.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import {
   blobShaInCommit,
@@ -118,9 +119,21 @@ function assertSafeSidecarFile(path: string): void {
   }
 }
 
-function readSidecar(repoRoot: string): ReviewSidecar | null {
-  const relativePath = join('.arbiter', 'agents-dispatched.json')
-  const path = join(repoRoot, '.arbiter', 'agents-dispatched.json')
+/** #2912 — the review-dispatch sidecar is one file per task. */
+function dispatchSidecarRelative(taskId: string): string {
+  return join('.arbiter', 'agents-dispatched', `${sanitizeTaskId(taskId)}.json`)
+}
+
+/** The task's own sidecar, else the legacy shared file only when it names exactly this task. */
+function readSidecar(repoRoot: string, taskId: string): ReviewSidecar | null {
+  const own = readSidecarFile(repoRoot, dispatchSidecarRelative(taskId))
+  if (own !== null) return own
+  const legacy = readSidecarFile(repoRoot, join('.arbiter', 'agents-dispatched.json'))
+  return legacy?.taskId === taskId ? legacy : null
+}
+
+function readSidecarFile(repoRoot: string, relativePath: string): ReviewSidecar | null {
+  const path = join(repoRoot, relativePath)
   try {
     assertSafeArbiterEvidenceRoot(repoRoot)
     assertSafeSidecarFile(path)
@@ -166,7 +179,7 @@ function currentFulfilledEnvelope(repoRoot: string, taskId: string): ExternalRev
   const branch = currentBranch(repoRoot)
   const sha = headSha(repoRoot)
   if (branch === 'unknown' || sha === 'unknown') return null
-  const sidecar = readSidecar(repoRoot)
+  const sidecar = readSidecar(repoRoot, taskId)
   if (!(
     isCurrentSidecar(sidecar, branch, sha, taskId) &&
     Array.isArray(sidecar.agents) &&
@@ -326,16 +339,16 @@ function writeExternalReviewSidecar({
 }: ExternalReviewSidecarOptions): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   assertSafeArbiterEvidenceRoot(repoRoot)
-  const sidecarPath = join(repoRoot, '.arbiter', 'agents-dispatched.json')
+  const sidecarPath = join(repoRoot, dispatchSidecarRelative(taskId))
   assertSafeSidecarFile(sidecarPath)
   const { branch, sha } = reviewSidecarHead(repoRoot, expectedSha)
-  const existing = readSidecar(repoRoot)
+  const existing = readSidecar(repoRoot, taskId)
   const panel = treatment
     ? treatmentSidecarAgents(existing, treatment.finalReviewers)
     : sidecarAgents(existing, branch, sha, taskId, { tier, collaborationMode })
   writeFileContained(
     repoRoot,
-    join('.arbiter', 'agents-dispatched.json'),
+    dispatchSidecarRelative(taskId),
     `${JSON.stringify(
       {
         ...panel,

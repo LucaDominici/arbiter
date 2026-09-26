@@ -817,7 +817,7 @@ describe('check-cross-model-review (#2358)', () => {
     ])
     expect(result.status).toBe(0)
     expect(
-      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched', '_2358.json'), 'utf8')),
     ).toMatchObject({ count: 3, agents })
   })
 })

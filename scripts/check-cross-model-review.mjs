@@ -11,6 +11,7 @@
 import {
   constants as fsConstants,
   closeSync,
+  mkdirSync,
   openSync,
   readFileSync,
   renameSync,
@@ -22,7 +23,11 @@ import { isAbsolute, join, relative, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { openRegularFileSync } from './lib/run-helpers.mjs'
 import { enforceCitations, validateSchema } from './lib/agent-return-validate.mjs'
-import { evidenceStaleness } from './lib/evidence-binding.mjs'
+import {
+  DISPATCH_SIDECAR_DIR,
+  dispatchSidecarName,
+  evidenceStaleness,
+} from './lib/evidence-binding.mjs'
 
 const args = process.argv.slice(2)
 const requireFulfilled = args.includes('--require-fulfilled')
@@ -477,9 +482,10 @@ if (recordPanel !== undefined) {
   if (!isValidReviewerPanel(agents, recordCount, config.collaborationMode)) {
     error('reviewer panel count does not match its agent list')
   }
+  mkdirSync(join(root, ...DISPATCH_SIDECAR_DIR), { recursive: true })
   writeFileContained(
     root,
-    '.arbiter/agents-dispatched.json',
+    [...DISPATCH_SIDECAR_DIR, dispatchSidecarName(taskId)].join('/'),
     `${JSON.stringify({ count: recordCount, agents, taskId, branch: currentBranch, sha: currentSha })}\n`,
     'reviewer sidecar',
   )

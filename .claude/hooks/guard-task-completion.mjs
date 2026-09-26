@@ -7,7 +7,7 @@ import { readFileSync, existsSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { readStopAssistantText } from './lib.mjs'
+import { readStopAssistantText, sanitizeTaskId } from './lib.mjs'
 
 function getRepoRoot() {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
@@ -41,9 +41,11 @@ function readTaskState(root) {
   }
 }
 
-// .arbiter/agents-dispatched.json, bound to the task that wrote it
+// the task's .arbiter/agents-dispatched/<task>.json, else the legacy single file (#2912),
+// bound to the task that wrote it
 function readDispatched(root, taskId) {
-  const p = join(root, '.arbiter', 'agents-dispatched.json')
+  const own = join(root, '.arbiter', 'agents-dispatched', `${sanitizeTaskId(taskId)}.json`)
+  const p = existsSync(own) ? own : join(root, '.arbiter', 'agents-dispatched.json')
   if (!existsSync(p)) return 0
   try {
     const s = JSON.parse(readFileSync(p, 'utf-8'))

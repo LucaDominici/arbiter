@@ -120,6 +120,9 @@ Even with `--output-schema`, output can arrive fenced or with a preamble. Ordere
 - `.claude/AGENT_REGISTRY.md` — `codex-reviewer` row (Model column already present)
 - `__tests__/integrations/`, `__tests__/commands/task-ship-*`
 - Contract: `arbiter-agent-return-v1` unchanged; `reviewAgents` unchanged; no `.claude/agents/*.md` card
+- Since #2912 the dispatch sidecar is one file per task, `.arbiter/agents-dispatched/<task>.json`
+  (resolver: `scripts/lib/evidence-binding.mjs`); the single `.arbiter/agents-dispatched.json` is
+  legacy, never written, and read only when its `taskId` equals the active task
 
 ## Wave placement
 

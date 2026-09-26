@@ -381,8 +381,9 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     const treatment = readUnifiedState(dir)?.treatment
     if (treatment === undefined) throw new Error('fixture has no persisted ship treatment')
     const panel = treatment.reviewerVerticals
+    mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
     writeFileSync(
-      join(dir, '.arbiter', 'agents-dispatched.json'),
+      join(dir, '.arbiter', 'agents-dispatched', '_100.json'),
       JSON.stringify({
         count: treatment.finalReviewers,
         agents: panel,
@@ -1102,7 +1103,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
   it('#2858 R2: a dangling dispatch-record symlink is an error, not an absent round', () => {
     const originalPath = process.env.PATH ?? ''
     runRound(blockingFail)
-    const sidecar = join(dir, '.arbiter', 'agents-dispatched.json')
+    const sidecar = join(dir, '.arbiter', 'agents-dispatched', '_2747.json')
     rmSync(sidecar)
     symlinkSync(join(dir, 'does-not-exist.json'), sidecar)
     const reviewed = readUnifiedState(dir)?.review
@@ -1113,7 +1114,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
         commitFix(),
         originalPath,
       ),
-    ).toThrow(/agents-dispatched\.json is a symlink/)
+    ).toThrow(/agents-dispatched\/_2747\.json is a symlink/)
     expect(readUnifiedState(dir)?.review).toEqual(reviewed)
   })
 
@@ -1160,7 +1161,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     })
     reviewWith(output, sha, originalPath)
     const sidecar = JSON.parse(
-      readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
+      readFileSync(join(dir, '.arbiter', 'agents-dispatched', '_2747.json'), 'utf8'),
     )
     expect(sidecar).toMatchObject({
       count: 2,

@@ -557,6 +557,37 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
     expect(readUnifiedState(dir)?.review).toEqual({ rounds: 0, lastReviewedSha: null })
     expect(existsSync(join(dir, '.arbiter', 'ci-pass.json'))).toBe(false)
   })
+
+  // #2912 AC-2912.1/AC-2912.3 — a re-anchoring `lifecycle start` removes only this task's own
+  // dispatch sidecar; another task's committed sidecars (legacy and per-task) stay untouched.
+  it('keeps another task committed sidecars byte-identical and the tree clean (#2912)', () => {
+    const dir = anchorRepo()
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' })
+    git('init', '-q', '-b', 'task/#2773-anchor')
+    git('config', 'user.email', 'fixture.invalid')
+    git('config', 'user.name', 'Fixture')
+    writeFileSync(join(dir, '.gitignore'), '.claude/.task/\nnode_modules\n')
+    const dispatched = join(dir, '.arbiter', 'agents-dispatched')
+    mkdirSync(dispatched, { recursive: true })
+    const legacy = join(dir, '.arbiter', 'agents-dispatched.json')
+    const foreign = join(dispatched, '_2911.json')
+    const other = `${JSON.stringify({ count: 1, agents: ['domain'], taskId: '#2911' })}\n`
+    writeFileSync(legacy, other)
+    writeFileSync(foreign, other)
+    git('add', '-A')
+    git('add', '-f', legacy, foreign)
+    git('commit', '-q', '-m', 'test: another task sidecars')
+    writeUnifiedState(dir, { phase: 'refactor', taskId: '#2773', plan: 'plan.md' })
+    const own = join(dispatched, '_2773.json')
+    writeFileSync(own, JSON.stringify({ count: 1, taskId: '#2773' }))
+
+    runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
+
+    expect(existsSync(own)).toBe(false)
+    expect(readFileSync(legacy, 'utf8')).toBe(other)
+    expect(readFileSync(foreign, 'utf8')).toBe(other)
+    expect(git('status', '--porcelain')).toBe('')
+  })
 })
 
 describe('advance --to refactor — the review machinery must have an id to key on (AC-1)', () => {

@@ -63,9 +63,9 @@ function setup(evidenceHarness: boolean) {
 
 /** Write the baseline correlated review-dispatch and gate-pass artifacts. */
 function writeBaselineEvidence(dir: string, branch: string, sha: string) {
-  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  mkdirSync(join(dir, '.arbiter', 'agents-dispatched'), { recursive: true })
   writeFileSync(
-    join(dir, '.arbiter', 'agents-dispatched.json'),
+    join(dir, '.arbiter', 'agents-dispatched', '_1212.json'),
     JSON.stringify({ count: 4, branch, sha }),
   )
   writeGatePassEvidence(dir, { taskId: TASK_ID })

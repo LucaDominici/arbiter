@@ -184,7 +184,7 @@ describe('ship sequencing — pure plan', () => {
       })
 
       expect(
-        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched', '_2802.json'), 'utf8')),
       ).toMatchObject({
         expectedProvenance: {
           'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },

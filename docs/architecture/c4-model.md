@@ -237,7 +237,7 @@ specialists, capped at three. The same panel returns acceptance fit for every fr
 the compiled resolver by `check-agent-dispatch.mjs`; it is not read to make a second runtime tier
 decision. `route-auditors.mjs` calls the resolver and unions in file-path specialists.
 
-**4. Completion is fail-closed (INV-114).** `.arbiter/agents-dispatched.json` must prove the exact
+**4. Completion is fail-closed (INV-114).** The per-task `.arbiter/agents-dispatched/<task>.json` must prove the exact
 persisted reviewer panel, acceptance-fit evidence must cover every criterion, and
 `.arbiter/gate-pass.json` must bind the exact source tree, branch, task, checkout, toolchain, level
 and TTL. Source changes invalidate dependent evidence.

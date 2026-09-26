@@ -130,15 +130,17 @@ function main() {
   }
 
   // 1. dispatch sidecar — review agents dispatched on this branch, and the source they
-  // reviewed is still the source at HEAD (#2399). The sidecar is a TRACKED, branch-shared
-  // file, so one recorded for a different task counts as ABSENT for this one.
-  if (evidenceBinding === null)
+  // reviewed is still the source at HEAD (#2399). The sidecar is one file per task (#2912);
+  // the legacy branch-shared file counts only when it names exactly this task.
+  if (typeof evidenceBinding?.locateDispatchSidecar !== 'function')
     fail(
       'evidence binding verifier unavailable (scripts/lib/evidence-binding.mjs) — dispatch evidence cannot be bound to this tree',
     )
-  const dispatch = readJson(join(root, '.arbiter', 'agents-dispatched.json'))
-  if (dispatch === null) fail('dispatch evidence missing (.arbiter/agents-dispatched.json)')
-  if (evidenceBinding.isForeignSidecar(dispatch, taskId))
+  const located = evidenceBinding.locateDispatchSidecar(root, taskId)
+  const dispatch = 'path' in located ? readJson(located.path) : null
+  if (dispatch === null)
+    fail(`dispatch evidence missing (.arbiter/agents-dispatched/${sanitizeTaskId(taskId)}.json)`)
+  if (evidenceBinding.isForeignSidecar(dispatch, taskId, located.legacy))
     fail(
       `dispatch evidence on disk was recorded for task ${JSON.stringify(dispatch.taskId ?? dispatch.task)}, not ${taskId} — dispatch this task's reviewers`,
     )

@@ -4,7 +4,7 @@
 // CATALOG: envelope file under .arbiter/evidence/agent-returns/** against schemas/agent-return.schema.json,
 // CATALOG: enforces the M12 rule (a structural finding without a resolvable file:line citation is
 // CATALOG: rejected at the tool layer), and under --enforce cross-checks the dispatch sidecar
-// CATALOG: (.arbiter/agents-dispatched.json) so dispatched agents whose returns evaporated into
+// CATALOG: (.arbiter/agents-dispatched/<task>.json) so dispatched agents whose returns evaporated into
 // CATALOG: the context window (the R1 signature) cannot pass silently.
 // CATALOG: Rejected fold-in into check-evidence-bundle.mjs: that validates the per-task TDD
 // CATALOG: evidence-bundle shape (gateResult/redTest/greenTest), a different envelope with its own
@@ -25,7 +25,7 @@ import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { validateSchema, enforceCitations, loadSchema } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
-import { isForeignSidecar } from './lib/evidence-binding.mjs'
+import { isForeignSidecar, locateDispatchSidecar } from './lib/evidence-binding.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
@@ -38,9 +38,6 @@ const SCHEMA_PATH = arg('schema', argv)
   ? resolve(arg('schema', argv))
   : join(repoDefault, 'schemas', 'agent-return.schema.json')
 const REPO_ROOT = arg('repo-root', argv) ? resolve(arg('repo-root', argv)) : repoDefault
-const SIDECAR = arg('sidecar', argv)
-  ? resolve(arg('sidecar', argv))
-  : join(repoDefault, '.arbiter', 'agents-dispatched.json')
 const ENFORCE = argv.includes('--enforce')
 const NON_ENVELOPE_MARKER = 'refutation-required.json'
 
@@ -60,6 +57,12 @@ function activeTaskId() {
     return undefined
   }
 }
+
+// #2912 — one dispatch sidecar per task; `--sidecar=` still names the file explicitly.
+const SIDECAR_AT = arg('sidecar', argv)
+  ? { path: resolve(arg('sidecar', argv)), legacy: false }
+  : locateDispatchSidecar(repoDefault, activeTaskId())
+const SIDECAR = 'path' in SIDECAR_AT ? SIDECAR_AT.path : ''
 
 function main() {
   if (!existsSync(EVIDENCE_DIR)) {
@@ -127,13 +130,17 @@ function main() {
 
   // Dispatch cross-check (--enforce): sidecar records dispatched agents for the branch;
   // zero envelopes for a task that dispatched >0 ⇒ the R1 signature (returns evaporated).
+  if (ENFORCE && 'error' in SIDECAR_AT) {
+    process.stderr.write(`[check-agent-return] ERROR: ${SIDECAR_AT.error}\n`)
+    return 2
+  }
   if (ENFORCE && existsSync(SIDECAR)) {
     try {
       const sidecar = JSON.parse(readFileSync(SIDECAR, 'utf-8'))
-      // #2399: the tracked sidecar is shared by every branch — one recorded for another
+      // #2399: the legacy sidecar is shared by every branch — one recorded for another
       // task says nothing about THIS task's returns, so it counts as absent (an unknown
       // active task proves nothing and keeps the cross-check armed).
-      const foreign = isForeignSidecar(sidecar, activeTaskId())
+      const foreign = isForeignSidecar(sidecar, activeTaskId(), SIDECAR_AT.legacy)
       if (foreign) {
         process.stdout.write(
           `[check-agent-return] dispatch sidecar belongs to task ${sidecar.taskId ?? sidecar.task} — ignored for this task\n`,

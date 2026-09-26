@@ -146,7 +146,7 @@ The final reviewer covers code, tests, and acceptance fit.
 
 `arbiter ship --review-round` owns the final reviewer dispatch and evidence write in the foreground.
 It builds the reviewer brief from the plan stored at the frozen SHA, writes the authoritative
-`.arbiter/agents-dispatched.json` sidecar, and binds the returned envelope to the task, branch,
+per-task `.arbiter/agents-dispatched/<task>.json` sidecar, and binds the returned envelope to the task, branch,
 frozen SHA, provenance, and active treatment;
 do not dispatch reviewers or write reviewer envelopes by hand. Use
 `node scripts/check-review-completion.mjs --task '#NNN'` only for diagnostics.

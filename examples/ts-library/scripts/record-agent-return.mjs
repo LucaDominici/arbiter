@@ -39,6 +39,7 @@ import {
   loadSchema,
 } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
+import { DISPATCH_SIDECAR_DIR, dispatchSidecarName } from './lib/evidence-binding.mjs'
 import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -623,8 +624,8 @@ function writeReviewerPanel(validated, agents, requirement, acceptanceFit, ancho
     const bound = { vendor, dispatch, ...(cli !== undefined ? { cli } : {}) }
     writeAtomicContained(
       REPO_ROOT,
-      ['.arbiter'],
-      'agents-dispatched.json',
+      DISPATCH_SIDECAR_DIR,
+      dispatchSidecarName(TASK_ID),
       `${JSON.stringify({
         count: requirement.count,
         agents,
