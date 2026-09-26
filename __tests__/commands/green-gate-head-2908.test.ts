@@ -107,6 +107,7 @@ describe('#2908 GREEN execution gate is re-run at the reviewed/landed head', () 
     const y = commit(dir, 'test: break the pinned test after refactor entry')
 
     expect(() => runTaskReviewRound({ dir, headSha: y })).toThrow(/GREEN/)
+    // arbiter-allow-vacuous: a refused freeze persists no review state, so absent reads as round 0
     expect(readUnifiedState(dir)?.review?.rounds ?? 0).toBe(0)
 
     // Fix it again at a new commit Z: GREEN re-run at Z passes, freeze is then accepted, and the
