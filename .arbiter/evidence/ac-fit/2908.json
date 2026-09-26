@@ -20,7 +20,7 @@
         },
         {
           "file": "__tests__/commands/green-gate-head-2908-r2.test.ts",
-          "line": 178
+          "line": 173
         }
       ]
     },
@@ -30,11 +30,15 @@
       "evidence": [
         {
           "file": "src/commands/task.ts",
-          "line": 2142
+          "line": 2145
         },
         {
           "file": "src/commands/task.ts",
-          "line": 976
+          "line": 1065
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1800
         },
         {
           "file": "__tests__/commands/green-gate-head-2908.test.ts",
@@ -42,7 +46,7 @@
         },
         {
           "file": "__tests__/commands/green-gate-head-2908-r2.test.ts",
-          "line": 118
+          "line": 120
         }
       ]
     },
@@ -58,10 +62,10 @@
     }
   ],
   "branch": "task/#2908-green-gate-head",
-  "sha": "02c1aa1cd585209e962c21f773dbdc3356e4cf3d",
+  "sha": "923cb18a400750171a1515c10b188a9520a59cab",
   "planHash": "149ca1e4116d5f64ac87687cb76306e54f7af81e",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2908/domain-2.json",
-    "sha256": "4933b48aa3a4b989faa10ccd87fac2f3f8907ee769a7f996061c73334a2836d6"
+    "path": ".arbiter/evidence/agent-returns/_2908/domain-3.json",
+    "sha256": "06afe76add7823fd81525ebaad41dfcacc27239688960b87785892185c64bc7e"
   }
 }
