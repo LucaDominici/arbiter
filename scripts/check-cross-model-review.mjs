@@ -120,6 +120,21 @@ function readFileContained(rootDir, relativePath, label) {
   }
 }
 
+// #2912 — parents are created one component at a time under the O_NOFOLLOW walk, so a
+// symlinked `.arbiter` is refused before anything is created outside the repository.
+function mkdirContained(rootDir, parts) {
+  for (let depth = 0; depth < parts.length; depth += 1) {
+    const parentFd = openContainedDirectory(rootDir, parts.slice(0, depth))
+    try {
+      mkdirSync(join(descriptorPath(parentFd), parts[depth]))
+    } catch (cause) {
+      if (cause?.code !== 'EEXIST') throw cause
+    } finally {
+      closeSync(parentFd)
+    }
+  }
+}
+
 function writeFileContained(rootDir, relativePath, data, label) {
   let dirFd = -1
   let tempFd = -1
@@ -127,6 +142,7 @@ function writeFileContained(rootDir, relativePath, data, label) {
   try {
     const parts = containedParts(relativePath)
     const fileName = parts.pop()
+    mkdirContained(rootDir, parts)
     dirFd = openContainedDirectory(rootDir, parts)
     const dirPath = descriptorPath(dirFd)
     tempPath = join(dirPath, `.arbiter-tmp-${randomBytes(4).toString('hex')}`)
@@ -482,7 +498,6 @@ if (recordPanel !== undefined) {
   if (!isValidReviewerPanel(agents, recordCount, config.collaborationMode)) {
     error('reviewer panel count does not match its agent list')
   }
-  mkdirSync(join(root, ...DISPATCH_SIDECAR_DIR), { recursive: true })
   writeFileContained(
     root,
     [...DISPATCH_SIDECAR_DIR, dispatchSidecarName(taskId)].join('/'),

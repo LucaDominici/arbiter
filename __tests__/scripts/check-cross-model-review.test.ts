@@ -7,6 +7,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -819,6 +820,40 @@ describe('check-cross-model-review (#2358)', () => {
     expect(
       JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched', '_2358.json'), 'utf8')),
     ).toMatchObject({ count: 3, agents })
+  })
+
+  it('#2912 refuses a symlinked sidecar directory without writing outside the repository', () => {
+    json('arbiter.json', {
+      collaborationMode: 'peer-review',
+      crossModelReview: { enabled: true, diffEgressConsent: true, onUnavailable: 'degrade' },
+    })
+    json('.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json', envelope())
+    writeArtifact(
+      dispatch({
+        fulfilled: [
+          {
+            provider: 'codex',
+            cliVersion: '0.5.1',
+            envelope: '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+          },
+        ],
+      }),
+    )
+    const outside = mkdtempSync(join(tmpdir(), 'cross-model-outside-'))
+    try {
+      symlinkSync(outside, join(root, '.arbiter', 'agents-dispatched'), 'dir')
+      const result = run({}, [
+        '--require-fulfilled',
+        '--record-panel',
+        JSON.stringify(['security-reviewer', 'domain-reviewer', 'codex-reviewer']),
+        '--record-count',
+        '3',
+      ])
+      expect(result.status, `${result.stdout}${result.stderr}`).toBe(2)
+      expect(readdirSync(outside)).toEqual([])
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
   })
 })
 

@@ -260,12 +260,14 @@ describe('runWorktreeAdopt', () => {
     const receipts = [
       join(checkout, '.arbiter', 'gate-pass.json'),
       join(checkout, '.arbiter', 'agents-dispatched.json'),
+      join(checkout, '.arbiter', 'agents-dispatched', '_2564.json'),
       join(checkout, '.arbiter', 'evidence', 'ac-fit', '2564.json'),
       join(checkout, '.arbiter', 'evidence', 'agent-returns', '_2564', 'reviewer-0.json'),
     ]
     for (const receipt of receipts) {
       mkdirSync(join(receipt, '..'), { recursive: true })
-      writeFileSync(receipt, '{}\n')
+      // #2912: a legacy sidecar is this task's receipt only when it names the task.
+      writeFileSync(receipt, `${JSON.stringify({ taskId: '#2564' })}\n`)
     }
 
     await runWorktreeAdopt({ taskId: '#2564', worktreePath: secondCheckout, cwd: repo })
@@ -304,12 +306,14 @@ describe('runWorktreeAdopt', () => {
     const receiptPaths = [
       join(checkout, '.arbiter', 'gate-pass.json'),
       join(checkout, '.arbiter', 'agents-dispatched.json'),
+      join(checkout, '.arbiter', 'agents-dispatched', '_2564.json'),
       join(checkout, '.arbiter', 'evidence', 'ac-fit', '2564.json'),
       join(checkout, '.arbiter', 'evidence', 'agent-returns', '_2564', 'reviewer-0.json'),
     ]
     for (const path of receiptPaths) {
       mkdirSync(join(path, '..'), { recursive: true })
-      writeFileSync(path, '{}\n')
+      // #2912: a legacy sidecar is this task's receipt only when it names the task.
+      writeFileSync(path, `${JSON.stringify({ taskId: '#2564' })}\n`)
     }
 
     await runWorktreeAdopt({ taskId: '#2564', worktreePath: checkout, cwd: repo })

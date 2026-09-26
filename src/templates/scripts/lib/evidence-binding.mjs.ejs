@@ -168,7 +168,17 @@ function branchSidecars(root, branch) {
   return readdirSync(dir)
     .filter((name) => name.endsWith('.json'))
     .map((name) => join(dir, name))
-    .filter((path) => JSON.parse(readFileSync(path, 'utf-8'))?.branch === branch)
+    .filter((path) => sidecarBranch(path) === branch)
+}
+
+function sidecarBranch(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8'))?.branch
+    // FAIL-OPEN-INTENT: an unreadable, malformed or directory entry names no branch, so another
+    // task's bad file cannot break this branch's scan; a known task reads its own file directly.
+  } catch {
+    return undefined
+  }
 }
 
 /**
