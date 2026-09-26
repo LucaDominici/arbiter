@@ -265,7 +265,7 @@
     ".claude/hooks/post-commit-check.mjs": "5d0eca146ae4b060f6957da6162e03ef788420a267c3bbb342f072ab11566877",
     ".claude/hooks/post-subagent-release.mjs": "46db4baac0455e94459706a018037268b3360feffbe26ed51f30d1f996970018",
     ".claude/hooks/pre-compact.mjs": "ea7e9ed1fa8b767054add4917f3dc9622b9c0b5b8eed4f277e8438fda831e6a5",
-    ".claude/hooks/pre-edit-plan-anchor.mjs": "ee718e0038a156be737e07565aa74e11db52f9c63e671f08349edda8ef677233",
+    ".claude/hooks/pre-edit-plan-anchor.mjs": "b3c953f703cf393efb299f633e2a809c2e7a5e585932bf3eb520cd7579f0df26",
     ".claude/hooks/pre-edit-ssot-guard.mjs": "e34fc31bda8e0c5436532b41755629ca1390f3bf0f6839e729a867c46a0fa55b",
     ".claude/hooks/pre-spawn-worktree-guard.mjs": "cfbc02fa09db19a2ad30f155ee353082ff0b555f27713759ed0a94920e3266d4",
     ".claude/hooks/stop-dangerous.mjs": "7eebad171833c648eac8cdb18d135449034f49ecae2faeaef92f113fe4b0f255",
