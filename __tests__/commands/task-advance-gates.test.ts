@@ -396,7 +396,9 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
       { name: 'unit tests', kind: 'test-first' },
       { name: 'dogfood', kind: 'constraint' },
     ])
-    expect(() => runTaskAdvance({ to: 'red', dir: wrong })).toThrow(/derived gates/i)
+    expect(() => runTaskAdvance({ to: 'red', dir: wrong })).toThrow(
+      /verification authority scripts\/check-all\.mjs is not recorded in the stored gates/i,
+    )
     expect(readUnifiedState(wrong)?.phase).toBe('plan')
 
     const correct = acceptanceRepo(VALID_PLAN)

@@ -289,7 +289,8 @@ function authorityDrift(stored, contract) {
   const changed = after.filter((entry) => !before.has(key(entry))).map((entry) => entry.path)
   if (changed.length === 0 && before.size === after.length) return null
   const paths = changed.length > 0 ? changed.join(', ') : 'set'
-  return `verification authority ${paths} changed`
+  const how = before.size === 0 ? 'is not recorded in the stored gates' : 'changed'
+  return `verification authority ${paths} ${how}`
 }
 
 // --ac-fit <path>: validate a named artifact against the plan's criteria (all-PASS).
