@@ -1741,9 +1741,13 @@ function assertBaseCurrent(dir: string): void {
 const BAKE_REGENERATE_COMMAND = 'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake'
 const BAKE_SNAPSHOTS = '__tests__/integration/e2e/bake/__snapshots__'
 
-/** #2863 AC-4: a template fix after the last rebake leaves the bake snapshots stale. */
+/**
+ * #2863 AC-4: a template fix after the last rebake leaves the bake snapshots stale.
+ * #2928: a bake that ran green at HEAD (`bakeVerifiedSha`) proves the content fresh.
+ */
 function checkBakeAfterTemplates(dir: string): void {
-  const gates = readUnifiedState(dir)?.derivedGates ?? []
+  const state = readUnifiedState(dir)
+  const gates = state?.derivedGates ?? []
   const owesBake = gates.some(
     (gate) =>
       isRecord(gate) &&
@@ -1752,12 +1756,14 @@ function checkBakeAfterTemplates(dir: string): void {
   )
   if (!owesBake) return
   const git = (args: string[]) => runCli('git', args, { cwd: dir, timeoutMs: 5000 }).stdout.trim()
+  if (state?.bakeVerifiedSha === git(['rev-parse', 'HEAD'])) return
   const rebake = git(['log', '-1', '--format=%H', '--', BAKE_SNAPSHOTS])
   const newerTemplates =
     rebake.length === 0 ? 'no rebake' : git(['rev-list', `${rebake}..HEAD`, '--', 'src/templates'])
   if (newerTemplates.length > 0) {
     throw new Error(
-      `review freeze: a src/templates commit is newer than the last bake snapshot commit; run \`${BAKE_REGENERATE_COMMAND}\` and commit the snapshots last`,
+      `review freeze: a src/templates commit is newer than the last bake snapshot commit; run \`${BAKE_REGENERATE_COMMAND}\` and commit the snapshots last; ` +
+        `if the bake produces no snapshot diff, run \`npm run test:e2e:bake\` at HEAD on a clean tree instead`,
     )
   }
 }
