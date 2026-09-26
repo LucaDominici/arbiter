@@ -8,7 +8,7 @@
       "evidence": [
         {
           "file": "src/integrations/external-review.ts",
-          "line": 338
+          "line": 339
         },
         {
           "file": "src/integrations/external-review.ts",
@@ -21,10 +21,6 @@
         {
           "file": "src/wizard/types.ts",
           "line": 19
-        },
-        {
-          "file": "docs/design/cross-model-review-config.md",
-          "line": 81
         }
       ]
     },
@@ -38,7 +34,7 @@
         },
         {
           "file": "scripts/record-agent-return.mjs",
-          "line": 127
+          "line": 126
         },
         {
           "file": "schemas/agent-return.schema.json",
@@ -56,20 +52,20 @@
         },
         {
           "file": "__tests__/integrations/external-review-model-effort-2905.test.ts",
-          "line": 128
+          "line": 133
         },
         {
-          "file": "__tests__/integrations/external-review-model-effort-2905.test.ts",
-          "line": 134
+          "file": "__tests__/commands/ship-review.test.ts",
+          "line": 846
         }
       ]
     }
   ],
   "branch": "task/#2905-reviewer-engine",
-  "sha": "7542174a888f13ad6c5e0649bb53782e42143570",
+  "sha": "8924ce52e34196971cd2b9639eaf5a8493467fdb",
   "planHash": "4e43560214444841ccec4c56eff8afec8e808ce5",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2905/domain-1.json",
-    "sha256": "14b55cd0f04a05902b364bc3ce40679ecc667243a17ad3f27f1c28e17cc26ddc"
+    "path": ".arbiter/evidence/agent-returns/_2905/domain-0.json",
+    "sha256": "0d706a6118352c6c980ad631ecdf677d5bcfe1b728aedef25d027e3b2c60da0c"
   }
 }
