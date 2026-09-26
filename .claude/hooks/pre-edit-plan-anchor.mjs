@@ -45,7 +45,7 @@ if (process.env.ARBITER_PLAN_BYPASS === '1') {
 // Resolve the edit target once (stdin-JSON tool_input.file_path, env-var fallback) — the
 // stdin payload (fd 0) is consumed at most once, so capture it before any later use.
 const targetRaw = resolveToolInputPath()
-// #2913: the plan anchor guards only this repository; an edit outside it (e.g. /tmp) is not its business.
+// #2913: the plan anchor guards only this repository; an edit outside it (e.g. in the system temp dir) is not its business.
 if (!isPathInThisRepo(targetRaw)) process.exit(0)
 
 const root = getRepoRoot()
