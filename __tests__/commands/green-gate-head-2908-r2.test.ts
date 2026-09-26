@@ -91,8 +91,10 @@ describe('#2908 F1: greenVerifiedSha names HEAD only when tracked files are clea
     const { cwd } = greenRepo()
     dirtyButPassing(cwd)
     runTaskAdvance({ to: 'refactor', dir: cwd })
-    expect(readUnifiedState(cwd)?.phase).toBe('refactor')
-    expect(readUnifiedState(cwd)?.greenVerifiedSha ?? '').toBe('')
+    const state = readUnifiedState(cwd)
+    expect(state).toBeDefined()
+    expect(state!.phase).toBe('refactor')
+    expect(state!.greenVerifiedSha).toBe('')
     expect(logText(cwd)).toMatch(
       /green → refactor \(GREEN ran on uncommitted changes; no green sha recorded\)$/m,
     )
