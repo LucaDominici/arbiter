@@ -1,0 +1,69 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2928",
+  "criteria": [
+    {
+      "id": "AC-2928.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task.ts",
+          "line": 1759
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/fixture-bake.test.ts",
+          "line": 136
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/fixture-bake.test.ts",
+          "line": 237
+        }
+      ]
+    },
+    {
+      "id": "AC-2928.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/bake-freshness-content-2928.test.ts",
+          "line": 104
+        }
+      ]
+    },
+    {
+      "id": "AC-2928.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task.ts",
+          "line": 1764
+        },
+        {
+          "file": "__tests__/commands/bake-freshness-content-2928.test.ts",
+          "line": 122
+        }
+      ]
+    },
+    {
+      "id": "AC-2928.4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/bake-freshness-content-2928.test.ts",
+          "line": 104
+        },
+        {
+          "file": "__tests__/commands/bake-freshness-content-2928.test.ts",
+          "line": 122
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2928-bake-freshness-content",
+  "sha": "ad989226d5d0eebf3b78ae26a11f0fd97a63e5e1",
+  "planHash": "7bccece39958f7c95f4fc6c34f3c4e10db689c79",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2928/domain-0.json",
+    "sha256": "74ddc40724f7164949ff5aad0bd969a5b088725030fa2a3b2feaf25753f900da"
+  }
+}

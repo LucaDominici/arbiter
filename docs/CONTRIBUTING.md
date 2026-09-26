@@ -276,6 +276,11 @@ commit is a governed change like any other: it carries a task id and a RED of it
   blob, `git hash-object <test_path>`) as the LAST paragraph of a commit after RED, so git parses
   it as a trailer; otherwise restore the original test and fix the code. A change the original
   still passes 3/3 is accepted as structural, and the review prompt names every such change.
+- Review freeze or `complete` refused with `GREEN execution gate: …` → a commit after entering
+  `refactor` broke the pinned test or the code under test. When TDD evidence exists, GREEN is
+  re-run at the real HEAD at `refactor` entry, at every review freeze and at `complete` (#2908),
+  so each costs one run of the recorded `test_command`. Fix the code, commit, and retry. The
+  verified SHA is logged as `green=<sha7>` on the review and `complete ← PR #n MERGED` lines.
 - Cannot commit the failing RED test because the pre-commit gate blocks it → `--no-verify` is
   no longer the answer (#2051). While `phase=red`, a commit whose staged paths are ALL tests
   skips the L1 gate (secret scanning and lint still run). Stage source alongside and the full

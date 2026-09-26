@@ -11,11 +11,11 @@ related: []
 
 # Plan Template — Context Block
 
-**Issues:** #689, #695
+**Issues:** #689, #695, #2913
 
-Every plan file under `.claude/plans/` must begin with a Context Block — a YAML front-matter section
-validated by the `pre-edit-plan-anchor` hook. Plans without a Context Block are rejected at edit time.
-Beyond the Context Block, the plan body must carry the mandatory sections listed in /ship's
+A plan file under `.claude/plans/` may begin with a Context Block — a `context:` key in its YAML
+front matter. It is an optional recovery anchor for a reader resuming the task; it is not validated
+by any hook or by admission (#2913). The plan body must carry the mandatory sections listed in /ship's
 `## Plan contents (mandatory sections)`.
 
 ---
@@ -57,11 +57,13 @@ context:
 
 ---
 
-## Required Fields
+## Fields
+
+When you write a Context Block, use these fields.
 
 | Field               | Format                       | Notes                                    |
 | ------------------- | ---------------------------- | ---------------------------------------- |
-| `issue` / `issues`  | `"#NNN"` or list of `"#NNN"` | At least one required                    |
+| `issue` / `issues`  | `"#NNN"` or list of `"#NNN"` | At least one                             |
 | `type`              | conventional-commit keyword  | `feat`, `fix`, `chore`, `docs`, etc.     |
 | `pipeline`          | free text                    | Typically `"plan → impl → gate → PR"`    |
 | `branch_convention` | `task/…` prefix              | Must match actual branch naming          |
@@ -86,9 +88,8 @@ This skips all plan-anchor validation. Not for interactive use.
 
 ## Legacy Plans
 
-Plans written before issue #689 carry a `# [legacy — pre-Context-Block]` header and are
-exempt from the Context Block requirement. Do not add a Context Block to legacy plans
-retroactively — legacy marker is the bypass signal.
+Plans written before issue #689 may carry a `# [legacy — pre-Context-Block]` header. Since #2913
+nothing reads that marker; a plan without a Context Block needs no marker.
 
 ---
 

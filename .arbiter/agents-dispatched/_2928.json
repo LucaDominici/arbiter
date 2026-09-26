@@ -1,0 +1,1 @@
+{"count":1,"agents":["domain"],"auditors":["domain"],"treatmentHash":"8ed7bb483a30465a63b4262bd64be7a1da7174990e3e393cee15bd4f2e94d1a5","expectedProvenance":{"domain":{"vendor":"anthropic","dispatch":"subagent"}},"branch":"task/#2928-bake-freshness-content","sha":"ad989226d5d0eebf3b78ae26a11f0fd97a63e5e1","taskId":"#2928"}

@@ -1,0 +1,59 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2913",
+  "criteria": [
+    {
+      "id": "AC-2913.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/pre-edit-plan-anchor.mjs",
+          "line": 49
+        },
+        {
+          "file": "src/templates/claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+          "line": 49
+        },
+        {
+          "file": "__tests__/hooks/plan-anchor-scope-2913.test.ts",
+          "line": 64
+        }
+      ]
+    },
+    {
+      "id": "AC-2913.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/pre-edit-plan-anchor.mjs",
+          "line": 113
+        },
+        {
+          "file": "__tests__/hooks/plan-anchor-scope-2913.test.ts",
+          "line": 74
+        }
+      ]
+    },
+    {
+      "id": "AC-2913.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/pre-edit-plan-anchor.mjs",
+          "line": 96
+        },
+        {
+          "file": "__tests__/hooks/plan-anchor-scope-2913.test.ts",
+          "line": 88
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2913-plan-anchor-scope",
+  "sha": "bfe0c9fbcf4e2475e4fa6235403f861a5846edc6",
+  "planHash": "1dee000845e50c474e207acf01049c80e7a52509",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2913/domain-0.json",
+    "sha256": "f6c3951ba9515aa1271385604c8c333468b74643c9a04400a2b19947b14cb7c3"
+  }
+}

@@ -1,0 +1,1 @@
+{"count":1,"agents":["domain"],"auditors":["domain"],"treatmentHash":"8ed7bb483a30465a63b4262bd64be7a1da7174990e3e393cee15bd4f2e94d1a5","expectedProvenance":{"domain":{"vendor":"anthropic","dispatch":"subagent"}},"branch":"task/#2908-green-gate-head","sha":"923cb18a400750171a1515c10b188a9520a59cab","taskId":"#2908"}

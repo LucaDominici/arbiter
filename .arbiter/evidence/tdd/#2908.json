@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2908",
+  "test_path": "__tests__/commands/green-gate-head-2908.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "001fc0edc47f176b07c9e8450ae53965dd04620a",
+  "test_blob_sha": "5a439cc5ca7baa7b7d4f7141f90506cf5f49749a",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/green-gate-head-2908.test.ts (3 tests | 2 failed) 213ms\n     × AC-2: the GREEN pass at refactor entry records the SHA it verified 69ms\n     × AC-1/AC-3: freezing Y refuses until GREEN passes at Y, after the pinned test broke post-refactor 74ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 1 passed (3)\n   Start at  07:26:01\n   Duration  573ms (transform 195ms, setup 11ms, import 256ms, tests 213ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/green-gate-head-2908.test.ts > #2908 GREEN execution gate is re-run at the reviewed/landed head > AC-2: the GREEN pass at refactor entry records the SHA it verified\nAssertionError: expected undefined to be '1050728082e260e87a7e06f8033b93d8a8a4e…' // Object.is equality\n\n- Expected:\n\"1050728082e260e87a7e06f8033b93d8a8a4e0a4\"\n\n+ Received:\nundefined\n\n ❯ __tests__/commands/green-gate-head-2908.test.ts:93:53\n     91|     const { x } = seedThroughRefactor(dir)\n     92|     expect(readUnifiedState(dir)?.phase).toBe('refactor')\n     93|     expect(readUnifiedState(dir)?.greenVerifiedSha).toBe(x)\n       |                                                     ^\n     94|   })\n     95|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/commands/green-gate-head-2908.test.ts > #2908 GREEN execution gate is re-run at the reviewed/landed head > AC-1/AC-3: freezing Y refuses until GREEN passes at Y, after the pinned test broke post-refactor\nAssertionError: expected [Function] to throw an error\n\n- Expected:\nnull\n\n+ Received:\nundefined\n\n ❯ __tests__/commands/green-gate-head-2908.test.ts:109:59\n    107|     const y = commit(dir, 'test: break the pinned test after refactor …\n    108|\n    109|     expect(() => runTaskReviewRound({ dir, headSha: y })).toThrow(/GRE…\n       |                                                           ^\n    110|     expect(readUnifiedState(dir)?.review?.rounds ?? 0).toBe(0)\n    111|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/green-gate-head-2908.test.ts",
+  "recorded_at": "2026-09-26T05:26:02.167Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/green-gate-head-2908.test.ts"
+  ]
+}

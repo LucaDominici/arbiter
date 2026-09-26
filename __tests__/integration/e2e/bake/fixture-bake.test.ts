@@ -3,13 +3,15 @@
 // stage to tmpdir, run `arbiter init`, assert generated arbiter.json validates,
 // snapshot the delta of generated files. Bake tier asserts STRUCTURE only —
 // no exec of the generated project (that is C3 functional tier).
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit } from '../../../../src/commands/init.js'
 import { validateConfig } from '../../../../src/config/schema.js'
+import { readUnifiedState, writeUnifiedState } from '../../../../src/commands/task-state.js'
 import { checkEmissionCoherence } from '../../../../scripts/check-emission-coherence.mjs'
 import {
   computeFileDelta,
@@ -125,6 +127,19 @@ describe('listProjectFiles — env-derived files excluded (#1685)', () => {
 })
 
 const fixtures = listFixtures('bake', 'functional').sort()
+let verifiedLanes = 0
+
+// #2928: a complete, green, non-update run on a clean tree proves HEAD's bake content fresh, so
+// the review freeze may trust it over commit order. A failed or filtered-out lane leaves
+// verifiedLanes short; untracked files count because the bake renders the working tree.
+afterAll(() => {
+  if (UPDATE || verifiedLanes !== fixtures.length) return
+  const root = process.cwd()
+  if (readUnifiedState(root) === null) return
+  const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf-8' }).trim()
+  if (git(['status', '--porcelain']).length > 0) return
+  writeUnifiedState(root, { bakeVerifiedSha: git(['rev-parse', 'HEAD']) })
+})
 
 describe.each(fixtures)('bake — %s', (fixture) => {
   const manifest = loadFixtureManifest(fixture)
@@ -219,5 +234,6 @@ describe.each(fixtures)('bake — %s', (fixture) => {
         snap.contentHashes[rel],
       )
     }
+    verifiedLanes++
   })
 })

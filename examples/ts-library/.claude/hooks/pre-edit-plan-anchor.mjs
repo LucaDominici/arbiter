@@ -6,7 +6,7 @@
 // CANON-16: blocks Write to new src/ files lacking a valid Existing Code Survey
 // Exit 2: block — stderr returned to Claude as error context; user is NOT prompted
 // Bypass: ARBITER_PLAN_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
-import { readTaskState, getRepoRoot, resolveToolInputPath } from './lib.mjs';
+import { readTaskState, getRepoRoot, resolveToolInputPath, isPathInThisRepo } from './lib.mjs';
 import { readFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { join, basename, resolve, relative, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -45,6 +45,8 @@ if (process.env.ARBITER_PLAN_BYPASS === '1') {
 // Resolve the edit target once (stdin-JSON tool_input.file_path, env-var fallback) — the
 // stdin payload (fd 0) is consumed at most once, so capture it before any later use.
 const targetRaw = resolveToolInputPath();
+// #2913: the plan anchor guards only this repository; an edit outside it (e.g. in the system temp dir) is not its business.
+if (!isPathInThisRepo(targetRaw)) process.exit(0);
 
 const root = getRepoRoot();
 const { taskId, phase, plan, branch: recordedBranch } = readTaskState(root);

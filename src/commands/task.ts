@@ -27,7 +27,7 @@ import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
 import { ArbiterError, UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
-import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
+import { loadTddEvidence, extractFailureSignature, tddEvidencePath } from '../evidence/tdd.js'
 import { verifyGreenExecution } from '../evidence/tdd-reexecute.js'
 import {
   pathExistsInCommit,
@@ -972,6 +972,12 @@ function premortemLogSuffix(dir: string): string {
   return ` premortem=${premortem.decision} rounds=${reviewStateOf(state).rounds}`
 }
 
+/** #2908 AC-2 — the SHA of the last GREEN pass, in the delivery record. Never read to decide. */
+function greenExecutionLogSuffix(dir: string): string {
+  const sha = readUnifiedState(dir)?.greenVerifiedSha ?? ''
+  return sha === '' ? '' : ` green=${sha.slice(0, 7)}`
+}
+
 /**
  * #2899 — the premortem decision is computed from the current plan manifest at every read and
  * never trusted from status.json. A task without a /ship treatment has no decision.
@@ -1054,7 +1060,10 @@ function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?:
       : evaluateHarnessCompletion(dir, snapshots, candidateSha, opts)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   checkExactMainCi(dir, opts, snapshots, verdict.number)
-  appendLog(dir, `complete ← PR #${verdict.number} MERGED${premortemLogSuffix(dir)}`)
+  appendLog(
+    dir,
+    `complete ← PR #${verdict.number} MERGED${premortemLogSuffix(dir)}${greenExecutionLogSuffix(dir)}`,
+  )
 }
 
 /** #2865 — the plan's `[exact-main]` criterion ids, from the emitted checker (fail-closed). */
@@ -1651,19 +1660,33 @@ function correlatedReviewEnvelopes(
   return envelopes
 }
 
-function assertReviewSubjectFrozen(dir: string): void {
-  checkPlanTrackedAtHead(dir)
-  checkPlanContractCurrent(dir)
-  const dirty = runCli('git', ['status', '--porcelain'], {
+function gitStatusPorcelain(dir: string, extra: readonly string[]): string {
+  return runCli('git', ['status', '--porcelain', ...extra], {
     cwd: dir,
     timeoutMs: 5000,
   }).stdout.trim()
-  if (dirty.length > 0) {
+}
+
+/** #2908 F1 — true only when git proves every tracked file matches HEAD; unreadable git is dirty. */
+function trackedTreeClean(dir: string): boolean {
+  try {
+    // #2908 F3 ceiling: untracked/ignored files are not checked; GREEN may pass on one HEAD lacks.
+    return gitStatusPorcelain(dir, ['--untracked-files=no']).length === 0
+  } catch {
+    return false
+  }
+}
+
+function assertReviewSubjectFrozen(dir: string): void {
+  checkPlanTrackedAtHead(dir)
+  checkPlanContractCurrent(dir)
+  if (gitStatusPorcelain(dir, []).length > 0) {
     throw new Error('review freeze requires a clean HEAD; commit the plan and every candidate fix')
   }
   assertBaseCurrent(dir)
   checkBakeAfterTemplates(dir)
   checkPremortemRequired(dir)
+  checkGreenExecutionAtHead(dir)
 }
 
 /**
@@ -1718,9 +1741,13 @@ function assertBaseCurrent(dir: string): void {
 const BAKE_REGENERATE_COMMAND = 'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake'
 const BAKE_SNAPSHOTS = '__tests__/integration/e2e/bake/__snapshots__'
 
-/** #2863 AC-4: a template fix after the last rebake leaves the bake snapshots stale. */
+/**
+ * #2863 AC-4: a template fix after the last rebake leaves the bake snapshots stale.
+ * #2928: a bake that ran green at HEAD (`bakeVerifiedSha`) proves the content fresh.
+ */
 function checkBakeAfterTemplates(dir: string): void {
-  const gates = readUnifiedState(dir)?.derivedGates ?? []
+  const state = readUnifiedState(dir)
+  const gates = state?.derivedGates ?? []
   const owesBake = gates.some(
     (gate) =>
       isRecord(gate) &&
@@ -1729,12 +1756,14 @@ function checkBakeAfterTemplates(dir: string): void {
   )
   if (!owesBake) return
   const git = (args: string[]) => runCli('git', args, { cwd: dir, timeoutMs: 5000 }).stdout.trim()
+  if (state?.bakeVerifiedSha === git(['rev-parse', 'HEAD'])) return
   const rebake = git(['log', '-1', '--format=%H', '--', BAKE_SNAPSHOTS])
   const newerTemplates =
     rebake.length === 0 ? 'no rebake' : git(['rev-list', `${rebake}..HEAD`, '--', 'src/templates'])
   if (newerTemplates.length > 0) {
     throw new Error(
-      `review freeze: a src/templates commit is newer than the last bake snapshot commit; run \`${BAKE_REGENERATE_COMMAND}\` and commit the snapshots last`,
+      `review freeze: a src/templates commit is newer than the last bake snapshot commit; run \`${BAKE_REGENERATE_COMMAND}\` and commit the snapshots last; ` +
+        `if the bake produces no snapshot diff, run \`npm run test:e2e:bake\` at HEAD on a clean tree instead`,
     )
   }
 }
@@ -1773,7 +1802,8 @@ function isValidPremortemRef(dir: string, ref: string): boolean {
 
 function appendReviewLog(dir: string, plan: PlannedReviewRound): void {
   const at = plan.head === null ? 'an unknown sha' : plan.head.slice(0, 7)
-  appendLog(dir, `review → round ${plan.rounds} at ${at}${plan.forced ? ' (forced)' : ''}`)
+  const forced = plan.forced ? ' (forced)' : ''
+  appendLog(dir, `review → round ${plan.rounds} at ${at}${forced}${greenExecutionLogSuffix(dir)}`)
 }
 
 export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedReviewRound | null {
@@ -1853,6 +1883,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   assertPhaseTransition(current, to, opts.reverse)
 
   // Each transition enforces only the proof due at this point in the lifecycle.
+  let logNote = ''
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
     plan: () => {
       checkTaskSeededGate(dir)
@@ -1873,6 +1904,9 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
       // the very gate this phase's ship.md row promises, so it is refused here.
       checkTaskSeededGate(dir)
       checkGreenExecutionGate(dir)
+      if (!recordGreenVerifiedHead(dir)) {
+        logNote = ' (GREEN ran on uncommitted changes; no green sha recorded)'
+      }
     },
     verification: () => {
       checkPlanContractCurrent(dir)
@@ -1885,8 +1919,9 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
       checkGatePassMarkerGate(dir, 'L1')
     },
     complete: () => {
-      // Marker first: it is the cheap local check, and the pre-existing gate-level contract must
-      // keep failing before the network-touching PR verification runs.
+      // GREEN at HEAD first (refused on a dirty tree), then the local completion evidence, and
+      // only then the network-touching PR verification.
+      checkGreenExecutionAtHead(dir)
       const candidateSha = checkCompletionEvidence(dir)
       checkPrMergedGate(dir, opts, candidateSha)
     },
@@ -1894,7 +1929,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   phaseGates[to]?.()
   // Phase entry never spends a review round. Only an explicit reviewer dispatch does.
   writeUnifiedState(dir, { phase: to })
-  appendLog(dir, `${current} → ${to}`)
+  appendLog(dir, `${current} → ${to}${logNote}`)
   return null
 }
 
@@ -2084,6 +2119,37 @@ function checkGreenExecutionGate(dir: string): void {
   if (!result.ok) {
     throw new Error(`GREEN execution gate: ${result.reason ?? 'recorded RED test did not pass'}`)
   }
+}
+
+/**
+ * #2908 AC-1 — the review freeze and `complete` re-run GREEN at the real HEAD, always, whenever
+ * committed TDD evidence exists. The guard is the evidence file, never the stored SHA.
+ */
+function checkGreenExecutionAtHead(dir: string): void {
+  const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
+  if (!existsSync(tddEvidencePath(taskId, dir))) return
+  if (!trackedTreeClean(dir)) throw greenDirtyTreeError()
+  checkGreenExecutionGate(dir)
+  // A test run that rewrites a tracked file leaves HEAD unverified: refuse, never record (F2).
+  if (!recordGreenVerifiedHead(dir)) throw greenDirtyTreeError()
+}
+
+function greenDirtyTreeError(): ArbiterError {
+  return ArbiterError.fromKey('E_GREEN_DIRTY_TREE', 'errors.E_GREEN_DIRTY_TREE', undefined, {
+    hint: t('errors.E_GREEN_DIRTY_TREE_HINT'),
+  })
+}
+
+/**
+ * #2908 AC-2 — record-only; an unreadable HEAD clears the record, never the GREEN verdict. GREEN
+ * runs in the working tree, so the SHA names HEAD only when tracked files match it after the run;
+ * otherwise the previous SHA is cleared (''), so the record is never stale (F2).
+ */
+function recordGreenVerifiedHead(dir: string): boolean {
+  const clean = trackedTreeClean(dir)
+  const sha = clean ? reviewHead(dir, undefined) : null
+  writeUnifiedState(dir, { greenVerifiedSha: sha ?? '' })
+  return clean
 }
 
 /**

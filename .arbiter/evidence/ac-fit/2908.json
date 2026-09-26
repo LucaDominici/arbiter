@@ -1,0 +1,71 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2908",
+  "criteria": [
+    {
+      "id": "AC-2908.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task.ts",
+          "line": 1689
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1918
+        },
+        {
+          "file": "__tests__/commands/green-gate-head-2908.test.ts",
+          "line": 103
+        },
+        {
+          "file": "__tests__/commands/green-gate-head-2908-r2.test.ts",
+          "line": 173
+        }
+      ]
+    },
+    {
+      "id": "AC-2908.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task.ts",
+          "line": 2145
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1065
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1800
+        },
+        {
+          "file": "__tests__/commands/green-gate-head-2908.test.ts",
+          "line": 89
+        },
+        {
+          "file": "__tests__/commands/green-gate-head-2908-r2.test.ts",
+          "line": 120
+        }
+      ]
+    },
+    {
+      "id": "AC-2908.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/green-gate-head-2908.test.ts",
+          "line": 103
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2908-green-gate-head",
+  "sha": "923cb18a400750171a1515c10b188a9520a59cab",
+  "planHash": "149ca1e4116d5f64ac87687cb76306e54f7af81e",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2908/domain-3.json",
+    "sha256": "06afe76add7823fd81525ebaad41dfcacc27239688960b87785892185c64bc7e"
+  }
+}

@@ -80,7 +80,10 @@ read-only; branch coverage reads `current: not measured at plan`.
 
 When a template change owes the bake regeneration, the review freeze refuses a `src/templates/**`
 commit newer than the latest bake snapshot commit and names
-`BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake`. Rebake last, after the final template fix.
+`BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake`. Rebake last, after the final template fix. When the
+bake produces no snapshot diff, run `npm run test:e2e:bake` at HEAD on a clean tree instead: a
+complete, green run records `bakeVerifiedSha` in the task state, and the freeze accepts exactly that
+HEAD without a snapshot commit.
 
 Arbiter's own pre-push preflight executes cheap final-gate slices that have caused avoidable CI
 rework: the fail-closed audit, anti-telemetry, and the existing complexity and public API baseline

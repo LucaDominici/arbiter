@@ -192,6 +192,10 @@ export interface UnifiedTaskState {
   premortem?: PremortemDecision
   /** #2899 — `ship --premortem` was given; the decision itself is never stored. */
   premortemForced?: true
+  /** #2908 — HEAD at the last GREEN execution pass; a record only, never read to decide. */
+  greenVerifiedSha?: string
+  /** #2928 — HEAD at which the full bake suite ran green, not in update mode, on a clean tree. */
+  bakeVerifiedSha?: string
 }
 
 /** #2400 — how many review rounds this task has spent, and what the last one was pinned to. */
