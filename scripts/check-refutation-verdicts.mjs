@@ -154,7 +154,12 @@ function envelopeVerdict(env, id) {
   const verdicts = new Set(
     refs
       .map((r) => /** @type {Record<string, unknown>} */ (r))
-      .filter((r) => r['target'] === id && /^(UPHELD|REFUTED)$/.test(String(r['verdict'])))
+      .filter(
+        (r) =>
+          r['target'] === id &&
+          typeof r['verdict'] === 'string' &&
+          /^(UPHELD|REFUTED)$/.test(r['verdict']),
+      )
       .map((r) => String(r['verdict'])),
   )
   return verdicts.size === 1 ? [...verdicts][0] : null
