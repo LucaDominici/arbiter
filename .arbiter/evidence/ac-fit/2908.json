@@ -8,23 +8,19 @@
       "evidence": [
         {
           "file": "src/commands/task.ts",
-          "line": 1688
+          "line": 1689
         },
         {
           "file": "src/commands/task.ts",
-          "line": 1917
-        },
-        {
-          "file": "src/commands/task.ts",
-          "line": 2121
+          "line": 1918
         },
         {
           "file": "__tests__/commands/green-gate-head-2908.test.ts",
-          "line": 109
+          "line": 103
         },
         {
           "file": "__tests__/commands/green-gate-head-2908-r2.test.ts",
-          "line": 103
+          "line": 178
         }
       ]
     },
@@ -34,31 +30,19 @@
       "evidence": [
         {
           "file": "src/commands/task.ts",
-          "line": 2139
+          "line": 2142
         },
         {
           "file": "src/commands/task.ts",
           "line": 976
         },
         {
-          "file": "src/commands/task.ts",
-          "line": 1065
-        },
-        {
-          "file": "src/commands/task.ts",
-          "line": 1799
-        },
-        {
           "file": "__tests__/commands/green-gate-head-2908.test.ts",
-          "line": 95
+          "line": 89
         },
         {
           "file": "__tests__/commands/green-gate-head-2908-r2.test.ts",
-          "line": 77
-        },
-        {
-          "file": "__tests__/commands/green-gate-head-2908-r2.test.ts",
-          "line": 120
+          "line": 118
         }
       ]
     },
@@ -68,16 +52,16 @@
       "evidence": [
         {
           "file": "__tests__/commands/green-gate-head-2908.test.ts",
-          "line": 109
+          "line": 103
         }
       ]
     }
   ],
   "branch": "task/#2908-green-gate-head",
-  "sha": "b38ac01b7fa4c5446dc155b0470a3a5b2f8c94e9",
+  "sha": "02c1aa1cd585209e962c21f773dbdc3356e4cf3d",
   "planHash": "149ca1e4116d5f64ac87687cb76306e54f7af81e",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2908/domain-1.json",
-    "sha256": "b62125a5c3e35a789ed0c826a27ff5c8a84c5aa104356e9a8155f12cb068985e"
+    "path": ".arbiter/evidence/agent-returns/_2908/domain-2.json",
+    "sha256": "4933b48aa3a4b989faa10ccd87fac2f3f8907ee769a7f996061c73334a2836d6"
   }
 }
