@@ -122,3 +122,7 @@ closes a round. When the recorder rejects an envelope, its exit code and output 
 carried into `E_REVIEW_NO_DATA` under both `onUnavailable` policies. A generated checker
 that predates the query fails the lookup closed and names
 `arbiter update --only scripts/check-review-completion.mjs`.
+
+Issue #2900: `check-refutation-verdicts.mjs` counts a skeptic refutation toward the quorum only
+when its `verdict` is the string `UPHELD` or `REFUTED`. Any other type (array, number, object,
+null) is not coerced and is not counted.
