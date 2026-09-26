@@ -1,0 +1,95 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2910",
+  "criteria": [
+    {
+      "id": "AC-2910.1",
+      "verdict": "FAIL",
+      "evidence": [
+        {
+          "file": "src/commands/task.ts",
+          "line": 381
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 231
+        },
+        {
+          "file": "__tests__/commands/coded-refusals-2910.test.ts",
+          "line": 68
+        }
+      ]
+    },
+    {
+      "id": "AC-2910.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/pr-merged.ts",
+          "line": 203
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 867
+        },
+        {
+          "file": "__tests__/commands/coded-refusals-2910.test.ts",
+          "line": 90
+        }
+      ]
+    },
+    {
+      "id": "AC-2910.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 258
+        },
+        {
+          "file": "__tests__/commands/ship-review.test.ts",
+          "line": 1293
+        }
+      ]
+    },
+    {
+      "id": "AC-2910.4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 786
+        },
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 1604
+        },
+        {
+          "file": "__tests__/commands/coded-refusals-2910.test.ts",
+          "line": 187
+        }
+      ]
+    },
+    {
+      "id": "AC-2910.5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/coded-refusals-2910.test.ts",
+          "line": 213
+        },
+        {
+          "file": "__tests__/commands/pr-merged.test.ts",
+          "line": 212
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2910-coded-refusals",
+  "sha": "fd746244b819e8e492e343817e2833d85ea51fe1",
+  "planHash": "54451c3e9f054c42e4abedadf4d1c853d85c11aa",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2910/domain-0.json",
+    "sha256": "365fe8498b353e62544dd6190166db434455b504278311ed76d1f0978b565de4"
+  }
+}
