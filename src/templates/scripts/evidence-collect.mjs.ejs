@@ -105,7 +105,7 @@ function collectTestResults() {
 /** @returns {{ line: number, branch: number }} */
 function collectCoverage() {
 <% if (language === 'typescript') { %>
-  const r = spawnSync('npx', ['vitest', 'run', '--coverage', '--coverage.reporter=json', '--reporter=silent'], {
+  const r = spawnSync('npx', ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary'], {
     encoding: 'utf-8', shell: false,
   });
   toolFailed('coverage', r);

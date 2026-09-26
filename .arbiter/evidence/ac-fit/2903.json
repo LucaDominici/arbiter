@@ -1,0 +1,37 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2903",
+  "criteria": [
+    {
+      "id": "AC-2903.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/evidence-collect.mjs.ejs",
+          "line": 108
+        },
+        {
+          "file": "__tests__/scripts/evidence-collect-coverage-2903.test.ts",
+          "line": 78
+        }
+      ]
+    },
+    {
+      "id": "AC-2903.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/evidence-collect-coverage-2903.test.ts",
+          "line": 72
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2903-evidence-coverage",
+  "sha": "79285af27e83a217b48b016189b78d8bbd708569",
+  "planHash": "af81d2eacfea11dc24f70296695b7ea3e1a787b8",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2903/domain-0.json",
+    "sha256": "71c7090ef6f13b036d8d647e48c5fd891594e9625c250d869269dfef2568342c"
+  }
+}
