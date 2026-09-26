@@ -1,0 +1,75 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2905",
+  "criteria": [
+    {
+      "id": "AC-2905.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/integrations/external-review.ts",
+          "line": 338
+        },
+        {
+          "file": "src/integrations/external-review.ts",
+          "line": 433
+        },
+        {
+          "file": "src/config/schema.ts",
+          "line": 1520
+        },
+        {
+          "file": "docs/design/cross-model-review-config.md",
+          "line": 81
+        }
+      ]
+    },
+    {
+      "id": "AC-2905.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/integrations/external-review.ts",
+          "line": 361
+        },
+        {
+          "file": "scripts/record-agent-return.mjs",
+          "line": 126
+        },
+        {
+          "file": "schemas/agent-return.schema.json",
+          "line": 108
+        },
+        {
+          "file": "__tests__/commands/ship-review.test.ts",
+          "line": 841
+        }
+      ]
+    },
+    {
+      "id": "AC-2905.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/integrations/external-review-model-effort-2905.test.ts",
+          "line": 102
+        },
+        {
+          "file": "__tests__/integrations/external-review-model-effort-2905.test.ts",
+          "line": 128
+        },
+        {
+          "file": "__tests__/integrations/external-review-model-effort-2905.test.ts",
+          "line": 134
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2905-reviewer-engine",
+  "sha": "0cb04954479db21baf2af2377e438ebc2703d528",
+  "planHash": "4e43560214444841ccec4c56eff8afec8e808ce5",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2905/domain-0.json",
+    "sha256": "83f4e5fc221fad6400110515b320819451802e244dba8437d2c854bfd9d30b66"
+  }
+}
