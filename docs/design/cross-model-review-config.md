@@ -21,6 +21,8 @@ head, ordered acceptance criteria, non-goals, and acceptance hash, and sends the
 `<base>..HEAD` diff. Missing or malformed frozen criteria and HEAD drift refuse dispatch. Ship pushes
 that candidate and opens or reuses a draft PR first so CI can run concurrently; landing still joins
 exact-head review, acceptance, and green CI evidence.
+When the Codex seat returns no data, the coded `E_REVIEW_NO_DATA` refusal leaves the round open and
+tells the operator to fall back to an independent verifier.
 
 ## Problem statement
 

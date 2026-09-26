@@ -60,5 +60,18 @@
       "docs/internal/SYSTEM/CANON.md",
       "docs/internal/ADR/"
     ]
+  },
+  "crossModelReview": {
+    "enabled": true,
+    "diffEgressConsent": true,
+    "providers": ["codex"],
+    "slots": {
+      "codeReview": 1,
+      "redTeamReview": 0
+    },
+    "timeoutMs": 900000,
+    "onUnavailable": "degrade",
+    "model": "gpt-6-luna",
+    "effort": "max"
   }
 }
