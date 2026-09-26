@@ -94,6 +94,11 @@ arbiter) is:
 }
 ```
 
+For TypeScript targets the collector fills `coverage` by running
+`npx vitest run --coverage --coverage.reporter=json-summary` and reading `total.lines.pct` and
+`total.branches.pct` from the fresh `coverage/coverage-summary.json` it writes. A missing or stale
+summary fails the `coverage` dimension closed.
+
 ---
 
 ## Full example
