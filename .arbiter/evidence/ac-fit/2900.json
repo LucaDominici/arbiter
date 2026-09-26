@@ -1,0 +1,37 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2900",
+  "criteria": [
+    {
+      "id": "AC-2900.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-refutation-verdicts.mjs",
+          "line": 160
+        },
+        {
+          "file": "src/templates/scripts/check-refutation-verdicts.mjs.ejs",
+          "line": 160
+        }
+      ]
+    },
+    {
+      "id": "AC-2900.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/refutation-verdict-type-2900.test.ts",
+          "line": 64
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2900-refutation-verdict-type",
+  "sha": "6a4fb5b57c8f43c849b3cd7999db1b24ec1e9abb",
+  "planHash": "b86a792c4800d68d9ca5eb39aad3839b1b1d016c",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2900/domain-0.json",
+    "sha256": "60bfec57a65c8c363c6c0a3f28e7c6870c17243af54c21dfed1ff4f72f60a35d"
+  }
+}
