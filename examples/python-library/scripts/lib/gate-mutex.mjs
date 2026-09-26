@@ -60,6 +60,15 @@ const TEARDOWN_GRACE_MS = 5_000
 /** Signal numbers for the shell's 128+n exit convention. */
 const SIGNAL_NUMBERS = Object.freeze({ SIGHUP: 1, SIGINT: 2, SIGKILL: 9, SIGTERM: 15 })
 
+// Same set .githooks/pre-push unsets: an inherited redirect must not move the lock to another repo.
+const GIT_REDIRECT_ENV = [
+  'GIT_DIR',
+  'GIT_INDEX_FILE',
+  'GIT_WORK_TREE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_COMMON_DIR',
+]
+
 /**
  * The per-repo lock path — byte-identical to `gateLockPath(deriveGateKey(dir))`
  * in `src/commands/gate-exec.ts`. Every worktree of a repo shares the main
@@ -68,9 +77,13 @@ const SIGNAL_NUMBERS = Object.freeze({ SIGHUP: 1, SIGINT: 2, SIGKILL: 9, SIGTERM
  * every tree it guards.
  */
 export function gateLockPathFor(dir = process.cwd(), env = process.env) {
+  const gitEnv = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !GIT_REDIRECT_ENV.includes(key)),
+  )
   const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
     cwd: dir,
     encoding: 'utf-8',
+    env: gitEnv,
   }).trim()
   // --git-common-dir may be relative (e.g. ".git" from the repo root).
   const absolute = resolve(dir, commonDir)
