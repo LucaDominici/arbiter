@@ -85,7 +85,8 @@
     "E_STALE_HOST_BINDING": "native host binding is stale ({field} no longer matches) \u2014 run arbiter lifecycle preflight --id '{taskId}' --worktree \"{worktree}\"",
     "E_PREMORTEM_REQUIRED": "PREMORTEM REQUIRED ({rule}) \u2014 declare a `premortem:` reference in {plan} (frontmatter, or a PREMORTEM_* manifest path) before the review freeze, or force with --premortem.",
     "E_GREEN_DIRTY_TREE": "GREEN execution gate: tracked files differ from HEAD, so GREEN would not verify HEAD.",
-    "E_GREEN_DIRTY_TREE_HINT": "commit or stash, then retry"
+    "E_GREEN_DIRTY_TREE_HINT": "commit or stash, then retry",
+    "E_GATE_REFUSED": "{detail}"
   },
   "cli": {
     "shared": {

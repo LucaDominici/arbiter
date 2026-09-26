@@ -1716,7 +1716,7 @@ function assertBaseCurrent(dir: string): void {
     // mean the base cannot be proven current, so both refuse the same way.
   }
   const state = readUnifiedState(dir)
-  throw new Error(
+  throw gateRefusal(
     `review round refused: HEAD has not merged origin/${baseBranch}. Run ` +
       `\`git merge --no-edit origin/${baseBranch}\`, then re-anchor with ` +
       `\`arbiter lifecycle start --id '${state?.taskId ?? ''}' --tier ${state?.tier ?? ''} ` +
@@ -1747,7 +1747,7 @@ function checkBakeAfterTemplates(dir: string): void {
   const newerTemplates =
     rebake.length === 0 ? 'no rebake' : git(['rev-list', `${rebake}..HEAD`, '--', 'src/templates'])
   if (newerTemplates.length > 0) {
-    throw new Error(
+    throw gateRefusal(
       `review freeze: a src/templates commit is newer than the last bake snapshot commit; run \`${BAKE_REGENERATE_COMMAND}\` and commit the snapshots last; ` +
         `if the bake produces no snapshot diff, run \`npm run test:e2e:bake\` at HEAD on a clean tree instead`,
     )
@@ -2016,10 +2016,10 @@ function checkAcceptancePlanGate(dir: string): void {
       })
     }
   } catch (err) {
-    throw new Error(
+    throw checkerFailure(
       `acceptance-anchor gate: ${err instanceof Error ? err.message : String(err)}. ` +
         'The red phase was not entered; restore the emitted checker or repair the anchored Markdown plan.',
-      { cause: err },
+      err,
     )
   }
 }
@@ -2049,11 +2049,38 @@ function runRequiredTaskChecker(dir: string, scriptName: string, args: readonly 
   try {
     return runCli('node', [script, ...args], { cwd: dir, timeoutMs: 30_000 }).stdout
   } catch (err) {
-    throw new Error(
+    throw checkerFailure(
       `${scriptName} blocked the lifecycle transition: ${err instanceof Error ? err.message : String(err)}`,
-      { cause: err },
+      err,
     )
   }
+}
+
+/** #2932 — a delivery gate that refused and names its remedy: coded, never `Unexpected error`. */
+function gateRefusal(detail: string, cause?: unknown): ArbiterError {
+  const err = ArbiterError.fromKey('E_GATE_REFUSED', 'errors.E_GATE_REFUSED', { detail })
+  if (cause !== undefined) err.cause = cause
+  return err
+}
+
+const FAIL_LINE = /^(?:\[[\w-]+\] )?FAIL\b/m
+
+/** #2932 AC-2 — only a clean exit 1 with a FAIL line is a refusal; anything else stays a fault. */
+function checkerFailure(detail: string, err: unknown): Error {
+  if (
+    err instanceof CliError &&
+    err.exitCode === 1 &&
+    !err.timedOut &&
+    FAIL_LINE.test(`${err.stdout}\n${err.stderr}`)
+  )
+    return gateRefusal(withStdoutFail(detail, err), err)
+  return new Error(detail, { cause: err })
+}
+
+/** CliError's message carries stderr only; a checker that FAILs on stdout keeps its remedy. */
+function withStdoutFail(detail: string, err: CliError): string {
+  const lines = err.stdout.split('\n').filter((l) => FAIL_LINE.test(l) && !detail.includes(l))
+  return [detail, ...lines].join('\n')
 }
 
 function checkReviewCompletionGate(dir: string): void {

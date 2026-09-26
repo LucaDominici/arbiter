@@ -429,6 +429,19 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     },
   ],
   [
+    'E_GATE_REFUSED',
+    {
+      code: 'E_GATE_REFUSED',
+      summary: 'A delivery gate refused the transition',
+      detail:
+        'A lifecycle or ship gate checked the task and refused: a required checker exited 1 with a ' +
+        'FAIL line (for example stale derived gates or a malformed acceptance anchor), the review ' +
+        'round found HEAD behind origin/main, or a src/templates commit is newer than the bake ' +
+        'snapshots. The refusal is policy, not a fault; the message names the remedy.',
+      recovery: 'Run the remedy named in the message, then retry the same command.',
+    },
+  ],
+  [
     'E_PR_NOT_MERGED',
     {
       code: 'E_PR_NOT_MERGED',
