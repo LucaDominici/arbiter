@@ -54,6 +54,8 @@ export interface PlannedReviewRound {
 export interface ReviewRoundEnvelope {
   sha: string
   findings: readonly { severity: string }[]
+  /** #2926 — check-review-completion's content-binding verdict for `sha` against HEAD. */
+  sourceChanged?: boolean
 }
 
 const BLOCKING_REVIEW_SEVERITIES = new Set(['critical', 'high', 'med'])
@@ -90,7 +92,7 @@ export function evaluateReviewRound(signals: ReviewRoundSignals): ReviewRoundVer
 
 /**
  * #2850 — a round that passed only closes review for the source it saw. `sourceChanged` is the
- * same content binding review completion enforces (scripts/lib/evidence-binding.mjs): when the
+ * verdict review completion itself answers (#2926, scripts/lib/evidence-binding.mjs): when the
  * source moved since the reviewed SHA, the next round must run, or completion refuses a stale
  * sidecar and nothing can ever open the round that would satisfy it.
  */

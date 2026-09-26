@@ -1506,42 +1506,13 @@ function prepareLifecycleReviewRound(
   if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
   const planned = planReviewRound(previous, maxRounds, head, opts.forceReview === true, {
     ...(latestReviewerEnvelope !== undefined ? { envelope: latestReviewerEnvelope } : {}),
-    sourceChanged: reviewedSourceChanged(dir, previous.lastReviewedSha),
+    sourceChanged: latestReviewerEnvelope?.sourceChanged !== false,
   })
   if (planned === null) return null
   if ('allowed' in planned) {
     throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
   }
   return planned
-}
-
-/**
- * #2850 — the content binding review completion enforces (scripts/lib/evidence-binding.mjs):
- * evidence directories are not source. An unreadable comparison counts as changed, so review
- * is re-run rather than a stale verdict reused.
- */
-function reviewedSourceChanged(dir: string, reviewedSha: string | null): boolean {
-  if (reviewedSha === null) return false
-  try {
-    runCli(
-      'git',
-      [
-        'diff',
-        '--quiet',
-        reviewedSha,
-        'HEAD',
-        '--',
-        '.',
-        ':(exclude).arbiter',
-        ':(exclude).agents',
-      ],
-      { cwd: dir, timeoutMs: 5000, retries: 0 },
-    )
-    return false
-    // FAIL-OPEN-INTENT: exit 1 (changed) or any git error means the reviewed source cannot be proven current; the caller opens a new round instead of reusing the verdict.
-  } catch {
-    return true
-  }
 }
 
 function incompleteReviewRetryHead(
@@ -1605,7 +1576,7 @@ function latestReviewerEnvelopeFor(
     join(dir, '.arbiter', 'agents-dispatched.json'),
   ]
   if (!sidecars.some(sidecarExists)) return undefined
-  const envelopes = correlatedReviewEnvelopes(dir, taskId, frozenSha)
+  const { envelopes, sourceChanged } = correlatedReviewEnvelopes(dir, taskId, frozenSha)
   const findings: { severity: string }[] = []
   for (const envelope of envelopes) {
     const correlated = reviewerFindings(envelope['findings'])
@@ -1614,7 +1585,7 @@ function latestReviewerEnvelopeFor(
     }
     findings.push(...correlated)
   }
-  return envelopes.length > 0 ? { sha: frozenSha, findings } : undefined
+  return envelopes.length > 0 ? { sha: frozenSha, findings, sourceChanged } : undefined
 }
 
 /**
@@ -1632,7 +1603,7 @@ function correlatedReviewEnvelopes(
   dir: string,
   taskId: string,
   frozenSha: string,
-): Record<string, unknown>[] {
+): CorrelatedAnswer {
   let stdout: string
   try {
     stdout = runRequiredTaskChecker(dir, 'check-review-completion.mjs', [
@@ -1647,6 +1618,16 @@ function correlatedReviewEnvelopes(
     }
     throw error
   }
+  return parseCorrelatedAnswer(stdout)
+}
+
+interface CorrelatedAnswer {
+  envelopes: Record<string, unknown>[]
+  sourceChanged: boolean
+}
+
+/** #2926 — an answer without the shared `sourceChanged` verdict comes from a stale checker. */
+function parseCorrelatedAnswer(stdout: string): CorrelatedAnswer {
   let parsed: unknown
   try {
     parsed = JSON.parse(stdout)
@@ -1654,10 +1635,15 @@ function correlatedReviewEnvelopes(
     throw staleReviewChecker(stdout, error)
   }
   const envelopes = isRecord(parsed) ? parsed['envelopes'] : undefined
-  if (!Array.isArray(envelopes) || !envelopes.every(isRecord)) {
+  const sourceChanged = isRecord(parsed) ? parsed['sourceChanged'] : undefined
+  if (
+    !Array.isArray(envelopes) ||
+    !envelopes.every(isRecord) ||
+    typeof sourceChanged !== 'boolean'
+  ) {
     throw staleReviewChecker(stdout, undefined)
   }
-  return envelopes
+  return { envelopes, sourceChanged }
 }
 
 function gitStatusPorcelain(dir: string, extra: readonly string[]): string {

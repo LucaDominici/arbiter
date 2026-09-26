@@ -237,7 +237,7 @@ describe('check-review-completion.mjs', () => {
 
     const other = query('deadbeef')
     expect(other.status).toBe(0)
-    expect(JSON.parse(other.stdout)).toEqual({ envelopes: [], seats: {} })
+    expect(JSON.parse(other.stdout)).toEqual({ envelopes: [], seats: {}, sourceChanged: true })
   })
 
   it('#2858 R2: an incomplete panel is no round verdict in query mode', () => {

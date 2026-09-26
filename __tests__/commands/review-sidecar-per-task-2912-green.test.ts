@@ -183,6 +183,6 @@ describe('per-task review-dispatch sidecar resolver (#2912 GREEN)', () => {
     )
     const result = runCheck(root, '--task', '#2914', `--correlated-sha=${sha}`)
     expect(result.exitCode, result.out).toBe(0)
-    expect(JSON.parse(result.out)).toEqual({ envelopes: [], seats: {} })
+    expect(JSON.parse(result.out)).toEqual({ envelopes: [], seats: {}, sourceChanged: false })
   })
 })

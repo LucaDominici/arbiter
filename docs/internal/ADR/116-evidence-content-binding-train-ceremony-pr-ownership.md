@@ -63,6 +63,16 @@ under that number:
 | stop-dangerous protects evidence from destruction only | The guard strips quoted/heredoc content, splits on `;`/`&&`/`\|`/`\|\|`, and blocks only when a segment's command head (`rm`/`unlink`/`truncate`/`mv`/`cp`/`tee`/`sed -i`) or redirect targets `.arbiter/gate-pass.json`, `.arbiter/status.json`, or `.arbiter/evidence/**`.                                                               |
 | `complete` requires MERGED                             | `scripts/pr-merge-watch.mjs` polls until GitHub reports `state === 'MERGED'` with the expected head SHA; a green local gate alone is never sufficient (CLOSER rule 6).                                                                                                                                                                     |
 
+**Base-merged content is not a source change (#2926).** The content rule compares HEAD with the
+evidence sha merged with `merge-base(HEAD, origin/main)` (`git merge-tree --write-tree`, git >= 2.38),
+so a merge of main after a review keeps the evidence bound, while any change authored on the branch,
+tests included, still counts. A merged non-main branch is not exempt, and a conflicted source path
+counts as changed. Without `origin/main`, or when the sha already contains the base, the sha itself is
+compared; any other git failure means "cannot compare" and fails closed (older git re-reviews after a
+merge). This is the one predicate: the review-round opener reads it as `sourceChanged` from
+`check-review-completion --correlated-sha` instead of running its own diff, and a checker whose
+answer lacks the field is refused as stale with the `arbiter update` remedy.
+
 ## Consequences
 
 - Evidence-only commits go to zero by construction: an evidence write no longer moves the sha
