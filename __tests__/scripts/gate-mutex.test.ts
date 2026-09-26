@@ -45,9 +45,29 @@ afterEach(() => {
   }
 })
 
+/**
+ * #2919: fixture git must not inherit the parent's GIT_* or config — under the
+ * Full Gate that runs the real repo's hooks inside the throwaway repo.
+ */
+function hermeticGit(dir: string, args: string[]): void {
+  const env: NodeJS.ProcessEnv = {}
+  for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('GIT_')) env[k] = v
+  execFileSync('git', ['-C', dir, '-c', 'core.hooksPath=/dev/null', ...args], {
+    env: {
+      ...env,
+      GIT_CONFIG_NOSYSTEM: '1',
+      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_AUTHOR_NAME: 'T',
+      GIT_AUTHOR_EMAIL: 't@t.dev',
+      GIT_COMMITTER_NAME: 'T',
+      GIT_COMMITTER_EMAIL: 't@t.dev',
+    },
+  })
+}
+
 function makeRepo(): string {
   const dir = track(realpathSync(mkdtempSync(join(tmpdir(), 'arbiter-2427-mutex-'))))
-  execFileSync('git', ['init', '-q'], { cwd: dir })
+  hermeticGit(dir, ['init', '-q'])
   return dir
 }
 
@@ -90,16 +110,8 @@ describe('#2427 AC-2 — the gate mutex is gate-exec s mutex, not a second one',
   it('every worktree of one repo converges on ONE lock path', () => {
     const dir = makeRepo()
     const sub = join(dir, 'nested')
-    execFileSync('git', ['-C', dir, 'commit', '-q', '--allow-empty', '-m', 'init'], {
-      env: {
-        ...process.env,
-        GIT_AUTHOR_NAME: 'T',
-        GIT_AUTHOR_EMAIL: 't@t.dev',
-        GIT_COMMITTER_NAME: 'T',
-        GIT_COMMITTER_EMAIL: 't@t.dev',
-      },
-    })
-    execFileSync('git', ['-C', dir, 'worktree', 'add', '-q', '-b', 'wt', sub])
+    hermeticGit(dir, ['commit', '-q', '--allow-empty', '-m', 'init'])
+    hermeticGit(dir, ['worktree', 'add', '-q', '-b', 'wt', sub])
     expect(gateLockPathFor(sub)).toBe(gateLockPathFor(dir))
   })
 
