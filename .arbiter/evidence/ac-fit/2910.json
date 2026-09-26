@@ -4,19 +4,19 @@
   "criteria": [
     {
       "id": "AC-2910.1",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "evidence": [
         {
           "file": "src/commands/task.ts",
-          "line": 381
+          "line": 398
         },
         {
-          "file": "src/commands/task.ts",
-          "line": 231
+          "file": "src/i18n/en.json",
+          "line": 85
         },
         {
           "file": "__tests__/commands/coded-refusals-2910.test.ts",
-          "line": 68
+          "line": 81
         }
       ]
     },
@@ -30,11 +30,11 @@
         },
         {
           "file": "src/commands/task.ts",
-          "line": 867
+          "line": 915
         },
         {
-          "file": "__tests__/commands/coded-refusals-2910.test.ts",
-          "line": 90
+          "file": "__tests__/commands/pr-merged.test.ts",
+          "line": 256
         }
       ]
     },
@@ -48,7 +48,7 @@
         },
         {
           "file": "__tests__/commands/ship-review.test.ts",
-          "line": 1293
+          "line": 1297
         }
       ]
     },
@@ -58,15 +58,19 @@
       "evidence": [
         {
           "file": "src/commands/task-ship.ts",
-          "line": 786
-        },
-        {
-          "file": "src/commands/task-ship.ts",
           "line": 1604
         },
         {
+          "file": "src/commands/task-ship.ts",
+          "line": 786
+        },
+        {
           "file": "__tests__/commands/coded-refusals-2910.test.ts",
-          "line": 187
+          "line": 204
+        },
+        {
+          "file": "__tests__/commands/ship-review.test.ts",
+          "line": 627
         }
       ]
     },
@@ -76,20 +80,20 @@
       "evidence": [
         {
           "file": "__tests__/commands/coded-refusals-2910.test.ts",
-          "line": 213
+          "line": 212
         },
         {
           "file": "__tests__/commands/pr-merged.test.ts",
-          "line": 212
+          "line": 220
         }
       ]
     }
   ],
   "branch": "task/#2910-coded-refusals",
-  "sha": "fd746244b819e8e492e343817e2833d85ea51fe1",
+  "sha": "209d56bec3417bbb5767f802b3b9588d31cab7ac",
   "planHash": "54451c3e9f054c42e4abedadf4d1c853d85c11aa",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2910/domain-0.json",
-    "sha256": "365fe8498b353e62544dd6190166db434455b504278311ed76d1f0978b565de4"
+    "path": ".arbiter/evidence/agent-returns/_2910/domain-1.json",
+    "sha256": "4e05ea4995b8b77740acc12f4dada5eacda504f7c41a65c7f291d55b022afff3"
   }
 }
