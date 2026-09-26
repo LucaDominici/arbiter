@@ -11,12 +11,8 @@
           "line": 82
         },
         {
-          "file": "__tests__/commands/task-advance-gates.test.ts",
-          "line": 563
-        },
-        {
           "file": "__tests__/commands/review-sidecar-per-task-2912.test.ts",
-          "line": 153
+          "line": 147
         }
       ]
     },
@@ -29,12 +25,16 @@
           "line": 816
         },
         {
+          "file": "scripts/lib/evidence-binding.mjs",
+          "line": 133
+        },
+        {
           "file": "__tests__/commands/review-sidecar-per-task-2912.test.ts",
-          "line": 191
+          "line": 179
         },
         {
           "file": "__tests__/commands/review-sidecar-per-task-2912-green.test.ts",
-          "line": 132
+          "line": 130
         }
       ]
     },
@@ -50,10 +50,10 @@
     }
   ],
   "branch": "task/#2912-sidecar-per-task",
-  "sha": "5a3eee28015d32fb0d0b411bb547cf17e2ef0b63",
+  "sha": "097029d8e2236ccd91e5c249f952a792b3b6e78e",
   "planHash": "5f087e5a3abc4fc7eb136d62099fc79e214659eb",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2912/domain-0.json",
-    "sha256": "6e56132ec3224c16fdc82b65cde404ca22fc9d11b9223ecdcadf99e36e6aaa19"
+    "path": ".arbiter/evidence/agent-returns/_2912/domain-1.json",
+    "sha256": "9ba9203c8406f3175430646ca76fb33a5e5a34a11b0359d65bb9a2be60f35052"
   }
 }
