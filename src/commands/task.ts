@@ -974,8 +974,8 @@ function premortemLogSuffix(dir: string): string {
 
 /** #2908 AC-2 — the SHA of the last GREEN pass, in the delivery record. Never read to decide. */
 function greenExecutionLogSuffix(dir: string): string {
-  const sha = readUnifiedState(dir)?.greenVerifiedSha
-  return sha === undefined ? '' : ` green=${sha.slice(0, 7)}`
+  const sha = readUnifiedState(dir)?.greenVerifiedSha ?? ''
+  return sha === '' ? '' : ` green=${sha.slice(0, 7)}`
 }
 
 /**
@@ -1670,6 +1670,7 @@ function gitStatusPorcelain(dir: string, extra: readonly string[]): string {
 /** #2908 F1 — true only when git proves every tracked file matches HEAD; unreadable git is dirty. */
 function trackedTreeClean(dir: string): boolean {
   try {
+    // #2908 F3 ceiling: untracked/ignored files are not checked; GREEN may pass on one HEAD lacks.
     return gitStatusPorcelain(dir, ['--untracked-files=no']).length === 0
   } catch {
     return false
@@ -2121,26 +2122,28 @@ function checkGreenExecutionGate(dir: string): void {
 function checkGreenExecutionAtHead(dir: string): void {
   const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
   if (!existsSync(tddEvidencePath(taskId, dir))) return
-  if (!trackedTreeClean(dir)) {
-    throw new ArbiterError(
-      'E_GREEN_DIRTY_TREE',
-      'GREEN execution gate: tracked files differ from HEAD, so GREEN would not verify HEAD.',
-      { hint: 'commit or stash, then retry' },
-    )
-  }
+  if (!trackedTreeClean(dir)) throw greenDirtyTreeError()
   checkGreenExecutionGate(dir)
-  recordGreenVerifiedHead(dir)
+  // A test run that rewrites a tracked file leaves HEAD unverified: refuse, never record (F2).
+  if (!recordGreenVerifiedHead(dir)) throw greenDirtyTreeError()
+}
+
+function greenDirtyTreeError(): ArbiterError {
+  return ArbiterError.fromKey('E_GREEN_DIRTY_TREE', 'errors.E_GREEN_DIRTY_TREE', undefined, {
+    hint: t('errors.E_GREEN_DIRTY_TREE_HINT'),
+  })
 }
 
 /**
- * #2908 AC-2 — record-only; an unreadable HEAD skips the record, never the GREEN verdict. GREEN
- * runs in the working tree, so the SHA is recorded only when tracked files match it (F1).
+ * #2908 AC-2 — record-only; an unreadable HEAD clears the record, never the GREEN verdict. GREEN
+ * runs in the working tree, so the SHA names HEAD only when tracked files match it after the run;
+ * otherwise the previous SHA is cleared (''), so the record is never stale (F2).
  */
 function recordGreenVerifiedHead(dir: string): boolean {
-  if (!trackedTreeClean(dir)) return false
-  const sha = reviewHead(dir, undefined)
-  if (sha !== null) writeUnifiedState(dir, { greenVerifiedSha: sha })
-  return true
+  const clean = trackedTreeClean(dir)
+  const sha = clean ? reviewHead(dir, undefined) : null
+  writeUnifiedState(dir, { greenVerifiedSha: sha ?? '' })
+  return clean
 }
 
 /**

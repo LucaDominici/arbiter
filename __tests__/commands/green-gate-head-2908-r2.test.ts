@@ -37,21 +37,21 @@ const logText = (cwd: string): string =>
   readFileSync(join(cwd, '.claude', '.task', 'log.md'), 'utf-8')
 
 /** A repo at phase `green` with committed RED evidence and a passing HEAD. */
-function greenRepo(): { cwd: string; head: string } {
+function greenRepo(spec = SPEC): { cwd: string; head: string } {
   const cwd = mkdtempSync(join(tmpdir(), 'arbiter-2908-r2-'))
   roots.push(cwd)
   sh(cwd, 'init', '-q', '-b', BRANCH)
   sh(cwd, 'config', 'user.email', 'fixture@arbiter.dev')
   sh(cwd, 'config', 'user.name', 'Fixture')
   writeFileSync(join(cwd, '.gitignore'), '.claude/.task/\n.arbiter/\n')
-  writeFileSync(join(cwd, 'spec.test.js'), SPEC)
+  writeFileSync(join(cwd, 'spec.test.js'), spec)
   writeFileSync(join(cwd, 'impl.txt'), 'no')
   const red = snapshot(cwd, 'test: red')
   writeFileSync(join(cwd, 'impl.txt'), 'ok')
   const head = snapshot(cwd, 'fix: green')
   mkdirSync(join(cwd, '.arbiter', 'evidence', 'tdd'), { recursive: true })
   const blob = createHash('sha1')
-    .update(`blob ${Buffer.byteLength(SPEC)}\0${SPEC}`)
+    .update(`blob ${Buffer.byteLength(spec)}\0${spec}`)
     .digest('hex')
   writeFileSync(
     join(cwd, '.arbiter', 'evidence', 'tdd', '#2908.json'),
@@ -92,7 +92,7 @@ describe('#2908 F1: greenVerifiedSha names HEAD only when tracked files are clea
     dirtyButPassing(cwd)
     runTaskAdvance({ to: 'refactor', dir: cwd })
     expect(readUnifiedState(cwd)?.phase).toBe('refactor')
-    expect(readUnifiedState(cwd)?.greenVerifiedSha).toBeUndefined()
+    expect(readUnifiedState(cwd)?.greenVerifiedSha ?? '').toBe('')
     expect(logText(cwd)).toMatch(
       /green → refactor \(GREEN ran on uncommitted changes; no green sha recorded\)$/m,
     )
@@ -137,5 +137,62 @@ describe('#2908 F1: greenVerifiedSha names HEAD only when tracked files are clea
     expect(logText(cwd)).toMatch(
       new RegExp(`complete ← PR #7 MERGED green=${head.slice(0, 7)}$`, 'm'),
     )
+  })
+})
+
+/** Passes on any `ok*` impl; on `ok snap` the test run itself rewrites the tracked snap.txt. */
+const SPEC_REWRITE = `const fs = require('fs')
+const impl = fs.readFileSync(__dirname + '/impl.txt', 'utf8').trim()
+if (!impl.startsWith('ok')) process.exit(1)
+if (impl === 'ok snap') fs.writeFileSync(__dirname + '/snap.txt', 'rewritten\\n')
+console.log('1 passed')
+`
+
+/** Refactor entered cleanly at X (recorded), then Y committed whose GREEN run dirties snap.txt. */
+function rewritingRepo(): { cwd: string; x: string; y: string } {
+  const { cwd, head: x } = greenRepo(SPEC_REWRITE)
+  runTaskAdvance({ to: 'refactor', dir: cwd })
+  expect(readUnifiedState(cwd)?.greenVerifiedSha).toBe(x)
+  writeFileSync(join(cwd, 'snap.txt'), 'orig\n')
+  writeFileSync(join(cwd, 'impl.txt'), 'ok snap')
+  return { cwd, x, y: snapshot(cwd, 'fix: rewrites snap') }
+}
+
+function codeOf(run: () => unknown): string | undefined {
+  try {
+    run()
+  } catch (err) {
+    return err instanceof ArbiterError ? err.code : String(err)
+  }
+  return undefined
+}
+
+describe('#2908 F2: a GREEN run that rewrites a tracked file never leaves a stale green sha', () => {
+  it('review freeze at Y is refused with E_GREEN_DIRTY_TREE and the X record is cleared', () => {
+    const { cwd, y } = rewritingRepo()
+    expect(codeOf(() => runTaskReviewRound({ dir: cwd, headSha: y }))).toBe('E_GREEN_DIRTY_TREE')
+    expect(readUnifiedState(cwd)?.greenVerifiedSha).toBe('')
+    expect(logText(cwd)).not.toMatch(/review → round 1/)
+  })
+
+  it('complete at Y is refused with the same coded remedy and phase stays close', () => {
+    const { cwd } = rewritingRepo()
+    writeUnifiedState(cwd, { phase: 'close' })
+    const complete = (): unknown =>
+      runTaskAdvance({ to: 'complete', dir: cwd, readPrs: () => [{ number: 7, state: 'MERGED' }] })
+    expect(codeOf(complete)).toBe('E_GREEN_DIRTY_TREE')
+    expect(readUnifiedState(cwd)?.greenVerifiedSha).toBe('')
+    expect(readUnifiedState(cwd)?.phase).toBe('close')
+  })
+
+  it('refactor entry whose run dirties a tracked file clears a previous sha and logs the note', () => {
+    const { cwd } = greenRepo(SPEC_REWRITE)
+    writeFileSync(join(cwd, 'snap.txt'), 'orig\n')
+    writeFileSync(join(cwd, 'impl.txt'), 'ok snap')
+    snapshot(cwd, 'fix: rewrites snap')
+    writeUnifiedState(cwd, { greenVerifiedSha: 'f'.repeat(40) })
+    runTaskAdvance({ to: 'refactor', dir: cwd })
+    expect(readUnifiedState(cwd)?.greenVerifiedSha).toBe('')
+    expect(logText(cwd)).toMatch(/green → refactor \(GREEN ran on uncommitted changes;/m)
   })
 })
