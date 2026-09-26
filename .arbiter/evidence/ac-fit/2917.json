@@ -1,0 +1,45 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2917",
+  "criteria": [
+    {
+      "id": "AC-2917.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/data/doc-gate-allowlist.json",
+          "line": 10
+        },
+        {
+          "file": "scripts/data/doc-gate-allowlist.json",
+          "line": 17
+        },
+        {
+          "file": "__tests__/scripts/doc-gate-allowlist-2917.test.ts",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "id": "AC-2917.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/data/doc-gate-allowlist.json",
+          "line": 8
+        },
+        {
+          "file": "scripts/data/doc-gate-allowlist.json",
+          "line": 15
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2917-allowlist-redate",
+  "sha": "b575947ac6f1ea12ffc41db6bfd16e3b9ff545c1",
+  "planHash": "e438f3174b0a576f87030fb1aa69a1df8a8ed7c0",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2917/domain-0.json",
+    "sha256": "bab3242f5dcc842d94c21a8b4fed22eae2a0c17fc7718b130ca8d50078f3ee35"
+  }
+}
